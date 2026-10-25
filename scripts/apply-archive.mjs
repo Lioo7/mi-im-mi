@@ -13,13 +13,16 @@ for (const f of ['archive-map.json', 'archive-map-b.json']) {
   for (const [url, m] of Object.entries(readJson(path))) if (!map[url]?.snapshot) map[url] = m;
 }
 const rows = readJson(MERGED);
+// Only snapshots whose content was checked (research/archive-verified.json) are published: a capture of an
+// error or maintenance page is worse than no link.
+const verified = new Set(readJson(join(ROOT, 'research', 'archive-verified.json')).verified);
 let set = 0;
 const failed = new Map();
 for (const r of rows) {
   if (r.position === null || !r.sourceUrl) { r.archiveUrl = null; continue; }
   const m = map[r.sourceUrl];
-  if (m?.snapshot) { r.archiveUrl = m.snapshot; set++; }
-  else { r.archiveUrl = null; failed.set(r.sourceUrl, m?.error ?? 'not attempted'); }
+  if (m?.snapshot && verified.has(r.sourceUrl)) { r.archiveUrl = m.snapshot; set++; }
+  else { r.archiveUrl = null; failed.set(r.sourceUrl, m?.snapshot ? 'snapshot not verified (error page or unreachable)' : (m?.error ?? 'not attempted')); }
 }
 writeJson(MERGED, rows);
 const log = [...failed].map(([url, reason]) => ({ sourceUrl: url, reason }));

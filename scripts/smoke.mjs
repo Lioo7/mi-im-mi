@@ -236,6 +236,17 @@ try {
   await sleep(300);
   const backView = await evaluate('document.body.dataset.view');
   if (backView !== 'build') errors.push(`[interaction] "← עריכה" did not return to build (view "${backView}")`);
+  // A position with a verified archive snapshot shows the "עותק בארכיון" link in its cell sheet.
+  const withArchive = JSON.parse(readFileSync(join(ROOT, 'site', 'data', 'positions.json'), 'utf8')).find((p) => p.archiveUrl);
+  if (withArchive) {
+    await c.send('Page.navigate', { url: `${baseUrl}?m=${withArchive.partyId},together#results` });
+    await waitFor(() => evaluate("document.body.dataset.view === 'results' && document.querySelectorAll('.cell').length > 0"));
+    await evaluate(`document.querySelector('.cell[data-party="${withArchive.partyId}"][data-topic="${withArchive.topicId}"]').click()`);
+    await sleep(300);
+    const href = await evaluate("[...document.querySelectorAll('#sheet a')].find((a) => a.textContent.includes('עותק בארכיון'))?.href || ''");
+    if (!/^https:\/\/web\.archive\.org\/web\/\d{14}\//.test(href)) errors.push(`[interaction] cell sheet for ${withArchive.partyId}/${withArchive.topicId} lacks its archive link (${href})`);
+    await shoot(z, 'interaction-archive-link-m.png', false);
+  }
   console.log('  ✓ interactions');
   c.close();
 } catch (e) {
