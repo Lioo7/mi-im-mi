@@ -1,10 +1,10 @@
 # Plan: "מי עם מי", a one-day static web app
-**Tagline:** "בנו קואליציה וגלו איפה היא תתפרק" · **Netlify site:** `mi-im-mi` · **Public GitHub repo:** `Lioo7/mi-im-mi`
+**Tagline:** "בנו קואליציה וגלו איפה היא תתפרק" · **Netlify site:** `mi-im-mi-2026` (`mi-im-mi` was taken by an unrelated site) · **Public GitHub repo:** `Lioo7/mi-im-mi`
 
 ## Before writing any app code
 1. Save this plan (final version) to `PLAN.md` in the project root.
 2. Create `CLAUDE.md` (≤30 lines): project goal, neutrality rules, source and redLine rules, glossary, "data changes only via `scripts/import-csv.mjs`", the test/validate/smoke/deploy commands, RTL/Hebrew conventions, "all UI strings live in `js/strings.js`", and "see PLAN.md for everything else".
-3. ✅ `netlify status`: logged in as lioz.akirav@gmail.com. The site is created as `mi-im-mi` in the **existing team** (currently "People's Budget", which you're renaming to "Lioz Akirav") via `netlify sites:create --name mi-im-mi` at the first draft deploy.
+3. ✅ `netlify status`: logged in as lioz.akirav@gmail.com. The site is created as `mi-im-mi-2026` in the **existing team** (currently "People's Budget", which you're renaming to "Lioz Akirav") via `netlify sites:create --name mi-im-mi-2026` at the first draft deploy.
 
 ## Git workflow
 - `git init` at step 1. **Commit locally at the end of every build step** using short Conventional Commits: `feat:`, `fix:`, `data:`, `chore:`, `docs:`. Each message ends with the required `Co-Authored-By` line.
@@ -53,7 +53,7 @@ Note: `ש״ס` is the only `name` that doesn't appear in its own official list n
 | **Vanilla HTML/CSS/JS (ES modules), no framework, no build step** | About 13 parties × 8 topics, one page, a handful of views. A framework adds KB and setup time for no benefit. Everything is under ~30 KB gzipped. |
 | **System fonts** (`system-ui, "Segoe UI", Arial`) | Hebrew renders well everywhere, and a web font would cost 0 KB to skip, 50–100 KB to load. |
 | **Node (built-in only) scripts** for CSV ↔ JSON + validation, `node --test` for logic | Node 22 is installed. Zero dependencies means nothing to install. |
-| **Netlify**, site `mi-im-mi` | Deploys a folder in one command, supports custom headers, has draft URLs for the reviewer round, and offers Edge Functions later for per-coalition previews. |
+| **Netlify**, site `mi-im-mi-2026` | Deploys a folder in one command, supports custom headers, has draft URLs for the reviewer round, and offers Edge Functions later for per-coalition previews. |
 | **Public GitHub repo `mi-im-mi`** (created via `gh` at step 14) | Data and sources are open for inspection, and the footer links to `site/data/`. `research/` and `review/` are gitignored. |
 | **GoatCounter** (cookieless, page views only) | Lightweight, needs no consent banner. Configured to record **`location.pathname` only** (`window.goatcounter = {path: () => location.pathname}`), so coalition choices in the query string are **never** sent. No events. Until you give me the site code, the snippet stays a commented-out placeholder in `index.html`. |
 | **Smoke test: `scripts/smoke.mjs` using Chrome over the DevTools protocol** (Node 22 built-in `WebSocket`, zero installs) | Playwright is **not** installed on this machine (no npm/global package, no browser cache), and you asked not to install it. Chrome is installed, so the script launches it headless and does the same job. |
