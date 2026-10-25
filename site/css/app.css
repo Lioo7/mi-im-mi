@@ -344,3 +344,5 @@ body[data-view="build"] { padding-block-end: 100px; }
 .f-links a { display: inline-block; padding: 8px 2px; }
 .f-meta { font-size: .8rem; }
 .f-links { display: flex; flex-wrap: wrap; justify-content: center; gap: 0 18px; }
+.logo { inline-size: 26px; block-size: 34px; }
+.logo { inline-size: 30px; block-size: 40px; }

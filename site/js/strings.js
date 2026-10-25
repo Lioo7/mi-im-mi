@@ -1,4 +1,9 @@
 // All user-visible UI strings. Functions take the dynamic parts.
+// Count + noun with the singular spelled out: plural(1, 'נושא אחד', 'נושאים') → "נושא אחד"; plural(3, …) → "3 נושאים".
+export const plural = (n, one, many) => (n === 1 ? one : `${n} ${many}`);
+const topicsN = (n) => plural(n, 'נושא אחד', 'נושאים');
+const inTopics = (n) => (n === 1 ? 'בנושא אחד' : `ב-${n} נושאים`);
+
 export const S = {
   appName: 'מי עם מי',
   tagline: 'בנו קואליציה וגלו איפה היא תתפרק',
@@ -12,7 +17,7 @@ export const S = {
     back: '← עריכה',
     toResults: 'לתוצאות ←',
     backFromMethod: '← חזרה',
-    partyCount: (n) => (n === 1 ? 'מפלגה אחת נבחרה' : `${n} מפלגות נבחרו`),
+    partyCount: (n) => `${plural(n, 'מפלגה אחת', 'מפלגות')} ${n === 1 ? 'נבחרה' : 'נבחרו'}`,
   },
   buildIntro: 'בחרו מפלגות וגלו איפה המצעים מתנגשים ואיפה מסכימים',
   buildPurpose: 'כלי ניטרלי שמראה עד כמה מפלגות שעשויות לשבת יחד בקואליציה מסכימות זו עם זו לפי המצעים שלהן. כל עמדה מגובה במקור. זו לא המלצת הצבעה.',
@@ -52,15 +57,13 @@ export const S = {
     pick: 'בחרו מפלגות',
     hint: '★ מפלגת בסיס (לא חובה): מראה את ההתאמה של כל מפלגה מהבסיס.',
     ownMissing: (n) => `?${n}`,
-    ownMissingLabel: (n) => `אין עמדה מוצהרת ב-${n} נושאים`,
-    impactLabel: (a, c, u) => `ביחס לקואליציה הנוכחית: ${a} נושאים בהסכמה או בפער קל, ${c} בסתירה חזיתית, ${u} בלי עמדה מוצהרת`,
+    ownMissingLabel: (n) => `אין עמדה מוצהרת ${inTopics(n)}`,
+    impactLabel: (a, c, u) => `ביחס לקואליציה הנוכחית: ${topicsN(a)} בהסכמה או בפער קל, ${c} בסתירה חזיתית, ${u} בלי עמדה מוצהרת`,
     impactHeading: 'ביחס לקואליציה הנוכחית',
     impactAgree: 'הסכמה או פער קל',
     impactClash: 'סתירה חזיתית',
     impactUnknown: 'בלי עמדה',
-    clashChipLabel: (n) => n === 1
-      ? 'הוספתה תיצור סתירה חזיתית בנושא אחד'
-      : `הוספתה תיצור סתירה חזיתית ב-${n} נושאים`,
+    clashChipLabel: (n) => `הוספתה תיצור סתירה חזיתית ${inTopics(n)}`,
     coverage: (n) => `עמדות: ${n} מתוך 8`,
     linkedNote: (a, b) => `${a} ו${b} רצו ברשימה משותפת והודיעו שיתפצלו וינהלו משא ומתן בנפרד.`,
   },
@@ -111,7 +114,7 @@ export const S = {
     addPartner: 'הוסיפו שותפה כדי לראות התנגשויות',
     crisesTitle: (n) => n === 1 ? 'המשבר שמחכה לקואליציה הזו' : `${n} המשברים שמחכים לקואליציה הזו`,
     noCrises: 'אין פערים מהותיים בין השותפות',
-    morePairs: (n) => n === 1 ? 'ועוד זוג אחד' : `ועוד ${n} זוגות`,
+    morePairs: (n) => `ועוד ${plural(n, 'זוג אחד', 'זוגות')}`,
     glueTitle: 'מה מדביק אותה',
     noGlue: 'אין נושא שכל השותפות מסכימות עליו',
     noAgree: 'אין נושא שבו כל השותפות מסכימות בדיוק (באותה נקודה בסולם).',
@@ -123,16 +126,15 @@ export const S = {
     frictionTie: 'השותפות שמייצרות הכי הרבה חיכוך',
     whatIfRemove: 'מה אם נוריד אותה?',
     withoutPreview: (clashes, before, seats) => {
-      const topics = (n) => (n === 1 ? 'נושא אחד' : `${n} נושאים`);
-      const text = `בלעדיה: ${topics(clashes)} בסתירה חזיתית במקום ${before}`;
+      const text = `בלעדיה: ${topicsN(clashes)} בסתירה חזיתית במקום ${before}`;
       return seats == null ? text : `${text} · כ-${seats} מנדטים`;
     },
     removed: (n) => `${n} הוסרה`,
     undo: 'בטלו',
-    overall: (x, y) => `${x} מתוך ${y} נושאים ללא סתירה חזיתית`,
+    overall: (x, y) => `${x} מתוך ${topicsN(y)} ללא סתירה חזיתית`,
     // [text, css class, always shown]; zero counts are hidden except head-on clashes and no data.
     breakdown: (a, mi, m, c, w) => [
-      [`${a} נושאים בהסכמה`, 'bd-ok', false],
+      [`${topicsN(a)} בהסכמה`, 'bd-ok', false],
       [`${mi} בפער קל`, 'bd-minor', false],
       [`${m} בפער מהותי`, 'bd-major', false],
       [`${c} בסתירה חזיתית`, 'bd-clash', true],
@@ -143,7 +145,7 @@ export const S = {
     noData: 'אין נתונים',
     coverageLine: (toName, n) => `* ${toName} אין עמדה מוצהרת ב-${n} מתוך 8 הנושאים.`,
     coverageTail: 'נושאים בלי עמדה לא נספרים, ולכן ייתכן שהקואליציה נראית הרמונית יותר משהיא באמת.',
-    live: (name, n) => (n === 1 ? `${name}: נושא אחד בסתירה חזיתית בקואליציה` : `${name}: ${n} נושאים בסתירה חזיתית בקואליציה`),
+    live: (name, n) => `${name}: ${topicsN(n)} בסתירה חזיתית בקואליציה`,
   },
 
   matrix: {
@@ -188,14 +190,14 @@ export const S = {
     compareWith: 'השוו עם…',
     choose: 'בחרו מפלגה להשוואה',
     summary: (agree, minor, major, clash, n) =>
-      `מסכימות ב-${agree}, פער קל ב-${minor}, פער מהותי ב-${major}, סתירה חזיתית ב-${clash}, מתוך ${n} נושאים`,
+      `מסכימות ב-${agree}, פער קל ב-${minor}, פער מהותי ב-${major}, סתירה חזיתית ב-${clash}, מתוך ${topicsN(n)}`,
   },
 
   share: {
     button: 'שתפו',
     copied: 'הקישור הועתק',
     whatsapp: 'שלחו בוואטסאפ',
-    text: (names, clashes) => `הקואליציה שבניתי: ${names} · ${clashes === 1 ? 'נושא אחד' : `${clashes} נושאים`} בסתירה חזיתית`,
+    text: (names, clashes) => `הקואליציה שבניתי: ${names} · ${topicsN(clashes)} בסתירה חזיתית`,
   },
 
   method: {
