@@ -238,3 +238,12 @@ test('breakdown counts agreement and minor gaps separately', () => {
   const st = [{ status: 'AGREE' }, { status: 'MINOR' }, { status: 'MINOR' }, { status: 'MAJOR' }, { status: 'CLASH' }, { status: 'CLASH' }, { status: 'NODATA' }];
   assert.deepEqual(breakdown(st), { agree: 1, minor: 2, major: 1, clash: 2, nodata: 1 });
 });
+
+test('withoutDelta: clash counts first, then substantial gaps, else null', async () => {
+  const { withoutDelta } = await import('../site/js/compat.js');
+  const st = (...s) => s.map((status, i) => ({ topicId: `t${i}`, status }));
+  assert.deepEqual(withoutDelta(st('CLASH', 'CLASH', 'MAJOR'), st('CLASH', 'MINOR', 'MINOR')), { kind: 'clash', before: 2, after: 1 });
+  assert.deepEqual(withoutDelta(st('MAJOR', 'MAJOR', 'MAJOR'), st('MAJOR', 'MINOR', 'MINOR')), { kind: 'major', before: 3, after: 1 });
+  assert.equal(withoutDelta(st('MINOR', 'AGREE'), st('AGREE', 'AGREE')), null);
+  assert.equal(withoutDelta(st('CLASH', 'MAJOR'), st('CLASH', 'MAJOR')), null);
+});

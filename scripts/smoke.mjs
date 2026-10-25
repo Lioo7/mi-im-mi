@@ -194,7 +194,7 @@ try {
         if (box !== 'ok') errors.push(`[${current}] seats box: ${box}`);
         const line = await evaluate("(() => { const e = document.querySelector('#builder .seats-box .seats-line'); const lh = parseFloat(getComputedStyle(e).lineHeight); return e.getBoundingClientRect().height > lh * 1.5 ? 'wraps' : 'ok'; })()");
         if (line !== 'ok') errors.push(`[${current}] seat line wraps onto two lines`);
-        const chipsBelow = await evaluate("(() => { const b = document.querySelector('#builder .seats-box'); const c = document.querySelector('#builder .chips'); return b.compareDocumentPosition(c) & Node.DOCUMENT_POSITION_FOLLOWING ? 'ok' : 'chips before box'; })()");
+        const chipsBelow = await evaluate("(() => { const b = document.querySelector('#builder .seats-box'); const c = document.querySelector('#builder .plist'); return b.compareDocumentPosition(c) & Node.DOCUMENT_POSITION_FOLLOWING ? 'ok' : 'chips before box'; })()");
         if (chipsBelow !== 'ok') errors.push(`[${current}] seats box must sit directly above the chips`);
         // The sticky bar holds only the party count and the button: no seats, no poll text.
         const barInfo = await evaluate("(() => { const b = document.querySelector('#bar'); return b.hidden ? 'hidden' : b.innerText.replace(/\\s+/g, ' ').trim(); })()");
@@ -205,6 +205,17 @@ try {
             const bad = pts.filter(([x, y]) => { const e = document.elementFromPoint(x, y); return !e || !(a === e || a.contains(e)); }); return bad.length ? 'covered by ' + (document.elementFromPoint(bad[0][0], bad[0][1])?.id || document.elementFromPoint(bad[0][0], bad[0][1])?.tagName) : 'ok'; })()`);
           if (btn !== 'ok') errors.push(`[${current}] bar button obscured: ${btn}`);
         } else if (barInfo !== 'hidden') errors.push(`[${current}] sticky bar should be hidden with no party selected`);
+      }
+      if (expectView === 'build') {
+        // Party picker: one checkbox row per party, no nested controls inside a checkbox, rows >= 44px, aligned pill column.
+        const pick = await evaluate(`(() => { const rows = [...document.querySelectorAll('#builder .prow-main')]; if (rows.length !== ${parties.length}) return 'rows ' + rows.length;
+          if (rows.some((r) => r.getAttribute('role') !== 'checkbox' || !['true', 'false'].includes(r.getAttribute('aria-checked')))) return 'role/aria-checked';
+          if (rows.some((r) => r.querySelector('button, a, input'))) return 'nested control in a checkbox row';
+          if (rows.some((r) => r.getBoundingClientRect().height < 44)) return 'row under 44px';
+          if (document.querySelector('#builder .mini, #builder [data-act="base"]')) return 'star/remove buttons still in the picker';
+          const xs = [...document.querySelectorAll('#builder .pills')].map((e) => Math.round(e.getBoundingClientRect().left)); if (new Set(xs).size > 1) return 'pills not aligned: ' + [...new Set(xs)].join(',');
+          return 'ok'; })()`);
+        if (pick !== 'ok') errors.push(`[${current}] party picker: ${pick}`);
       }
       if (expectView === 'results' && meta.showSeats !== false) {
         const ok = await evaluate(`document.querySelectorAll('#results .seats-line').length === 0 || document.querySelector('#results').innerText.replace(/\\s+/g, ' ').includes(${JSON.stringify(legal)})`);
@@ -256,6 +267,64 @@ try {
     if (!/^https:\/\/web\.archive\.org\/web\/\d{14}\//.test(href)) errors.push(`[interaction] cell sheet for ${withArchive.partyId}/${withArchive.topicId} lacks its archive link (${href})`);
     await shoot(z, 'interaction-archive-link-m.png', false);
   }
+  // Picker: tap a row to toggle, outside toggle, three-party build screenshot.
+  await c.send('Page.navigate', { url: baseUrl });
+  await ready();
+  for (const id of ['likud', 'shas', 'otzma-yehudit']) await evaluate(`document.querySelector('[data-act="toggle"][data-id="${id}"]').click()`);
+  await sleep(300);
+  const sel = await evaluate("[...document.querySelectorAll('#builder .prow-main[aria-checked=\"true\"]')].length");
+  if (sel !== 3) errors.push(`[interaction] tapping rows should select 3 parties, got ${sel}`);
+  await evaluate("document.querySelector('[data-act=\"outside\"][data-id=\"shas\"]').click()");
+  await sleep(200);
+  const outUrl = await evaluate('location.search');
+  if (!/o=shas/.test(outUrl)) errors.push(`[interaction] outside toggle did not set o= (${outUrl})`);
+  await evaluate("document.querySelector('[data-act=\"outside\"][data-id=\"shas\"]').click()");
+  await sleep(200);
+  await evaluate('window.scrollTo(0, document.querySelector("#builder .seats-box").getBoundingClientRect().top + scrollY - 10)');
+  await sleep(200);
+  await shoot(z, 'interaction-build-3-selected-m.png', false);
+  // Results: base control, expanding gap card, pair view from an expanded pair.
+  await evaluate("document.querySelector('#bar a.btn').click()");
+  await sleep(400);
+  if ((await evaluate('document.body.dataset.view')) !== 'results') errors.push('[interaction] "לתוצאות" from the picker did not open results');
+  await c.send('Page.navigate', { url: `${baseUrl}?m=likud,democrats,yashar,shas#results` });
+  await waitFor(() => evaluate("document.body.dataset.view === 'results' && document.querySelectorAll('.colorby').length > 0"));
+  const baseBtns = await evaluate("document.querySelectorAll('.colorby [role=\"radio\"]').length");
+  if (baseBtns !== 5) errors.push(`[interaction] base control should list הכל + 4 parties, got ${baseBtns}`);
+  await evaluate("document.querySelector('.colorby [data-id=\"shas\"]').click()");
+  await sleep(300);
+  const bq = await evaluate('location.search');
+  if (!/b=shas/.test(bq)) errors.push(`[interaction] base control did not set b= (${bq})`);
+  const starLine = await evaluate("document.querySelector('#results-coalition').innerText.includes('★')");
+  if (!starLine) errors.push('[interaction] coalition line should mark the base with ★');
+  const sealed = await evaluate("document.querySelector('.gap-head') ? 'yes' : ''");
+  if (!sealed) errors.push('[interaction] results have no gap cards for this coalition');
+  else {
+    await evaluate("document.querySelector('.gap-head').click()");
+    await sleep(300);
+    const open = await evaluate("document.querySelector('.gap-head').getAttribute('aria-expanded') === 'true' && document.querySelectorAll('.pair-list .pair-btn').length > 0");
+    if (!open) errors.push('[interaction] gap card did not expand to list its pairs');
+    const tagOk = await evaluate("/· (זוג אחד|\\d+ זוגות)/.test(document.querySelector('.gap-head .lv').textContent) && !document.body.innerText.includes('ועוד')");
+    if (!tagOk) errors.push('[interaction] gap card tag must carry the pair count and no "ועוד N זוגות" line');
+    await evaluate('window.scrollTo(0, document.querySelector(".gap").getBoundingClientRect().top + scrollY - 120)');
+    await sleep(200);
+    await shoot(z, 'interaction-results-base-gap-expanded-m.png', false);
+    await evaluate("document.querySelector('.pair-list .pair-btn').click()");
+    await sleep(300);
+    const pairOpen = await evaluate("document.querySelector('#sheet').open && document.querySelector('#sheet .pair') !== null");
+    if (!pairOpen) errors.push('[interaction] tapping a pair did not open the pair view');
+    await evaluate("document.querySelector('#sheet').close()");
+  }
+  // A cell sheet with a quote renders it in quotation marks with an attribution line underneath.
+  const withQuote = JSON.parse(readFileSync(join(ROOT, 'site', 'data', 'positions.json'), 'utf8')).find((p) => p.quote && p.quoteBy && p.sourceDate);
+  await c.send('Page.navigate', { url: `${baseUrl}?m=${withQuote.partyId},together#results` });
+  await waitFor(() => evaluate("document.body.dataset.view === 'results' && document.querySelectorAll('.cell').length > 0"));
+  await evaluate(`document.querySelector('.cell[data-party="${withQuote.partyId}"][data-topic="${withQuote.topicId}"]').click()`);
+  await sleep(300);
+  const q = await evaluate("(() => { const b = document.querySelector('#sheet blockquote'); return b ? { text: b.querySelector('.q-text')?.textContent, by: b.querySelector('.q-by')?.textContent } : null; })()");
+  if (!q || !/^״.+״$/.test(q.text ?? '')) errors.push(`[interaction] quote must be wrapped in quotation marks (${JSON.stringify(q)})`);
+  if (!q || !q.by.startsWith(withQuote.quoteBy) || !/\d{2}\.\d{2}\.\d{4}$/.test(q.by)) errors.push(`[interaction] quote attribution should read "<speaker>, <channel>, <date>" (${q?.by})`);
+  await shoot(z, 'interaction-cell-quote-m.png', false);
   console.log('  ✓ interactions');
   c.close();
 } catch (e) {

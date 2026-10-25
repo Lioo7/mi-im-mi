@@ -23,7 +23,7 @@ export function loadData() {
 
 // Fields published in site/data/positions.json, in output order.
 export const PUBLIC_FIELDS = [
-  'partyId', 'topicId', 'position', 'redLine', 'summary', 'quote',
+  'partyId', 'topicId', 'position', 'redLine', 'summary', 'quote', 'quoteBy',
   'sourceUrl', 'sourceType', 'sourceDate', 'viaUrl', 'archiveUrl', 'confidence', 'componentsDisagree',
 ];
 

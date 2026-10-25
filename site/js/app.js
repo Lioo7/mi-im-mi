@@ -1,7 +1,7 @@
 import { S } from './strings.js';
 import * as C from './compat.js';
 import { countPageview } from './stats.js';
-import { correctionMailto } from './links.js';
+import { correctionMailto, quoteAttribution } from './links.js';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -191,43 +191,33 @@ function renderPresets() {
 
 const ltr = (text) => `<bdi dir="ltr">${esc(text)}</bdi>`;
 
-function seatsChip(id) {
-  const p = party(id);
-  return showSeats() && p.pollAvg != null ? `<span class="chip-seats">${esc(S.builder.seatsChip(Math.round(p.pollAvg)))}</span>` : '';
-}
-
-function impactHtml(a, c, u) {
-  return `<span class="impact" dir="ltr" aria-hidden="true"><span class="im-ok">✓${a}</span> <span class="im-clash">✕${c}</span> <span class="im-unk">?${u}</span></span>`;
+function pillsHtml(a, c, u) {
+  return `<span class="pills" dir="ltr" aria-hidden="true"><span class="pill im-ok">✓${a}</span><span class="pill im-clash">✕${c}</span><span class="pill im-unk">?${u}</span></span>`;
 }
 
 function renderBuilder() {
   const B = S.builder;
-  const { members, base, outside } = state;
+  const { members, outside } = state;
 
-  const chips = ctx.parties.map((p) => {
+  const rows = ctx.parties.map((p) => {
     const id = p.id;
-    const tags = (outside.includes(id) ? `<span class="tag">${esc(B.outside)}</span>` : '')
-      + (p.threshold === 'borderline' ? `<span class="tag tag-border">${esc(B.borderline)}</span>` : '');
-    if (members.includes(id)) {
-      const isBase = id === base;
-      const own = ctx.topics.length - C.coverage(ctx, id);
-      const missing = own ? `<span class="impact" dir="ltr" title="${esc(B.ownMissingLabel(own))}" aria-label="${esc(B.ownMissingLabel(own))}"><span class="im-unk">${esc(B.ownMissing(own))}</span></span>` : '';
-      return `<div class="chip is-on${isBase ? ' is-base' : ''}">
-        <span class="chip-check" aria-hidden="true">✓</span>
-        <button type="button" class="chip-name" data-act="party" data-id="${id}" data-key="party-${id}"><span class="slip-letters">${esc(p.ballotLetters)}</span><span class="chip-name-text">${esc(p.name)}</span></button>
-        <span class="chip-meta">${seatsChip(id)}${missing}${isBase ? `<span class="tag tag-base">${esc(B.baseTag)}</span>` : ''}${tags}
-          <span class="chip-actions">
-            <button type="button" class="mini" data-act="base" data-id="${id}" data-key="base-${id}" aria-pressed="${isBase}" aria-label="${esc(isBase ? B.unsetBase(p.name) : B.setBase(p.name))}"><span aria-hidden="true">${isBase ? '★' : '☆'}</span></button>
-            <button type="button" class="mini" data-act="remove" data-id="${id}" data-key="remove-${id}" aria-label="${esc(B.remove(p.name))}"><span aria-hidden="true">✕</span></button>
-          </span>
-        </span>
-      </div>`;
-    }
-    const im = members.length ? C.addImpact(ctx, id, members) : null;
-    return `<button type="button" class="chip" data-act="add" data-id="${id}" data-key="add-${id}" aria-label="${esc(B.addParty(p.name))}${im ? '. ' + esc(B.impactLabel(im.agree, im.clash, im.unknown)) : ''}">
-      <span class="chip-top"><span class="slip-letters">${esc(p.ballotLetters)}</span><span class="chip-meta">${seatsChip(id)}${im ? impactHtml(im.agree, im.clash, im.unknown) : ''}</span></span>
-      <span class="chip-name-row"><span class="chip-name-text">${esc(p.name)}</span>${tags}</span>
-    </button>`;
+    const on = members.includes(id);
+    const out = outside.includes(id);
+    const im = !on && members.length ? C.addImpact(ctx, id, members) : null;
+    const sub = [
+      showSeats() && p.pollAvg != null ? S.builder.seatsChip(Math.round(p.pollAvg)) : '',
+      p.threshold === 'borderline' ? B.borderline : '',
+    ].filter(Boolean).join(' · ');
+    const label = `${p.name}${im ? `. ${B.impactLabel(im.agree, im.clash, im.unknown)}` : ''}`;
+    return `<li class="prow${on ? ' is-on' : ''}">
+      <button type="button" role="checkbox" aria-checked="${on}" class="prow-main" data-act="toggle" data-id="${id}" data-key="row-${id}" aria-label="${esc(label)}">
+        <span class="cb" aria-hidden="true">${on ? '✓' : ''}</span>
+        <span class="slip-tag">${esc(p.ballotLetters)}</span>
+        <span class="prow-text"><span class="prow-name">${esc(p.name)}</span>${sub ? `<span class="prow-sub">${esc(sub)}</span>` : ''}</span>
+        <span class="prow-end">${on ? `<span class="in-coalition">${esc(B.inCoalition)}</span>` : im ? pillsHtml(im.agree, im.clash, im.unknown) : ''}</span>
+      </button>
+      ${on ? `<button type="button" class="out-toggle" data-act="outside" data-id="${id}" data-key="out-${id}" aria-pressed="${out}" aria-label="${esc(B.outsideLabel(p.name))}">${esc(B.outsideToggle)}</button>` : ''}
+    </li>`;
   }).join('');
 
   let unityNote = '';
@@ -252,7 +242,7 @@ function renderBuilder() {
     </div>
     ${seatsBox()}
     ${members.length ? `<p class="muted small">${esc(B.impactHeading)}: <span class="impact-legend"><span class="im-ok" aria-hidden="true">✓</span> ${esc(B.impactAgree)} · <span class="im-clash" aria-hidden="true">✕</span> ${esc(B.impactClash)} · <span class="im-unk" aria-hidden="true">?</span> ${esc(B.impactUnknown)}</span></p>` : ''}
-    <div class="chips">${chips}</div>
+    <ul class="plist" role="group" aria-label="${esc(B.pick)}">${rows}</ul>
     <p class="muted small">${esc(B.hint)}</p>
     ${linkedNotes.join('')}
     ${unityNote}`;
@@ -272,7 +262,7 @@ function positionBlock(pid, tid, { heading = true } = {}) {
     ${heading ? `<p class="pos-label">${esc(axisLabel(tid, p.position))}</p>` : ''}
     ${p.redLine || p.componentsDisagree ? `<p>${p.redLine ? `<span class="tag tag-red"><span aria-hidden="true">🚩</span> ${esc(S.redLine)}</span> ` : ''}${p.componentsDisagree ? `<span class="tag tag-split"><span aria-hidden="true">${S.componentsIcon}</span> ${esc(S.componentsDisagree)}</span>` : ''}</p>` : ''}
     <p>${esc(p.summary)}</p>
-    ${p.quote ? `<blockquote>${esc(p.quote)}</blockquote>` : ''}
+    ${p.quote ? `<blockquote><p class="q-text">״${esc(p.quote)}״</p><footer class="q-by">${esc(quoteAttribution(p, name(pid)))}</footer></blockquote>` : ''}
     <p class="source">
       <span class="tag tag-src">${esc(T.sourceTypes[p.sourceType] ?? '')}</span>
       ${p.sourceDate ? `<span class="muted">${esc(T.date(fmtDate(p.sourceDate)))}</span>` : ''}
@@ -370,19 +360,32 @@ function overallBar(r) {
   </section>`;
 }
 
+const expandedTopics = new Set();
+
 function crisesCard(r) {
   const R = S.results;
   const items = r.crises.map((c) => {
     const w = c.worst;
-    return `<li>
-      <button type="button" class="row-btn" data-act="pair-sheet" data-a="${w.a}" data-b="${w.b}" data-key="crisis-${c.topicId}">
-        <span class="row-title">${esc(topic(c.topicId).short)}: ${esc(name(w.a))} ↔ ${esc(name(w.b))}</span>
-        <span class="row-meta">${levelBadge(w.level)}${w.byRedLine ? ` <span class="tag tag-red"><span aria-hidden="true">🚩</span> ${esc(S.redLine)}</span>` : ''}${c.morePairs > 0 ? ` <span class="muted small">${esc(R.morePairs(c.morePairs))}</span>` : ''}</span>
+    const open = expandedTopics.has(c.topicId);
+    const pairs = r.statuses.find((x) => x.topicId === c.topicId).pairs;
+    const tag = R.pairsTag(S.levels[w.level].label, c.morePairs + 1);
+    const list = open ? `<ul class="pair-list" id="pairs-${c.topicId}" aria-label="${esc(R.pairsInTopic(pairs.length))}">${pairs.map((p) => `
+      <li><button type="button" class="pair-btn" data-act="pair-sheet" data-a="${p.a}" data-b="${p.b}" data-key="pair-${c.topicId}-${p.a}-${p.b}">
+        <span>${esc(name(p.a))} ↔ ${esc(name(p.b))}</span>${levelBadge(p.level)}</button></li>`).join('')}</ul>` : '';
+    return `<li class="gap${open ? ' is-open' : ''}">
+      <button type="button" class="row-btn gap-head" data-act="expand" data-id="${c.topicId}" data-key="gap-${c.topicId}" aria-expanded="${open}" aria-controls="pairs-${c.topicId}" aria-label="${esc(`${topic(c.topicId).name}: ${esc(name(w.a))} ↔ ${esc(name(w.b))}, ${tag}. ${open ? R.collapse : R.expand}`)}">
+        <span class="gap-main">
+          <span class="row-title">${esc(topic(c.topicId).short)}: ${esc(name(w.a))} ↔ ${esc(name(w.b))}</span>
+          <span class="row-meta"><span class="lv lv-${w.level}"><span aria-hidden="true">${S.levels[w.level].icon}</span> ${esc(tag)}</span>${w.byRedLine ? ` <span class="tag tag-red"><span aria-hidden="true">🚩</span> ${esc(S.redLine)}</span>` : ''}</span>
+        </span>
+        <svg class="chev" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M15 5 8 12l7 7" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </button>
+      ${list}
     </li>`;
   }).join('');
+  const title = r.clashTopics > 0 ? R.crisesTitle(Math.max(r.crises.length, 1)) : R.gapsTitle;
   return `<section class="card">
-    <h3>${esc(R.crisesTitle(Math.max(r.crises.length, 1)))}</h3>
+    <h3>${esc(title)}</h3>
     ${r.crises.length ? `<ol class="list">${items}</ol>` : `<p>${esc(R.noCrises)}</p>`}
   </section>`;
 }
@@ -408,10 +411,10 @@ function frictionCard(r) {
   const R = S.results;
   const items = r.friction.map((f) => {
     const w = C.without(ctx, state, f.partyId);
-    const preview = R.withoutPreview(w.clashTopics, r.clashTopics, showSeats() ? w.seats.total : null);
+    const preview = R.withoutPreview(C.withoutDelta(r.statuses, w.statuses), showSeats() ? w.seats.total : null);
     return `<li>
       <p class="row-title">${esc(name(f.partyId))}</p>
-      <p class="muted small">${esc(preview)}</p>
+      ${preview ? `<p class="muted small">${esc(preview)}</p>` : ''}
       <button type="button" class="btn" data-act="remove-friction" data-id="${f.partyId}" data-key="friction-${f.partyId}">${esc(R.whatIfRemove)}</button>
     </li>`;
   }).join('');
@@ -483,9 +486,16 @@ function renderMatrix() {
   const legend = ['AGREE', 'MINOR', 'MAJOR', 'CLASH', 'NONE'].filter((lv) => present.has(lv)).map((lv) => `<li>${levelBadge(lv)}</li>`).join('')
     + (anyRed ? `<li><span class="tag tag-red"><span aria-hidden="true">🚩</span> ${esc(S.redLine)}</span></li>` : '')
     + (anySplit ? `<li><span class="tag tag-split"><span aria-hidden="true">${S.componentsIcon}</span> ${esc(S.componentsDisagree)}</span></li>` : '');
+  const colorBy = `<div class="colorby" role="radiogroup" aria-label="${esc(M.colorBy)}">
+      <span class="colorby-label">${esc(M.colorBy)}</span>
+      ${[['', M.colorByAll], ...members.map((id) => [id, name(id)])].map(([id, label]) => {
+    const on = (base ?? '') === id;
+    return `<button type="button" role="radio" aria-checked="${on}" class="seg-btn${on ? ' is-on' : ''}" data-act="colorby" data-id="${id}" data-key="colorby-${id || 'all'}">${esc(label)}</button>`;
+  }).join('')}
+    </div>`;
   el.innerHTML = `
     <h2>${esc(M.title)}</h2>
-    ${base ? '' : `<p class="note note-soft">${esc(M.baseHint)}</p>`}
+    ${colorBy}
     <p class="muted small">${esc(base ? M.relBase(name(base)) : M.relWorst)}</p>
     <div class="table-wrap">
       <table class="matrix">
@@ -671,8 +681,20 @@ function onClick(e) {
       lastPreset = null;
       setState({ base: base === id ? null : base, members: members.filter((m) => m !== id), outside: outside.filter((m) => m !== id) }, { announceParty: id });
       break;
-    case 'base':
-      setState({ base: base === id ? null : id, members, outside });
+    case 'toggle':
+      lastPreset = null;
+      if (members.includes(id)) setState({ base: base === id ? null : base, members: members.filter((m) => m !== id), outside: outside.filter((m) => m !== id) }, { announceParty: id });
+      else setState({ base, members: C.withLinked(ctx, members, id), outside }, { announceParty: id });
+      break;
+    case 'outside':
+      setState({ base, members, outside: outside.includes(id) ? outside.filter((m) => m !== id) : [...outside, id] });
+      break;
+    case 'colorby':
+      setState({ base: id || null, members, outside });
+      break;
+    case 'expand':
+      if (expandedTopics.has(id)) expandedTopics.delete(id); else expandedTopics.add(id);
+      render();
       break;
     case 'clear':
       lastPreset = null;

@@ -36,6 +36,8 @@ const rows = readJson(MERGED)
     source_date: r.sourceDate ?? '',
     confidence: r.confidence ?? '',
     summary: r.summary ?? '',
+    quote: r.quote ?? '',
+    quote_by: r.quoteBy ?? '',
     evidence_note: clean(r.evidenceNote),
   }));
 

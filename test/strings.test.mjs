@@ -22,3 +22,12 @@ test('count labels use the singular for 1 and the digit plural otherwise', () =>
   assert.equal(S.results.overall(1, 1), '1 מתוך נושא אחד ללא סתירה חזיתית');
   assert.ok(!/(^|\D)1 (נושאים|מפלגות|זוגות)/.test(S.builder.impactLabel(1, 1, 1)));
 });
+
+test('friction preview: never "0 במקום 0", hides when nothing changes', () => {
+  assert.equal(S.results.withoutPreview(null, null), '');
+  assert.equal(S.results.withoutPreview(null, 52), 'בלעדיה: כ-52 מנדטים');
+  assert.equal(S.results.withoutPreview({ kind: 'major', before: 3, after: 1 }, null), 'בלעדיה: נושא אחד בפער מהותי במקום 3');
+  assert.equal(S.results.withoutPreview({ kind: 'clash', before: 2, after: 0 }, null), 'בלעדיה: אין נושא בסתירה חזיתית במקום 2');
+  assert.equal(S.results.pairsTag('פער מהותי', 3), 'פער מהותי · 3 זוגות');
+  assert.equal(S.results.pairsTag('סתירה חזיתית', 1), 'סתירה חזיתית · זוג אחד');
+});

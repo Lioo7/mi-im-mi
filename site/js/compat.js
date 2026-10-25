@@ -161,6 +161,15 @@ export function breakdown(statuses) {
   return n;
 }
 
+// What changes when a party leaves: head-on clash topics if they differ, else substantial-gap topics, else null.
+export function withoutDelta(statusesBefore, statusesAfter) {
+  const b = breakdown(statusesBefore);
+  const a = breakdown(statusesAfter);
+  if (b.clash !== a.clash) return { kind: 'clash', before: b.clash, after: a.clash };
+  if (b.major !== a.major) return { kind: 'major', before: b.major, after: a.major };
+  return null;
+}
+
 // Matrix cell: vs the base if there is one, else the party's worst level vs any other member.
 export function matrixCell(ctx, partyId, topicId, members, base) {
   if (base) {
