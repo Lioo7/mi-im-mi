@@ -234,7 +234,7 @@ test('addImpact does not depend on member order', () => {
   assert.deepEqual(addImpact(ctx, 'c', ['a', 'b']), addImpact(ctx, 'c', ['b', 'a']));
 });
 
-test('breakdown groups topic statuses', () => {
-  const st = [{ status: 'AGREE' }, { status: 'MINOR' }, { status: 'MAJOR' }, { status: 'CLASH' }, { status: 'CLASH' }, { status: 'NODATA' }];
-  assert.deepEqual(breakdown(st), { agree: 2, major: 1, clash: 2, nodata: 1 });
+test('breakdown counts agreement and minor gaps separately', () => {
+  const st = [{ status: 'AGREE' }, { status: 'MINOR' }, { status: 'MINOR' }, { status: 'MAJOR' }, { status: 'CLASH' }, { status: 'CLASH' }, { status: 'NODATA' }];
+  assert.deepEqual(breakdown(st), { agree: 1, minor: 2, major: 1, clash: 2, nodata: 1 });
 });

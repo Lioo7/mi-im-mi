@@ -319,14 +319,11 @@ function overallBar(r) {
       <span class="sr-only">${esc(t.name)}: ${esc(S.levels[lv].label)}</span></li>`;
   }).join('');
   const b = C.breakdown(r.statuses);
-  const parts = S.results.breakdown(b.agree, b.major, b.clash, b.nodata);
+  const parts = S.results.breakdown(b.agree, b.minor, b.major, b.clash, b.nodata).filter(([text, , always]) => always || !text.startsWith('0 '));
   return `<section class="card overall">
     <h2 class="card-title">${esc(S.results.summaryTitle)}</h2>
     <ol class="segs">${segs}</ol>
-    <ul class="breakdown">
-      <li class="bd-ok">${esc(parts[0])}</li><li class="bd-major">${esc(parts[1])}</li>
-      <li class="bd-clash">${esc(parts[2])}</li><li class="bd-none">${esc(parts[3])}</li>
-    </ul>
+    <ul class="breakdown">${parts.map(([text, cls]) => `<li class="${cls}">${esc(text)}</li>`).join('')}</ul>
     ${seatsLine()}
   </section>`;
 }

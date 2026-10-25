@@ -148,13 +148,14 @@ export function addImpact(ctx, candidate, members) {
   return out;
 }
 
-// Topic-status counts for the results summary: agree = AGREE or MINOR; major; clash; no data.
+// Topic-status counts for the results summary: agree (AGREE), minor, major, clash, no data.
 export function breakdown(statuses) {
-  const n = { agree: 0, major: 0, clash: 0, nodata: 0 };
+  const n = { agree: 0, minor: 0, major: 0, clash: 0, nodata: 0 };
   for (const s of statuses) {
     if (s.status === 'NODATA') n.nodata++;
     else if (s.status === 'CLASH') n.clash++;
     else if (s.status === 'MAJOR') n.major++;
+    else if (s.status === 'MINOR') n.minor++;
     else n.agree++;
   }
   return n;
