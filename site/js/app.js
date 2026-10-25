@@ -97,7 +97,7 @@ function renderMethod() {
 
   $('#method').innerHTML = `
     <h2>${esc(M.title)}</h2>
-    <p>${esc(M.intro)}</p>
+    <p>${esc(M.intro(ctx.parties.length))}</p>
     <p class="disclaimer"><strong>${esc(M.disclaimer)}</strong> ${esc(M.independent)}</p>
 
     <h3>${esc(M.levelsTitle)}</h3>
@@ -117,9 +117,14 @@ function renderMethod() {
     <h3>${esc(M.sourcesTitle)}</h3>
     <ul>${M.sourceRules.map(([, txt]) => `<li>${esc(txt)}</li>`).join('')}</ul>
     <p>${esc(M.redLineRule)}</p>
+    <p>${esc(M.redLineTest)}</p>
     <p>${esc(M.nullRule)}</p>
     <p>${esc(M.bakalpi)} <a href="https://www.bakalpi.co.il/he" rel="noopener"><bdi>bakalpi.co.il</bdi></a></p>
     <p>${esc(M.names)} <a href="${esc(meta.partyNamesSourceUrl)}" rel="noopener">gov.il</a></p>
+
+    <h3>${esc(M.jointTitle)}</h3>
+    <ul>${M.jointRules.map((r) => `<li>${esc(r)}</li>`).join('')}</ul>
+    <p class="small"><a href="https://www.ynet.co.il/news/elections2026/article/rjuhrwvdfl" rel="noopener">${esc(M.jointSource)}</a></p>
 
     <h3>${esc(M.coverageTitle)}</h3>
     <div class="table-wrap"><table class="coverage">
@@ -195,12 +200,20 @@ function renderBuilder() {
     }
   }
 
+  // One note per soft-linked pair, shown even when only one of the two is selected.
+  const linkedPairs = new Set(members.filter((id) => party(id).linkedWith).map((id) => ordered([id, party(id).linkedWith]).join('|')));
+  const linkedNotes = [...linkedPairs].map((pair) => {
+    const [a, b] = pair.split('|');
+    return `<p class="note note-soft">${esc(B.linkedNote(name(a), name(b)))}</p>`;
+  });
+
   $('#builder').innerHTML = `
     <div class="tray-head">
       <h2>${esc(B.yours)}</h2>
       ${members.length ? `<button type="button" class="link-btn" data-act="clear" data-key="clear">${esc(B.clear)}</button>` : ''}
     </div>
     <ul class="tray">${tray}</ul>
+    ${linkedNotes.join('')}
     ${unityNote}
     ${available.length ? `<h3>${esc(B.add)}</h3><div class="chips">${addChips}</div>` : ''}`;
 }
@@ -217,7 +230,7 @@ function positionBlock(pid, tid, { heading = true } = {}) {
   }
   return `<div class="pos">
     ${heading ? `<p class="pos-label">${esc(axisLabel(tid, p.position))}</p>` : ''}
-    ${p.redLine ? `<p><span class="tag tag-red"><span aria-hidden="true">🚩</span> ${esc(S.redLine)}</span></p>` : ''}
+    ${p.redLine || p.componentsDisagree ? `<p>${p.redLine ? `<span class="tag tag-red"><span aria-hidden="true">🚩</span> ${esc(S.redLine)}</span> ` : ''}${p.componentsDisagree ? `<span class="tag tag-split"><span aria-hidden="true">${S.componentsIcon}</span> ${esc(S.componentsDisagree)}</span>` : ''}</p>` : ''}
     <p>${esc(p.summary)}</p>
     ${p.quote ? `<blockquote>${esc(p.quote)}</blockquote>` : ''}
     <p class="source">
@@ -321,6 +334,13 @@ function frictionCard(r) {
   </section>`;
 }
 
+function coverageFootnote() {
+  const low = C.lowCoverage(ctx, state.members);
+  if (!low.length) return '';
+  return `<div class="footnote">${low.map((x) => `<p>${esc(S.results.coverageLine(S.toParty(name(x.partyId)), x.missing))}</p>`).join('')}
+    <p>${esc(S.results.coverageTail)}</p></div>`;
+}
+
 function renderResults() {
   const { members } = state;
   const el = $('#results');
@@ -335,10 +355,10 @@ function renderResults() {
   }
   const r = C.analyze(ctx, state);
   if (members.length === 2) {
-    el.innerHTML = overallBar(r) + `<section class="card">${pairHtml(members[0], members[1])}</section>` + shareCard(r);
+    el.innerHTML = overallBar(r) + `<section class="card">${pairHtml(members[0], members[1])}</section>` + coverageFootnote() + shareCard(r);
     return;
   }
-  el.innerHTML = crisesCard(r) + glueCard(r) + frictionCard(r) + overallBar(r) + shareCard(r);
+  el.innerHTML = crisesCard(r) + glueCard(r) + frictionCard(r) + overallBar(r) + coverageFootnote() + shareCard(r);
 }
 
 // ---------- matrix ----------
@@ -354,15 +374,17 @@ function renderMatrix() {
       const lv = cell.level;
       const icon = lv === 'REF' ? '●' : lv === 'BASE_NULL' ? '–' : S.levels[lv].icon;
       const label = lv === 'REF' ? M.reference : lv === 'BASE_NULL' ? M.baseNull : S.levels[lv].label;
-      const aria = M.cellLabel(name(pid), t.name, label, cell.ref ? name(cell.ref) : null) + (p?.redLine ? `, ${S.redLine}` : '');
+      const aria = M.cellLabel(name(pid), t.name, label, cell.ref ? name(cell.ref) : null)
+        + (p?.redLine ? `, ${S.redLine}` : '') + (p?.componentsDisagree ? `, ${S.componentsDisagree}` : '');
       return `<td><button type="button" class="cell lv-${lv}" data-act="cell" data-party="${pid}" data-topic="${t.id}" data-key="cell-${pid}-${t.id}" aria-label="${esc(aria)}">
-        <span aria-hidden="true">${icon}</span>${p?.redLine ? '<span class="flag" aria-hidden="true">🚩</span>' : ''}</button></td>`;
+        <span aria-hidden="true">${icon}</span>${p?.redLine ? '<span class="flag" aria-hidden="true">🚩</span>' : ''}${p?.componentsDisagree ? `<span class="split" aria-hidden="true">${S.componentsIcon}</span>` : ''}</button></td>`;
     }).join('');
     return `<tr><th scope="row"><button type="button" class="party-btn" data-act="party" data-id="${pid}" data-key="party-${pid}">${pid === base ? '<span aria-hidden="true">★</span> ' : ''}${esc(name(pid))}</button></th>${cells}</tr>`;
   }).join('');
   const legend = ['AGREE', 'MINOR', 'MAJOR', 'CLASH', 'NONE'].map((lv) => `<li>${levelBadge(lv)}</li>`).join('');
   el.innerHTML = `
     <h2>${esc(M.title)}</h2>
+    ${base ? '' : `<p class="note note-soft">${esc(M.baseHint)}</p>`}
     <p class="muted small">${esc(base ? M.relBase(name(base)) : M.relWorst)}</p>
     <div class="table-wrap">
       <table class="matrix">
@@ -370,7 +392,7 @@ function renderMatrix() {
         <tbody>${rows}</tbody>
       </table>
     </div>
-    <ul class="legend">${legend}<li><span class="tag tag-red"><span aria-hidden="true">🚩</span> ${esc(S.redLine)}</span></li></ul>`;
+    <ul class="legend">${legend}<li><span class="tag tag-red"><span aria-hidden="true">🚩</span> ${esc(S.redLine)}</span></li><li><span class="tag tag-split"><span aria-hidden="true">${S.componentsIcon}</span> ${esc(S.componentsDisagree)}</span></li></ul>`;
 }
 
 // ---------- share & bar ----------
@@ -471,6 +493,17 @@ function topicSheet(tid) {
     ${nulls.length ? `<p>${levelBadge('NONE')} ${esc(nulls.join(' · '))}</p>` : ''}`);
 }
 
+function partyNotes(p) {
+  const notes = [];
+  if (p.components) notes.push(S.componentsNote(p.components.join(', ')));
+  if (p.linkedWith) {
+    const [a, b] = ordered([p.id, p.linkedWith]);
+    notes.push(S.builder.linkedNote(name(a), name(b)));
+  }
+  if (p.seatNote && showSeats()) notes.push(p.seatNote);
+  return notes.map((n) => `<p class="note note-soft">${esc(n)}</p>`).join('');
+}
+
 function partySheet(pid, compareWith = '') {
   const p = party(pid);
   const options = ctx.parties.filter((x) => x.id !== pid)
@@ -478,6 +511,7 @@ function partySheet(pid, compareWith = '') {
   openSheet(`
     <h2>${esc(p.name)}</h2>
     <p class="muted small">${esc(S.sheet.officialName)}: ${esc(p.officialName)}</p>
+    ${partyNotes(p)}
     <label class="compare">${esc(S.pair.compareWith)}
       <select data-act="compare" data-id="${pid}"><option value="">${esc(S.pair.choose)}</option>${options}</select>
     </label>
@@ -508,7 +542,7 @@ function onClick(e) {
     }
     case 'add':
       lastPreset = null;
-      setState({ base, members: [...members, id], outside }, { announceParty: id });
+      setState({ base, members: C.withLinked(ctx, members, id), outside }, { announceParty: id });
       break;
     case 'remove':
       lastPreset = null;

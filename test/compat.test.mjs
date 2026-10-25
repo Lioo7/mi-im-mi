@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   level, makeContext, topicStatus, crises, glue, friction, overall, newClashTopics,
   matrixCell, pairSummary, seats, analyze, without, presets, parseState, serializeState,
+  withLinked, lowCoverage,
 } from '../site/js/compat.js';
 
 const P = (partyId, topicId, position, redLine = false) => ({ partyId, topicId, position, redLine });
@@ -189,4 +190,24 @@ test('URL state round-trips and ignores unknown ids', () => {
   assert.deepEqual(back.outside, ['e']);
   assert.deepEqual(parseState('?m=a,zzz,a&b=nope', ids), { base: null, members: ['a'], outside: [] });
   assert.equal(serializeState(ctx, { base: null, members: [], outside: [] }), '');
+});
+
+test('withLinked adds the soft-linked partner once, and only on add', () => {
+  const ctx = makeContext({
+    parties: [{ id: 'a' }, { id: 'rz', linkedWith: 'z' }, { id: 'z', linkedWith: 'rz' }],
+    topics: [], positions: [],
+  });
+  assert.deepEqual(withLinked(ctx, ['a'], 'rz'), ['a', 'rz', 'z']);
+  assert.deepEqual(withLinked(ctx, ['a', 'z'], 'rz'), ['a', 'z', 'rz']);
+  assert.deepEqual(withLinked(ctx, [], 'a'), ['a']);
+});
+
+test('lowCoverage lists members with 3+ null topics', () => {
+  const topics = [{ id: 't1' }, { id: 't2' }, { id: 't3' }, { id: 't4' }];
+  const ctx = makeContext({
+    parties: [{ id: 'a' }, { id: 'b' }],
+    topics,
+    positions: [P('a', 't1', 0), P('b', 't1', 0), P('b', 't2', 1), P('b', 't3', 1)],
+  });
+  assert.deepEqual(lowCoverage(ctx, ['a', 'b']), [{ partyId: 'a', missing: 3 }]);
 });

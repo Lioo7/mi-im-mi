@@ -12,7 +12,7 @@ const party = new Map(parties.map((p) => [p.id, p]));
 const topic = new Map(topics.map((t) => [t.id, t]));
 
 const COLUMNS = [
-  'flagged', 'flag_reason', 'red_line', 'position', 'position_label', 'topic', 'party', 'summary', 'quote',
+  'flagged', 'flag_reason', 'red_line', 'components_disagree', 'position', 'position_label', 'topic', 'party', 'summary', 'quote',
   'source_type', 'source_url', 'via_url', 'source_date', 'confidence', 'party_id', 'topic_id',
   'evidence_note', 'red_line_evidence',
 ];
@@ -21,6 +21,7 @@ const rows = reviewSort(records, parties, topics).map((r) => ({
   flagged: r.flagged ? 'TRUE' : '',
   flag_reason: r.flagReason ?? '',
   red_line: r.redLine ? 'TRUE' : 'FALSE',
+  components_disagree: r.componentsDisagree ? 'TRUE' : 'FALSE',
   position: r.position ?? '',
   position_label: r.position == null ? '— אין עמדה מוצהרת —' : topic.get(r.topicId).axis[String(r.position)],
   topic: topic.get(r.topicId).name,

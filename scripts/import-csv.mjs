@@ -31,6 +31,7 @@ const records = rows.map((r) => {
     topicId: String(r.topic_id ?? '').trim(),
     position,
     redLine: bool(r.red_line),
+    componentsDisagree: bool(r.components_disagree),
     summary: textOrNull(r.summary),
     quote: textOrNull(r.quote),
     sourceUrl: textOrNull(r.source_url),
@@ -61,7 +62,7 @@ const changes = [];
 for (const r of out) {
   const old = prev.get(key(r));
   if (!old) { changes.push(`+ ${key(r)}`); continue; }
-  for (const f of ['position', 'redLine', 'summary', 'quote', 'sourceUrl', 'sourceType', 'sourceDate']) {
+  for (const f of ['position', 'redLine', 'componentsDisagree', 'summary', 'quote', 'sourceUrl', 'sourceType', 'sourceDate']) {
     if (JSON.stringify(old[f]) !== JSON.stringify(r[f])) {
       const show = (v) => (typeof v === 'string' && v.length > 60 ? v.slice(0, 57) + '…' : JSON.stringify(v));
       changes.push(`~ ${key(r)} ${f}: ${show(old[f])} → ${show(r[f])}`);

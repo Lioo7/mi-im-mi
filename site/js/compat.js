@@ -187,6 +187,20 @@ export function seats(ctx, members, outside = []) {
   };
 }
 
+// Parties that ran on one list but announced a split are soft-linked: adding one adds the other.
+export function withLinked(ctx, members, added) {
+  const partner = ctx.byId.get(added)?.linkedWith;
+  const next = members.includes(added) ? [...members] : [...members, added];
+  return partner && ctx.byId.has(partner) && !next.includes(partner) ? [...next, partner] : next;
+}
+
+// Members with at least `min` topics lacking a stated position (shown as a footnote under results).
+export function lowCoverage(ctx, members, min = 3) {
+  return sortByParty(ctx, members)
+    .map((id) => ({ partyId: id, missing: ctx.topics.length - coverage(ctx, id) }))
+    .filter((x) => x.missing >= min);
+}
+
 export function analyze(ctx, { members, base = null, outside = [] }) {
   const statuses = ctx.topics.map((t) => topicStatus(ctx, members, t.id));
   return {

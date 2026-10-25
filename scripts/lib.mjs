@@ -24,7 +24,7 @@ export function loadData() {
 // Fields published in site/data/positions.json, in output order.
 export const PUBLIC_FIELDS = [
   'partyId', 'topicId', 'position', 'redLine', 'summary', 'quote',
-  'sourceUrl', 'sourceType', 'sourceDate', 'viaUrl', 'confidence',
+  'sourceUrl', 'sourceType', 'sourceDate', 'viaUrl', 'confidence', 'componentsDisagree',
 ];
 
 export const SOURCE_TYPES = ['platform', 'statement', 'record'];
@@ -84,6 +84,12 @@ export function validateParties(parties) {
     if (![null, 'coalition', 'opposition', 'arab'].includes(p.bloc)) errors.push(`${at}: bad bloc`);
     if (!['full', 'partial', 'none'].includes(p.platformStatus)) errors.push(`${at}: bad platformStatus`);
     if (p.pollAvg != null && typeof p.pollAvg !== 'number') errors.push(`${at}: pollAvg not a number`);
+    if (p.components && (!Array.isArray(p.components) || p.components.length < 2)) errors.push(`${at}: components must list 2+ names`);
+  }
+  // Soft-linked parties (ran together, announced a split) must point at each other.
+  const byId = new Map(parties.map((p) => [p.id, p]));
+  for (const p of parties) {
+    if (p.linkedWith && byId.get(p.linkedWith)?.linkedWith !== p.id) errors.push(`party ${p.id}: linkedWith is not reciprocal`);
   }
   return errors;
 }
@@ -123,6 +129,7 @@ export function validatePositions(positions, parties, topics, where = (p) => key
     if (p.viaUrl && !isHttps(p.viaUrl)) errors.push(`${at}: invalid viaUrl`);
     if (p.confidence && !CONFIDENCE.includes(p.confidence)) errors.push(`${at}: bad confidence "${p.confidence}"`);
     if (p.quote && p.quote.length > 300) errors.push(`${at}: quote too long`);
+    if (p.componentsDisagree != null && typeof p.componentsDisagree !== 'boolean') errors.push(`${at}: componentsDisagree must be true/false`);
   }
   for (const party of partyIds) for (const topic of topicIds) {
     if (!seen.has(`${party}|${topic}`)) errors.push(`missing row ${party}|${topic}`);
@@ -134,6 +141,7 @@ export function publicRecord(p) {
   const out = {};
   for (const f of PUBLIC_FIELDS) out[f] = p[f] ?? null;
   out.redLine = Boolean(p.redLine);
+  out.componentsDisagree = Boolean(p.componentsDisagree);
   return out;
 }
 

@@ -39,7 +39,11 @@
     "bloc": "opposition",
     "platformStatus": "full",
     "bakalpiUrl": "https://www.bakalpi.co.il/he/parties/together",
-    "platformUrl": null
+    "platformUrl": null,
+    "components": [
+      "בנט 2026",
+      "יש עתיד"
+    ]
   },
   {
     "id": "democrats",
@@ -67,7 +71,12 @@
     "bloc": "arab",
     "platformStatus": "full",
     "bakalpiUrl": "https://www.bakalpi.co.il/he/parties/joint-list",
-    "platformUrl": "https://jointlist.org.il/he/platform/"
+    "platformUrl": "https://jointlist.org.il/he/platform/",
+    "components": [
+      "חד״ש",
+      "תע״ל",
+      "בל״ד"
+    ]
   },
   {
     "id": "otzma-yehudit",
@@ -109,7 +118,11 @@
     "bloc": "coalition",
     "platformStatus": "none",
     "bakalpiUrl": "https://www.bakalpi.co.il/he/parties/utj",
-    "platformUrl": null
+    "platformUrl": null,
+    "components": [
+      "דגל התורה",
+      "אגודת ישראל"
+    ]
   },
   {
     "id": "yisrael-beiteinu",
@@ -128,16 +141,18 @@
   {
     "id": "religious-zionism",
     "officialName": "הציונות הדתית בראשות בצלאל סמוטריץ' וזהות בראשות משה פייגלין",
-    "name": "הציונות הדתית וזהות",
+    "name": "הציונות הדתית",
     "ballotLetters": "ט",
     "leader": "בצלאל סמוטריץ'",
-    "pollAvg": 7.0,
-    "pollRange": "6–8",
+    "pollAvg": 6.0,
+    "pollRange": null,
     "threshold": "above",
     "bloc": "coalition",
-    "platformStatus": "partial",
+    "platformStatus": "full",
     "bakalpiUrl": "https://www.bakalpi.co.il/he/parties/religious-zionism",
-    "platformUrl": null
+    "platformUrl": "https://zionutdatit.org.il/",
+    "linkedWith": "zehut",
+    "seatNote": "חלוקה של ממוצע הרשימה המשותפת (7) לפי מיקומי זהות ברשימה (2, 8, 10, 11)"
   },
   {
     "id": "raam",
@@ -165,7 +180,27 @@
     "bloc": null,
     "platformStatus": "partial",
     "bakalpiUrl": "https://www.bakalpi.co.il/he/parties/kalkalit",
-    "platformUrl": null
+    "platformUrl": null,
+    "components": [
+      "המילואימניקים",
+      "המפלגה הכלכלית החדשה"
+    ]
+  },
+  {
+    "id": "zehut",
+    "officialName": "הציונות הדתית בראשות בצלאל סמוטריץ' וזהות בראשות משה פייגלין",
+    "name": "זהות",
+    "ballotLetters": "ט",
+    "leader": "משה פייגלין",
+    "pollAvg": 1.0,
+    "pollRange": null,
+    "threshold": "above",
+    "bloc": "coalition",
+    "platformStatus": "full",
+    "bakalpiUrl": "https://www.bakalpi.co.il/he/parties/religious-zionism",
+    "platformUrl": "https://www.zehut.org.il/",
+    "linkedWith": "religious-zionism",
+    "seatNote": "חלוקה של ממוצע הרשימה המשותפת (7) לפי מיקומי זהות ברשימה (2, 8, 10, 11)"
   },
   {
     "id": "amcha-yisrael",
