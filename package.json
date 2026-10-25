@@ -1,0 +1,11 @@
+{
+  "name": "mi-im-mi",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test",
+    "validate": "node scripts/validate.mjs",
+    "smoke": "node scripts/smoke.mjs",
+    "serve": "python3 -m http.server -d site 8080"
+  }
+}
