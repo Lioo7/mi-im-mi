@@ -277,3 +277,10 @@ body[data-view="build"] { padding-block-end: 210px; }
 .coalition-line { margin: 10px 0 0; font-size: .95rem; font-weight: 600; }
 .minor-line { margin: 10px 0 0; font-weight: 600; }
 .links { padding-inline-start: 1.2em; }
+
+/* Host-injected badge (Netlify free plan): 202×64px at the viewport's bottom corner. Keep our text clear of it. */
+@media (max-width: 1160px) {
+  body.host-badge .bar { padding-block-end: calc(72px + env(safe-area-inset-bottom)); }
+  body.host-badge { padding-block-end: 88px; }
+  body.host-badge[data-view="build"] { padding-block-end: 290px; }
+}

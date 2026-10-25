@@ -699,6 +699,9 @@ async function main() {
   renderPresets();
   renderMethod();
   renderFooter();
+  // The host's free plan floats a badge (202×64px) at the bottom-right. Reserve room under the bar and page
+  // so it never covers the required poll sentence.
+  if (document.querySelector('script[data-nf-variant]')) document.body.classList.add('host-badge');
   bind();
   route(true);
   countPageview();

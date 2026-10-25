@@ -182,6 +182,14 @@ try {
         const barOk = await evaluate(`!document.querySelector('#bar').hidden && document.querySelector('#bar').innerText.replace(/\\s+/g, ' ').includes(${JSON.stringify(legal)})`);
         if (!barOk) errors.push(`[${current}] build view must show the full legal poll sentence in the bar`);
         // Same size as the seat line, normal text colour (not muted grey).
+        // The sentence must not be covered by anything (e.g. a host-injected badge): sample points across its box.
+        if (members_in_url(suffix)) {
+          const covered = await evaluate(`(() => { const l = document.querySelector('#bar .poll-legal'); if (!l) return 'missing'; const r = l.getBoundingClientRect();
+            const pts = []; for (const fx of [0.05, 0.3, 0.5, 0.7, 0.95]) for (const fy of [0.15, 0.5, 0.85]) pts.push([r.left + r.width * fx, r.top + r.height * fy]);
+            const bad = pts.filter(([x, y]) => { const e = document.elementFromPoint(x, y); return !e || !document.querySelector('#bar').contains(e); });
+            return bad.length ? 'covered at ' + bad.length + '/' + pts.length + ' points by ' + (document.elementFromPoint(bad[0][0], bad[0][1])?.id || document.elementFromPoint(bad[0][0], bad[0][1])?.tagName) : 'ok'; })()`);
+          if (covered !== 'ok') errors.push(`[${current}] legal poll sentence is obscured: ${covered}`);
+        }
         const style = await evaluate(`(() => { const l = document.querySelector('#bar .poll-legal'); const sl = document.querySelector('#bar .seats-line'); if (!l) return 'missing'; const a = getComputedStyle(l), b = sl ? getComputedStyle(sl) : a; return a.fontSize === b.fontSize && a.color === getComputedStyle(document.body).color ? 'ok' : 'style:' + a.fontSize + ' ' + a.color; })()`);
         if (style !== 'ok' && members_in_url(suffix)) errors.push(`[${current}] legal sentence must match the seat line size and use normal text colour (${style})`);
       }
