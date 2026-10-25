@@ -13,6 +13,7 @@ import { makeContext, presets, serializeState } from '../site/js/compat.js';
 const CHROME = process.env.CHROME_PATH ?? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const OUT = join(ROOT, 'smoke');
 const SIZES = [{ tag: 'm', width: 390, height: 844, mobile: true, dpr: 2 }, { tag: 'd', width: 1280, height: 900, mobile: false, dpr: 1 }];
+const members_in_url = (qs) => /[?&]m=/.test(qs);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function waitFor(fn, ms = 10000) {
@@ -87,6 +88,7 @@ const cases = [
   ['method', '#method', 'method'],
 ];
 
+const legal = `ממוצע סקרים שפורסמו עד ${meta.pollsAsOf.split('-').reverse().join('.')}. הסקרים אינם עדכניים, ואין ללמוד מהם על דפוסי הצבעה או עמדות הציבור כיום.`;
 const base = process.argv[2];
 const server = base ? null : await serve();
 const baseUrl = (base ?? server.url).replace(/\/?$/, '/');
@@ -177,12 +179,17 @@ try {
         const seatText = await evaluate("(document.body.innerText.match(/מנ׳|\\d+ מנדטים|מתוך 61|\\(61\\+\\)|סקרים/) || [])[0] || ''");
         if (seatText) errors.push(`[${current}] showSeats is off but seat text is visible: "${seatText}"`);
       } else if (expectView === 'build') {
-        const barVisible = await evaluate("!document.querySelector('#bar').hidden && /ממוצע סקרים/.test(document.querySelector('#bar').innerText)");
-        if (!barVisible) errors.push(`[${current}] build view must show the bar with the poll disclaimer`);
+        const barOk = await evaluate(`!document.querySelector('#bar').hidden && document.querySelector('#bar').innerText.replace(/\\s+/g, ' ').includes(${JSON.stringify(legal)})`);
+        if (!barOk) errors.push(`[${current}] build view must show the full legal poll sentence in the bar`);
+        // Same size as the seat line, normal text colour (not muted grey).
+        const style = await evaluate(`(() => { const l = document.querySelector('#bar .poll-legal'); const sl = document.querySelector('#bar .seats-line'); if (!l) return 'missing'; const a = getComputedStyle(l), b = sl ? getComputedStyle(sl) : a; return a.fontSize === b.fontSize && a.color === getComputedStyle(document.body).color ? 'ok' : 'style:' + a.fontSize + ' ' + a.color; })()`);
+        if (style !== 'ok' && members_in_url(suffix)) errors.push(`[${current}] legal sentence must match the seat line size and use normal text colour (${style})`);
       }
       if (expectView === 'results' && meta.showSeats !== false) {
-        const ok = await evaluate("document.querySelectorAll('#results .seats-line').length === 0 || /ממוצע סקרים/.test(document.querySelector('#results').innerText)");
-        if (!ok) errors.push(`[${current}] results show seats without the poll disclaimer`);
+        const ok = await evaluate(`document.querySelectorAll('#results .seats-line').length === 0 || document.querySelector('#results').innerText.replace(/\\s+/g, ' ').includes(${JSON.stringify(legal)})`);
+        if (!ok) errors.push(`[${current}] results show seats without the full legal poll sentence`);
+        const line = await evaluate("document.querySelector('#results-coalition')?.innerText || ''");
+        if (!line.trim()) errors.push(`[${current}] results are missing the coalition line`);
       }
       await shoot(z, `${name}-${z.tag}.png`);
     }

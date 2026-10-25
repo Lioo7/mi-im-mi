@@ -1,10 +1,11 @@
 {
   "dataUpdated": "2026-10-25",
   "pollsAsOf": "2026-10-23",
-  "pollNote": "ממוצע סקרים שפורסמו עד 23.10.2026 — הסקרים אינם עדכניים",
-  "pollSourceUrl": "https://www.bakalpi.co.il/he/parties",
+  "pollNote": "ממוצע סקרים שפורסמו עד 23.10.2026. הסקרים אינם עדכניים, ואין ללמוד מהם על דפוסי הצבעה או עמדות הציבור כיום.",
+  "pollSourceUrl": "https://www.bakalpi.co.il/he",
   "blocSourceUrl": "https://www.mako.co.il/news-israel-elections/2026/Article-8ea5e45ec2961a1027.htm",
   "partyNamesSourceUrl": "https://www.gov.il/he/pages/candidates-lists-26",
   "showSeats": true,
-  "stub": false
+  "stub": false,
+  "pollGuidanceUrl": "https://www.gov.il/BlobFolder/guide/knesset25-elections-info/he/survey_section16_acces.pdf"
 }

@@ -154,7 +154,8 @@ function renderMethod() {
 
     ${examples ? `<h3>${esc(M.examplesTitle)}</h3><ul>${examples}</ul>` : ''}
 
-    ${showSeats() ? `<h3>${esc(M.pollsTitle)}</h3><p>${esc(M.pollsText)} <strong>${esc(meta.pollNote)}</strong></p>` : ''}
+    ${showSeats() ? `<h3>${esc(M.pollsTitle)}</h3><p>${esc(M.pollsText)}</p><p><strong>${esc(meta.pollNote)}</strong></p>
+    <p>${esc(M.pollsGuidance)} <a href="${esc(meta.pollGuidanceUrl)}" rel="noopener">${esc(M.pollsGuidanceLink)}</a></p>` : ''}
     <p class="muted">${esc(M.updated(fmtDate(meta.dataUpdated)))}</p>`;
 }
 
@@ -306,7 +307,7 @@ function seatsLine(withNote = true) {
 }
 
 function pollNoteBtn() {
-  return `<p class="poll-note"><button type="button" class="poll-btn" data-act="poll-info" data-key="poll-info">${esc(S.seats.pollShort(fmtDate(meta.pollsAsOf)))} <span aria-hidden="true">ⓘ</span></button></p>`;
+  return `<p class="poll-legal">${esc(S.seats.pollLegal(fmtDate(meta.pollsAsOf)))} <button type="button" class="poll-btn" data-act="poll-info" data-key="poll-info" aria-label="${esc(S.seats.sourceInfo)}"><span aria-hidden="true">ⓘ</span></button></p>`;
 }
 
 function overallBar(r) {
@@ -349,11 +350,17 @@ function crisesCard(r) {
 
 function glueCard(r) {
   const R = S.results;
-  const items = r.glue.map((g) => `<li>${levelBadge(g.status)} ${esc(topic(g.topicId).name)}
+  const agree = r.glue.filter((g) => g.status === 'AGREE');
+  const minor = r.glue.filter((g) => g.status === 'MINOR');
+  const items = agree.map((g) => `<li>${levelBadge(g.status)} ${esc(topic(g.topicId).name)}
     <span class="muted small block">${esc(R.glueCoverage(g.withPosition, g.total))}</span></li>`).join('');
+  const minorLine = minor.length ? `<p class="minor-line">${esc(R.minorOnly(minor.map((g) => topic(g.topicId).short).join(', ')))}</p>` : '';
+  let body;
+  if (!agree.length && !minor.length) body = `<p>${esc(R.noGlue)}</p>`;
+  else body = (agree.length ? `<ul class="list">${items}</ul>` : `<p>${esc(R.noAgree)}</p>`) + minorLine;
   return `<section class="card">
     <h3>${esc(R.glueTitle)}</h3>
-    ${r.glue.length ? `<ul class="list">${items}</ul>` : `<p>${esc(R.noGlue)}</p>`}
+    ${body}
   </section>`;
 }
 
@@ -385,6 +392,9 @@ function coverageFootnote() {
 function renderResults() {
   const { members } = state;
   const el = $('#results');
+  const tags = members.map((id) => `${id === state.base ? '★ ' : ''}${name(id)}${state.outside.includes(id) ? ` ${S.results.outsideTag}` : ''}`);
+  $('#results-coalition').innerHTML = members.length
+    ? `<p class="coalition-line"><span class="muted small">${esc(S.results.coalitionLabel)}:</span> ${esc(tags.join(' · '))}</p>` : '';
   $('#results-bar').innerHTML = `
     <a class="back" href="#build">${esc(S.nav.back)}</a>
     <button type="button" class="btn btn-small" data-act="share" data-key="share">${esc(S.share.button)}</button>`;
@@ -464,25 +474,28 @@ function renderBar() {
   const { members, outside } = state;
   if (view !== 'build' || (!members.length && !showSeats())) { bar.hidden = true; return; }
   bar.hidden = false;
-  if (!members.length) { bar.innerHTML = `<div class="seats">${pollNoteBtn()}</div>`; return; }
-  let seatsHtml = '';
-  if (showSeats()) {
-    const s = C.seats(ctx, members, outside);
-    const pct = Math.min(100, (s.total / 61) * 100);
-    seatsHtml = `<div class="seats">${seatsLine(false)}
-      <div class="meter" role="img" aria-label="${esc(`${s.total} / 61`)}"><span style="inline-size:${pct}%"></span></div>
-      ${pollNoteBtn()}</div>`;
-  }
-  bar.innerHTML = `${seatsHtml}<a class="btn" href="#results" data-key="to-results">${esc(S.nav.toResults)}</a>`;
+  const toResults = `<a class="btn" href="#results" data-key="to-results">${esc(S.nav.toResults)}</a>`;
+  if (!members.length) { bar.innerHTML = `<div class="bar-col">${pollNoteBtn()}</div>`; return; }
+  if (!showSeats()) { bar.innerHTML = toResults; return; }
+  const s = C.seats(ctx, members, outside);
+  const pct = Math.min(100, (s.total / 61) * 100);
+  bar.innerHTML = `<div class="bar-col">
+    <div class="bar-top">${seatsLine(false)}${toResults}</div>
+    <div class="meter" role="img" aria-label="${esc(`${s.total} / 61`)}"><span style="inline-size:${pct}%"></span></div>
+    ${pollNoteBtn()}
+  </div>`;
 }
 
 function pollInfoSheet() {
   const s = C.seats(ctx, state.members, state.outside);
   openSheet(`
     <h2>${esc(S.seats.infoTitle)}</h2>
-    <p><strong>${esc(meta.pollNote)}</strong></p>
     <p>${esc(S.seats.infoBody)}</p>
-    ${s.borderline ? `<p>${esc(S.seats.borderlineNote(s.borderline))}</p>` : ''}`);
+    ${s.borderline ? `<p>${esc(S.seats.borderlineNote(s.borderline))}</p>` : ''}
+    <ul class="links">
+      <li><a href="${esc(meta.pollSourceUrl)}" rel="noopener" target="_blank">${esc(S.seats.infoSource)}</a></li>
+      <li><a href="${esc(meta.pollGuidanceUrl)}" rel="noopener" target="_blank">${esc(S.seats.infoGuidance)}</a></li>
+    </ul>`);
 }
 
 async function share() {
