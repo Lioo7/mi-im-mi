@@ -73,6 +73,8 @@ const cases = [
   ...Object.entries(pr).map(([k, v]) => [`preset-${k}`, serializeState(ctx, { base: null, ...v })]),
   ['pair-together-democrats', '?m=together,democrats'],
   ['base-likud', serializeState(ctx, { base: 'likud', members: pr.coalition.members, outside: [] })],
+  ['linked-zehut-only', '?m=zehut'],
+  ['low-coverage', '?m=shas,utj,zehut,likud'],
 ];
 
 const base = process.argv[2];
