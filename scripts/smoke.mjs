@@ -173,6 +173,10 @@ try {
         const hash = await evaluate('location.hash');
         if (hash !== '#results') errors.push(`[${current}] shared link did not settle on #results (hash "${hash}")`);
       }
+      if (expectView === 'build') {
+        const purpose = await evaluate("document.querySelector('#purpose')?.innerText || ''");
+        if (!purpose.includes('כל עמדה מגובה במקור. זו לא המלצת הצבעה.')) errors.push(`[${current}] build view is missing the purpose line`);
+      }
       const overflow = await evaluate('document.documentElement.scrollWidth > window.innerWidth + 1');
       if (overflow) errors.push(`[${current}] horizontal page overflow`);
       if (meta.showSeats === false) {
@@ -223,6 +227,11 @@ try {
   await evaluate("document.querySelector('.cell')?.click()");
   await sleep(300);
   await shoot(z, 'interaction-cell-sheet-m.png', false);
+  // The cell sheet offers a corrections mailto with a prefilled subject and the page URL in the body.
+  const mailto = await evaluate("document.querySelector('#sheet a[href^=\"mailto:\"]')?.getAttribute('href') || ''");
+  const mq = mailto ? new URL(mailto).searchParams : null;
+  if (!mq || !/^תיקון: .+ · .+/.test(mq.get('subject') ?? '') || !(mq.get('body') ?? '').includes('http')) errors.push(`[interaction] cell sheet is missing a valid corrections mailto (${mailto})`);
+  if (!mailto.startsWith('mailto:lioz.akirav@gmail.com?')) errors.push('[interaction] corrections mailto must go to lioz.akirav@gmail.com');
   await evaluate("document.querySelector('#sheet').close(); document.querySelector('#results-bar .back').click()");
   await sleep(300);
   const backView = await evaluate('document.body.dataset.view');

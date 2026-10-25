@@ -1,6 +1,7 @@
 import { S } from './strings.js';
 import * as C from './compat.js';
 import { countPageview } from './stats.js';
+import { correctionMailto } from './links.js';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -59,6 +60,7 @@ function renderHeader() {
   $('#brand-name').textContent = S.appName;
   $('#nav-method').textContent = S.nav.method;
   $('#intro').textContent = S.buildIntro;
+  $('#purpose').textContent = S.buildPurpose;
   $('#skip').textContent = S.skip;
   $('#method-back').textContent = S.nav.backFromMethod;
   if (meta.stub) {
@@ -156,6 +158,9 @@ function renderMethod() {
 
     ${showSeats() ? `<h3>${esc(M.pollsTitle)}</h3><p>${esc(M.pollsText)}</p><p><strong>${esc(meta.pollNote)}</strong></p>
     <p>${esc(M.pollsGuidance)} <a href="${esc(meta.pollGuidanceUrl)}" rel="noopener">${esc(M.pollsGuidanceLink)}</a></p>` : ''}
+    <h3>${esc(M.researchDocs)}</h3>
+    <p>${esc(M.researchDocsNote)} <a href="https://github.com/Lioo7/mi-im-mi/tree/main/docs/research" rel="noopener">${esc(M.researchDocs)}</a></p>
+    <p><strong>${esc(M.corrections)}</strong> <a href="mailto:lioz.akirav@gmail.com"><bdi>lioz.akirav@gmail.com</bdi></a></p>
     <p class="muted">${esc(M.updated(fmtDate(meta.dataUpdated)))}</p>`;
 }
 
@@ -259,6 +264,7 @@ function positionBlock(pid, tid, { heading = true } = {}) {
       <span class="tag tag-src">${esc(T.sourceTypes[p.sourceType] ?? '')}</span>
       ${p.sourceDate ? `<span class="muted">${esc(T.date(fmtDate(p.sourceDate)))}</span>` : ''}
       <a href="${esc(p.sourceUrl)}" rel="noopener" target="_blank">${esc(T.source)}</a>
+      ${p.archiveUrl ? `· <a href="${esc(p.archiveUrl)}" rel="noopener" target="_blank">${esc(T.archive)}</a>` : ''}
       ${p.viaUrl ? `· <a href="${esc(p.viaUrl)}" rel="noopener" target="_blank">${esc(T.via)}</a>` : ''}
     </p>
   </div>`;
@@ -545,7 +551,8 @@ function cellSheet(pid, tid) {
     <p class="muted small">${esc(S.sheet.officialName)}: ${esc(p.officialName)}</p>
     ${positionBlock(pid, tid)}
     <h3>${esc(S.sheet.why)}</h3>
-    ${whyHtml(cell, pid, tid)}`);
+    ${whyHtml(cell, pid, tid)}
+    <p class="correction"><a href="${esc(correctionMailto({ party: p.name, topic: topic(tid).name, url: location.href, bodyIntro: S.sheet.correctionBody }))}">${esc(S.sheet.correction)}</a></p>`);
 }
 
 function topicSheet(tid) {

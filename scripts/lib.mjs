@@ -24,7 +24,7 @@ export function loadData() {
 // Fields published in site/data/positions.json, in output order.
 export const PUBLIC_FIELDS = [
   'partyId', 'topicId', 'position', 'redLine', 'summary', 'quote',
-  'sourceUrl', 'sourceType', 'sourceDate', 'viaUrl', 'confidence', 'componentsDisagree',
+  'sourceUrl', 'sourceType', 'sourceDate', 'viaUrl', 'archiveUrl', 'confidence', 'componentsDisagree',
 ];
 
 export const SOURCE_TYPES = ['platform', 'statement', 'record'];
@@ -127,6 +127,8 @@ export function validatePositions(positions, parties, topics, where = (p) => key
       if (p.sourceDate != null && !isDate(p.sourceDate)) errors.push(`${at}: bad sourceDate "${p.sourceDate}"`);
     }
     if (p.viaUrl && !isHttps(p.viaUrl)) errors.push(`${at}: invalid viaUrl`);
+    if (p.archiveUrl && !/^https:\/\/web\.archive\.org\/web\/\d{14}\//.test(p.archiveUrl)) errors.push(`${at}: archiveUrl must be a Wayback Machine snapshot`);
+    if (p.archiveUrl && p.position === null) errors.push(`${at}: archiveUrl on a row without a position`);
     if (p.confidence && !CONFIDENCE.includes(p.confidence)) errors.push(`${at}: bad confidence "${p.confidence}"`);
     if (p.quote && p.quote.length > 300) errors.push(`${at}: quote too long`);
     if (p.componentsDisagree != null && typeof p.componentsDisagree !== 'boolean') errors.push(`${at}: componentsDisagree must be true/false`);

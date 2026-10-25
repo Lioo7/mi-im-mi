@@ -26,6 +26,8 @@
 | `positions.json` | 112 עמדות: `position` (‏−2…2 או `null`), `redLine`, `componentsDisagree`, `summary`, `quote`, `sourceUrl`, `sourceType` (‏`platform`/`statement`/`record`), `sourceDate`, `viaUrl`, `confidence` |
 | `meta.json` | תאריך עדכון, תאריך הסקרים, `showSeats` |
 
+[`docs/research/`](docs/research/): נימוקי המיקום והחלטות הבדיקה, ולכל עמדה הערת ראיות, קו אדום ועותק בארכיון.
+
 מספרי המנדטים הם ממוצע הסקרים האחרונים כפי שמופיע ב-[בקלפי](https://www.bakalpi.co.il/he), ומוצגים כסדר גודל בלבד.
 
 ## תיקון טעות
