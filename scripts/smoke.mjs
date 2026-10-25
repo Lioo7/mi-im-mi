@@ -88,6 +88,7 @@ const chrome = spawn(CHROME, [
 ], { stdio: 'ignore' });
 
 const errors = [];
+const counterRequests = [];
 let exitCode = 0;
 try {
   rmSync(OUT, { recursive: true, force: true });
@@ -102,9 +103,29 @@ try {
     if (m.method === 'Runtime.consoleAPICalled' && m.params.type === 'error') errors.push(`[${current}] console.error: ${m.params.args.map((a) => a.value ?? a.description).join(' ')}`);
     if (m.method === 'Log.entryAdded' && m.params.entry.level === 'error') errors.push(`[${current}] ${m.params.entry.text} ${m.params.entry.url ?? ''}`);
     if (m.method === 'Network.loadingFailed' && !m.params.canceled) errors.push(`[${current}] request failed: ${m.params.errorText}`);
+    if (m.method === 'Network.requestWillBeSent' && /goatcounter|zgo\.at/.test(m.params.request.url)) {
+      counterRequests.push(m.params.request.url);
+      // Privacy: only the pathname may be sent, never the coalition from the query string.
+      const decoded = decodeURIComponent(m.params.request.url);
+      if (/[?&;]([bmo])=|likud|shas|yashar|zehut|democrats/i.test(decoded.replace(/^https?:\/\/[^/]+\/count[^?]*\?/, ''))) {
+        errors.push(`[${current}] GoatCounter request leaks coalition data: ${decoded}`);
+      }
+    }
     if (m.method === 'Network.responseReceived' && m.params.response.status >= 400) errors.push(`[${current}] HTTP ${m.params.response.status} ${m.params.response.url}`);
   });
   for (const d of ['Page', 'Runtime', 'Log', 'Network']) await c.send(`${d}.enable`);
+  // Intercept GoatCounter beacons: record them for the privacy check, but never send them (no test traffic in the stats).
+  await c.send('Fetch.enable', { patterns: [{ urlPattern: '*goatcounter.com/count*' }] });
+  c.on((m) => {
+    if (m.method !== 'Fetch.requestPaused') return;
+    const url = m.params.request.url;
+    counterRequests.push(url);
+    const decoded = decodeURIComponent(url);
+    if (/[?&;]([bmo])=|likud|shas|yashar|zehut|democrats/i.test(decoded.replace(/^https?:\/\/[^/]+\/count[^?]*\?/, ''))) {
+      errors.push(`[${current}] GoatCounter beacon leaks coalition data: ${decoded}`);
+    }
+    c.send('Fetch.fulfillRequest', { requestId: m.params.requestId, responseCode: 200, body: '' }).catch(() => {});
+  });
   await c.send('Network.setCacheDisabled', { cacheDisabled: true });
 
   const shoot = async (file) => {
@@ -166,5 +187,7 @@ if (errors.length) {
   exitCode = 1;
 } else {
   console.log(`✓ no console errors; screenshots in smoke/`);
+  console.log([...new Set(counterRequests)].map((u) => `    ${decodeURIComponent(u)}`).join("\n"));
+  console.log(`  GoatCounter requests seen: ${counterRequests.length}${counterRequests.length ? ' (no coalition data in any)' : ' (none; counters ignore localhost)'}`);
 }
 process.exit(exitCode);

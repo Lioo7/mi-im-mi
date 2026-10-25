@@ -1,5 +1,5 @@
 # מי עם מי: project rules
-Static, Hebrew, RTL web app showing where possible coalition partners clash or agree across 8 topics, for the Knesset 26 elections (27.10.2026). Vanilla JS, no build, no dependencies; deployed from `site/` to Netlify (`mi-im-mi`). **See PLAN.md for everything else.**
+Static, Hebrew, RTL web app showing where possible coalition partners clash or agree across 8 topics, for the Knesset 26 elections (27.10.2026). Vanilla JS, no build, no dependencies; deployed from `site/` to Netlify (`mi-im-mi-2026`). **See PLAN.md for everything else.**
 
 ## Neutrality (a product requirement)
 - One neutral color for all parties; severity colors encode distance only. Parties are ordered by poll average, presets alphabetically.
