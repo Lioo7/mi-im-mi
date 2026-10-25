@@ -9,12 +9,16 @@ const arg = (name, dflt) => { const i = process.argv.indexOf(`--${name}`); retur
 const CONCURRENCY = arg('concurrency', 1);
 const TIMEOUT_MS = arg('timeout', 120) * 1000;
 const GAP_MS = arg('gap', 12) * 1000;
-const MAP = join(ROOT, 'research', 'archive-map.json');
+const flag = (name) => { const i = process.argv.indexOf(`--${name}`); return i > -1 ? process.argv[i + 1] : null; };
+const REVERSE = process.argv.includes('--reverse');
+const MAP = join(ROOT, 'research', flag('map') ?? 'archive-map.json');
+const OTHER = flag('other') ? join(ROOT, 'research', flag('other')) : null; // a sibling worker's map: skip what it has done
 const SNAPSHOT = /^https:\/\/web\.archive\.org\/web\/\d{14}\//;
 
 const map = existsSync(MAP) ? JSON.parse(readFileSync(MAP, 'utf8')) : {};
 const urls = [...new Set(readJson(MERGED).filter((p) => p.position !== null && p.sourceUrl).map((p) => p.sourceUrl))];
 const todo = urls.filter((u) => !map[u]?.snapshot);
+if (REVERSE) todo.reverse();
 console.log(`${urls.length} source URLs, ${urls.length - todo.length} already archived, ${todo.length} to do`);
 
 const save = () => writeFileSync(MAP, JSON.stringify(map, null, 2));
@@ -46,6 +50,7 @@ let done = 0;
 async function worker() {
   while (next < todo.length) {
     const url = todo[next++];
+    if (OTHER && existsSync(OTHER) && JSON.parse(readFileSync(OTHER, 'utf8'))[url]?.snapshot) { console.log(`- skip (done by sibling) ${url}`); continue; }
     const r = await archive(url);
     map[url] = { ...r, at: new Date().toISOString() };
     save();

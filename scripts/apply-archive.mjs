@@ -1,11 +1,17 @@
 // Copies Wayback snapshot URLs from research/archive-map.json into research/merged.json (archiveUrl) and writes
 // docs/research/archive-failures.json for any source that could not be archived. Positions then flow through
 // export-csv -> import-csv like every other data change.
-import { writeFileSync } from 'node:fs';
+import { existsSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ROOT, MERGED, readJson, writeJson } from './lib.mjs';
 
-const map = readJson(join(ROOT, 'research', 'archive-map.json'));
+// Merge the result files of all archiver workers (a snapshot beats an error).
+const map = {};
+for (const f of ['archive-map.json', 'archive-map-b.json']) {
+  const path = join(ROOT, 'research', f);
+  if (!existsSync(path)) continue;
+  for (const [url, m] of Object.entries(readJson(path))) if (!map[url]?.snapshot) map[url] = m;
+}
 const rows = readJson(MERGED);
 let set = 0;
 const failed = new Map();
