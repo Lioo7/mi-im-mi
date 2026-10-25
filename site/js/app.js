@@ -87,6 +87,14 @@ function renderMethod() {
     return `<tr><th scope="row">${esc(p.name)}</th><td>${withPos}</td><td>${8 - withPos}</td><td>${red}</td><td>${esc(M.platformStatus[p.platformStatus])}</td></tr>`;
   }).join('');
 
+  const mixRow = (key) => {
+    const ids = ctx.parties.filter((p) => (p.bloc ?? 'none') === key).map((p) => p.id);
+    const rs = ids.flatMap((id) => ctx.topics.map((t) => posOf(id, t.id)));
+    const n = (type) => rs.filter((r) => r?.position != null && r.sourceType === type).length;
+    return `<tr><th scope="row">${esc(M.blocNames[key])}</th><td>${n('platform')}</td><td>${n('statement')}</td><td>${n('record')}</td><td>${rs.filter((r) => r?.position == null).length}</td></tr>`;
+  };
+  const sourceMix = ['coalition', 'opposition', 'arab', 'none'].map(mixRow).join('');
+
   const examples = ['coalition', 'opposition'].map((bloc) => {
     const ids = ctx.parties.filter((p) => p.bloc === bloc).map((p) => p.id);
     const worst = C.crises(ctx, ctx.topics.map((t) => C.topicStatus(ctx, ids, t.id)), 1)[0];
@@ -125,6 +133,14 @@ function renderMethod() {
     <h3>${esc(M.jointTitle)}</h3>
     <ul>${M.jointRules.map((r) => `<li>${esc(r)}</li>`).join('')}</ul>
     <p class="small"><a href="https://www.ynet.co.il/news/elections2026/article/rjuhrwvdfl" rel="noopener">${esc(M.jointSource)}</a></p>
+
+    <h3>${esc(M.sourceMixTitle)}</h3>
+    <p>${esc(M.sourceMixIntro)}</p>
+    <div class="table-wrap"><table class="coverage">
+      <thead><tr>${M.sourceMixCols.map((c) => `<th scope="col">${esc(c)}</th>`).join('')}</tr></thead>
+      <tbody>${sourceMix}</tbody>
+    </table></div>
+    <p class="muted small">${esc(M.undatedNote)}</p>
 
     <h3>${esc(M.coverageTitle)}</h3>
     <div class="table-wrap"><table class="coverage">
