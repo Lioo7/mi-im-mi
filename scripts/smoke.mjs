@@ -183,19 +183,28 @@ try {
         const seatText = await evaluate("(document.body.innerText.match(/מנ׳|\\d+ מנדטים|מתוך 61|\\(61\\+\\)|סקרים/) || [])[0] || ''");
         if (seatText) errors.push(`[${current}] showSeats is off but seat text is visible: "${seatText}"`);
       } else if (expectView === 'build') {
-        const barOk = await evaluate(`!document.querySelector('#bar').hidden && document.querySelector('#bar').innerText.replace(/\\s+/g, ' ').includes(${JSON.stringify(legal)})`);
-        if (!barOk) errors.push(`[${current}] build view must show the full legal poll sentence in the bar`);
-        // Same size as the seat line, normal text colour (not muted grey).
-        // The sentence must not be covered by anything (e.g. a host-injected badge): sample points across its box.
+        // The seats box above the chips carries the full legal sentence (also with no party selected, since chips show seats).
+        const box = await evaluate(`(() => { const b = document.querySelector('#builder .seats-box'); if (!b) return 'missing box'; if (!b.innerText.replace(/\\s+/g, ' ').includes(${JSON.stringify(legal)})) return 'sentence missing';
+          const l = b.querySelector('.poll-legal'), sl = b.querySelector('.seats-line'); const a = getComputedStyle(l), c = getComputedStyle(sl);
+          if (a.fontSize !== c.fontSize || a.color !== getComputedStyle(document.body).color) return 'style ' + a.fontSize + '/' + c.fontSize + ' ' + a.color;
+          const r = l.getBoundingClientRect(); const pts = []; for (const fx of [0.05, 0.3, 0.5, 0.7, 0.95]) for (const fy of [0.15, 0.5, 0.85]) pts.push([r.left + r.width * fx, r.top + r.height * fy]);
+          const inView = pts.every(([x, y]) => y >= 0 && y < innerHeight);
+          const bad = inView ? pts.filter(([x, y]) => { const e = document.elementFromPoint(x, y); return !e || !b.contains(e); }) : [];
+          return bad.length ? 'obscured at ' + bad.length + ' points by ' + (document.elementFromPoint(bad[0][0], bad[0][1])?.id || document.elementFromPoint(bad[0][0], bad[0][1])?.tagName) : 'ok'; })()`);
+        if (box !== 'ok') errors.push(`[${current}] seats box: ${box}`);
+        const line = await evaluate("(() => { const e = document.querySelector('#builder .seats-box .seats-line'); const lh = parseFloat(getComputedStyle(e).lineHeight); return e.getBoundingClientRect().height > lh * 1.5 ? 'wraps' : 'ok'; })()");
+        if (line !== 'ok') errors.push(`[${current}] seat line wraps onto two lines`);
+        const chipsBelow = await evaluate("(() => { const b = document.querySelector('#builder .seats-box'); const c = document.querySelector('#builder .chips'); return b.compareDocumentPosition(c) & Node.DOCUMENT_POSITION_FOLLOWING ? 'ok' : 'chips before box'; })()");
+        if (chipsBelow !== 'ok') errors.push(`[${current}] seats box must sit directly above the chips`);
+        // The sticky bar holds only the party count and the button: no seats, no poll text.
+        const barInfo = await evaluate("(() => { const b = document.querySelector('#bar'); return b.hidden ? 'hidden' : b.innerText.replace(/\\s+/g, ' ').trim(); })()");
         if (members_in_url(suffix)) {
-          const covered = await evaluate(`(() => { const l = document.querySelector('#bar .poll-legal'); if (!l) return 'missing'; const r = l.getBoundingClientRect();
-            const pts = []; for (const fx of [0.05, 0.3, 0.5, 0.7, 0.95]) for (const fy of [0.15, 0.5, 0.85]) pts.push([r.left + r.width * fx, r.top + r.height * fy]);
-            const bad = pts.filter(([x, y]) => { const e = document.elementFromPoint(x, y); return !e || !document.querySelector('#bar').contains(e); });
-            return bad.length ? 'covered at ' + bad.length + '/' + pts.length + ' points by ' + (document.elementFromPoint(bad[0][0], bad[0][1])?.id || document.elementFromPoint(bad[0][0], bad[0][1])?.tagName) : 'ok'; })()`);
-          if (covered !== 'ok') errors.push(`[${current}] legal poll sentence is obscured: ${covered}`);
-        }
-        const style = await evaluate(`(() => { const l = document.querySelector('#bar .poll-legal'); const sl = document.querySelector('#bar .seats-line'); if (!l) return 'missing'; const a = getComputedStyle(l), b = sl ? getComputedStyle(sl) : a; return a.fontSize === b.fontSize && a.color === getComputedStyle(document.body).color ? 'ok' : 'style:' + a.fontSize + ' ' + a.color; })()`);
-        if (style !== 'ok' && members_in_url(suffix)) errors.push(`[${current}] legal sentence must match the seat line size and use normal text colour (${style})`);
+          if (!/^\d+ מפלגות נבחרו|^מפלגה אחת נבחרה/.test(barInfo) || /מנדט|סקר|≈|\d{2,}/.test(barInfo.replace(/^\d+ מפלגות נבחרו/, ''))) errors.push(`[${current}] sticky bar must hold only the party count and button, got "${barInfo}"`);
+          // The host badge must not cover the bar's button.
+          const btn = await evaluate(`(() => { const a = document.querySelector('#bar a.btn'); if (!a) return 'missing'; const r = a.getBoundingClientRect(); const pts = []; for (const fx of [0.1, 0.5, 0.9]) for (const fy of [0.2, 0.5, 0.8]) pts.push([r.left + r.width * fx, r.top + r.height * fy]);
+            const bad = pts.filter(([x, y]) => { const e = document.elementFromPoint(x, y); return !e || !(a === e || a.contains(e)); }); return bad.length ? 'covered by ' + (document.elementFromPoint(bad[0][0], bad[0][1])?.id || document.elementFromPoint(bad[0][0], bad[0][1])?.tagName) : 'ok'; })()`);
+          if (btn !== 'ok') errors.push(`[${current}] bar button obscured: ${btn}`);
+        } else if (barInfo !== 'hidden') errors.push(`[${current}] sticky bar should be hidden with no party selected`);
       }
       if (expectView === 'results' && meta.showSeats !== false) {
         const ok = await evaluate(`document.querySelectorAll('#results .seats-line').length === 0 || document.querySelector('#results').innerText.replace(/\\s+/g, ' ').includes(${JSON.stringify(legal)})`);
@@ -217,7 +226,7 @@ try {
   await evaluate("document.querySelector('[data-act=\"preset\"][data-id=\"unity\"]').click()");
   await sleep(300);
   await shoot(z, 'interaction-build-unity-m.png', false);
-  await evaluate("document.querySelector('[data-act=\"poll-info\"]').click()");
+  await evaluate("document.querySelector('#builder [data-act=\"poll-info\"]').click()");
   await sleep(300);
   await shoot(z, 'interaction-poll-info-m.png', false);
   await evaluate("document.querySelector('#sheet').close(); document.querySelector('#bar a.btn').click()");

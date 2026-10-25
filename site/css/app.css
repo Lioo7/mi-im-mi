@@ -1,14 +1,15 @@
 :root {
-  --bg: #f6f5f2;
+  --bg: #ffffff;
   --card: #ffffff;
+  --card-tint: #f4f7fe;
   --fg: #1c1d21;
   --muted: #5d6068;
-  --line: #e3e1dc;
-  --accent: #2f3b52;
+  --line: #d9dce3;
+  --accent: #0038b8;
   --accent-fg: #ffffff;
-  --chip: #eceae5;
-  --chip-on: #2f3b52;
-  --focus: #1d4ed8;
+  --chip: #e9eefb;
+  --chip-on: #0038b8;
+  --focus: #ff8a00;
   --radius: 12px;
   --gutter: 16px;
 
@@ -18,7 +19,7 @@
   --major-bg: #fddcbc; --major-fg: #7a2e0e;
   --clash-bg: #f7c9c9; --clash-fg: #7f1d1d;
   --none-bg: #eceef1; --none-fg: #4b5563;
-  --ref-bg: #dfe3ea; --ref-fg: #2f3b52;
+  --ref-bg: #e3eafb; --ref-fg: #0a2a7a;
 }
 
 * { box-sizing: border-box; }
@@ -287,3 +288,59 @@ body[data-view="build"] { padding-block-end: 210px; }
 
 .purpose { margin: 0 0 8px; color: var(--muted); font-size: .95rem; line-height: 1.5; }
 .correction { margin-block-start: 16px; padding-block-start: 10px; border-block-start: 1px solid var(--line); font-size: .9rem; }
+
+/* ===== round 5: Israeli look, seats box, footer ===== */
+.topbar { border-block-end: 1px solid var(--line); }
+.topbar::before { content: ""; display: block; block-size: 11px; background: linear-gradient(var(--accent) 0 3px, transparent 3px 8px, var(--accent) 8px 11px); }
+h1, h2, h3 { color: var(--accent); }
+.brand { color: var(--accent); }
+.logo { inline-size: 32px; block-size: 32px; }
+.intro { color: var(--fg); }
+.meter span { background: var(--accent); }
+.meter { background: #dbe4fa; }
+
+/* party chips as ballot slips */
+.chip { background: #fff; border: 1px solid #9aa3b5; border-block-start: 3px solid var(--accent); border-radius: 6px; box-shadow: 0 1px 2px rgba(0,0,0,.08); min-block-size: 84px; gap: 2px; }
+.chip:hover { border-color: var(--accent); background: var(--card-tint); }
+.slip-letters { display: block; font-size: 1.55rem; font-weight: 800; line-height: 1.1; color: var(--accent); letter-spacing: .02em; }
+.chip-name-text { display: block; font-weight: 600; font-size: .9rem; color: var(--fg); }
+.chip-meta { color: var(--muted); }
+.chip.is-on { background: var(--accent); border-color: var(--accent); border-block-start-color: #fff; color: #fff; box-shadow: 0 0 0 2px var(--accent); }
+.chip.is-on .slip-letters, .chip.is-on .chip-name-text { color: #fff; }
+.chip.is-on .chip-meta { color: #fff; }
+.chip.is-on .chip-name { text-align: start; }
+.chip.is-base { box-shadow: 0 0 0 2px var(--accent), 0 0 0 4px #fff inset; }
+.preset { border-color: var(--accent); }
+
+/* seats box above the chips */
+.seats-box { background: var(--card-tint); border: 1px solid #c3cff0; border-radius: 10px; padding: 10px 14px; margin-block: 10px; }
+.seats-box h3 { margin: 0 0 4px; font-size: 1rem; }
+.seats-box .seats-line { font-size: 1.05rem; }
+.seats-box .poll-legal, .overall .poll-legal { font-size: 1.05rem; }
+.seats-line { white-space: nowrap; }
+.seats-line { font-size: 1.05rem; }
+.seats-line.muted { white-space: normal; }
+
+/* sticky bar: party count + button only */
+.bar { justify-content: space-between; }
+.bar-count { font-weight: 700; color: var(--fg); }
+body[data-view="build"] { padding-block-end: 100px; }
+@media (max-width: 1160px) {
+  body.host-badge .bar { padding-block-end: calc(72px + env(safe-area-inset-bottom)); }
+  body.host-badge[data-view="build"] { padding-block-end: 190px; }
+}
+.toast { inset-block-end: 100px; }
+
+.why-box { background: var(--card-tint); border: 1px solid #c3cff0; border-radius: 12px; padding: 4px 16px 8px; margin-block: 12px 20px; scroll-margin-block-start: 12px; }
+.why-box h2 { margin-block-start: .6em; }
+
+/* footer */
+.footer { text-align: center; color: var(--muted); }
+.footer .f-by { font-weight: 700; font-size: .95rem; }
+.footer .f-by a { color: var(--accent); }
+.f-icons { display: flex; justify-content: center; gap: 8px; }
+.f-icons a { display: inline-grid; place-items: center; inline-size: 44px; block-size: 44px; color: var(--accent); border-radius: 50%; }
+.f-icons svg { inline-size: 24px; block-size: 24px; }
+.f-links a { display: inline-block; padding: 8px 2px; }
+.f-meta { font-size: .8rem; }
+.f-links { display: flex; flex-wrap: wrap; justify-content: center; gap: 0 18px; }

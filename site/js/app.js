@@ -71,11 +71,15 @@ function renderHeader() {
 }
 
 function renderFooter() {
+  const F = S.footer;
   $('#footer').innerHTML = `
-    <p><a href="#method">${esc(S.nav.method)}</a> · ${esc(S.updated(fmtDate(meta.dataUpdated)))}</p>
-    <p>${esc(S.footer.by)} · <a href="https://github.com/Lioo7" rel="noopener"><bdi>${esc(S.footer.github)}</bdi></a></p>
-    <p>${esc(S.footer.corrections)} <a href="mailto:lioz.akirav@gmail.com"><bdi>lioz.akirav@gmail.com</bdi></a></p>
-    <p><a href="https://github.com/Lioo7/mi-im-mi/tree/main/site/data" rel="noopener">${esc(S.footer.openData)}</a></p>`;
+    <p class="f-by"><a href="https://lioz.dev" rel="noopener">${esc(F.by)}</a></p>
+    <p class="f-icons">
+      <a href="https://github.com/Lioo7/mi-im-mi" rel="noopener" aria-label="${esc(F.githubLabel)}"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12 .5A11.5 11.5 0 0 0 .5 12c0 5.08 3.29 9.39 7.86 10.91.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.71.08-.7.08-.7 1.15.08 1.76 1.19 1.76 1.19 1.03 1.76 2.69 1.25 3.35.96.1-.75.4-1.25.73-1.54-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.83 1.19 3.09 0 4.42-2.69 5.39-5.25 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg></a>
+      <a href="mailto:lioz.akirav@gmail.com" aria-label="${esc(F.emailLabel)}"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M3 5h18a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Zm1.3 2 7.7 5.9L19.7 7H4.3ZM4 17h16V9.1l-8 6.1-8-6.1V17Z"/></svg></a>
+    </p>
+    <p class="f-links"><a href="#why">${esc(F.why)}</a><a href="#method">${esc(F.how)}</a><a href="https://github.com/Lioo7/mi-im-mi/tree/main/site/data" rel="noopener">${esc(F.openData)}</a></p>
+    <p class="f-meta">${esc(S.updated(fmtDate(meta.dataUpdated)))} · ${esc(F.notAdvice)}</p>`;
 }
 
 function renderMethod() {
@@ -103,7 +107,13 @@ function renderMethod() {
     return `<li>${esc(M.exampleBloc[bloc])}: ${esc(M.example(name(w.a), name(w.b), topic(w.topicId).name, S.levels[w.level].label))}</li>`;
   }).join('');
 
+  const W = S.why;
   $('#method').innerHTML = `
+    <section id="why" class="why-box" tabindex="-1">
+      <h2>${esc(W.title)}</h2>
+      <p>${esc(W.p1)}</p>
+      <p>${esc(W.p2)} <a href="mailto:lioz.akirav@gmail.com">${esc(W.writeMe)}</a> · <a href="https://github.com/Lioo7/mi-im-mi" rel="noopener"><bdi>GitHub</bdi></a></p>
+    </section>
     <h1 class="page-title">${esc(M.title)}</h1>
     <p>${esc(M.intro(ctx.parties.length))}</p>
     <ol>${S.how.lines.map((l) => `<li>${esc(l)}</li>`).join('')}</ol>
@@ -194,6 +204,7 @@ function renderBuilder() {
   const B = S.builder;
   const { members, base, outside } = state;
 
+  const slip = (p) => `<span class="slip-letters" dir="rtl">${esc(p.ballotLetters)}</span><span class="chip-name-text">${esc(p.name)}</span>`;
   const chips = ctx.parties.map((p) => {
     const id = p.id;
     const tags = (outside.includes(id) ? `<span class="tag">${esc(B.outside)}</span>` : '')
@@ -202,7 +213,7 @@ function renderBuilder() {
       const isBase = id === base;
       const own = ctx.topics.length - C.coverage(ctx, id);
       return `<div class="chip is-on${isBase ? ' is-base' : ''}">
-        <button type="button" class="chip-name" data-act="party" data-id="${id}" data-key="party-${id}">${isBase ? '<span aria-hidden="true">★</span> ' : ''}${esc(p.name)}</button>
+        <button type="button" class="chip-name" data-act="party" data-id="${id}" data-key="party-${id}"><span class="slip-letters">${isBase ? '<span aria-hidden="true">★</span> ' : ''}${esc(p.ballotLetters)}</span><span class="chip-name-text">${esc(p.name)}</span></button>
         <span class="chip-meta">${seatsChip(id)}${tags}${own ? `<span class="impact" dir="ltr" title="${esc(B.ownMissingLabel(own))}" aria-label="${esc(B.ownMissingLabel(own))}"><span class="im-unk">${esc(B.ownMissing(own))}</span></span>` : ''}</span>
         <span class="chip-actions">
           <button type="button" class="mini" data-act="base" data-id="${id}" data-key="base-${id}" aria-pressed="${isBase}" aria-label="${esc(isBase ? B.unsetBase(p.name) : B.setBase(p.name))}"><span aria-hidden="true">${isBase ? '★' : '☆'}</span></button>
@@ -212,7 +223,7 @@ function renderBuilder() {
     }
     const im = members.length ? C.addImpact(ctx, id, members) : null;
     return `<button type="button" class="chip" data-act="add" data-id="${id}" data-key="add-${id}" aria-label="${esc(B.addParty(p.name))}${im ? '. ' + esc(B.impactLabel(im.agree, im.clash, im.unknown)) : ''}">
-      <span class="chip-name-text">${esc(p.name)}</span>
+      ${slip(p)}
       <span class="chip-meta">${seatsChip(id)}${tags}</span>
       ${im ? impactHtml(im.agree, im.clash, im.unknown) : ''}
     </button>`;
@@ -238,6 +249,7 @@ function renderBuilder() {
       <h2>${esc(B.pick)}</h2>
       ${members.length ? `<button type="button" class="link-btn" data-act="clear" data-key="clear">${esc(B.clear)}</button>` : ''}
     </div>
+    ${seatsBox()}
     ${members.length ? `<p class="muted small">${esc(B.impactHeading)}: <span class="impact-legend"><span class="im-ok" aria-hidden="true">✓</span> ${esc(B.impactAgree)} · <span class="im-clash" aria-hidden="true">✕</span> ${esc(B.impactClash)} · <span class="im-unk" aria-hidden="true">?</span> ${esc(B.impactUnknown)}</span></p>` : ''}
     <div class="chips">${chips}</div>
     <p class="muted small">${esc(B.hint)}</p>
@@ -302,14 +314,30 @@ function profileHtml(pid) {
     </section>`).join('')}</div>`;
 }
 
-function seatsLine(withNote = true) {
-  if (!showSeats() || !state.members.length) return '';
+function seatsText() {
   const { members, outside } = state;
   const s = C.seats(ctx, members, outside);
   const S2 = S.seats;
-  const head = `<bdi dir="ltr">≈${s.inside}</bdi> ${esc(S2.unit)}${outside.length ? ` ${esc(S2.outsideBit(s.outside))}` : ''}`;
-  const status = s.missing ? S2.short(s.missing) : S2.majority;
-  return `<p class="seats-line"><strong>${head}</strong> · ${esc(status)}</p>${withNote ? pollNoteBtn() : ''}`;
+  const head = outside.length ? S2.totalWithOutside(s.total, s.inside, s.outside) : S2.total2(s.inside);
+  return { s, html: `<strong><bdi dir="ltr">${esc(head)}</bdi></strong> · ${esc(s.missing ? S2.short(s.missing) : S2.majority)}` };
+}
+
+function seatsLine() {
+  if (!showSeats() || !state.members.length) return '';
+  return `<p class="seats-line">${seatsText().html}</p>${pollNoteBtn()}`;
+}
+
+function seatsBox() {
+  if (!showSeats()) return '';
+  const { members } = state;
+  let body = `<p class="seats-line muted">${esc(S.seats.empty)}</p>`;
+  if (members.length) {
+    const { s, html } = seatsText();
+    const pct = Math.min(100, (s.total / 61) * 100);
+    body = `<p class="seats-line">${html}</p>
+      <div class="meter" role="img" aria-label="${esc(`${s.total} / 61`)}"><span style="inline-size:${pct}%"></span></div>`;
+  }
+  return `<section class="seats-box" aria-label="${esc(S.seats.boxTitle)}"><h3>${esc(S.seats.boxTitle)}</h3>${body}${pollNoteBtn()}</section>`;
 }
 
 function pollNoteBtn() {
@@ -474,19 +502,11 @@ function shareCard(r) {
 
 function renderBar() {
   const bar = $('#bar');
-  const { members, outside } = state;
-  if (view !== 'build' || (!members.length && !showSeats())) { bar.hidden = true; return; }
+  const { members } = state;
+  if (view !== 'build' || !members.length) { bar.hidden = true; return; }
   bar.hidden = false;
-  const toResults = `<a class="btn" href="#results" data-key="to-results">${esc(S.nav.toResults)}</a>`;
-  if (!members.length) { bar.innerHTML = `<div class="bar-col">${pollNoteBtn()}</div>`; return; }
-  if (!showSeats()) { bar.innerHTML = toResults; return; }
-  const s = C.seats(ctx, members, outside);
-  const pct = Math.min(100, (s.total / 61) * 100);
-  bar.innerHTML = `<div class="bar-col">
-    <div class="bar-top">${seatsLine(false)}${toResults}</div>
-    <div class="meter" role="img" aria-label="${esc(`${s.total} / 61`)}"><span style="inline-size:${pct}%"></span></div>
-    ${pollNoteBtn()}
-  </div>`;
+  bar.innerHTML = `<span class="bar-count">${esc(S.nav.partyCount(members.length))}</span>
+    <a class="btn" href="#results" data-key="to-results">${esc(S.nav.toResults)}</a>`;
 }
 
 function pollInfoSheet() {
@@ -600,6 +620,8 @@ let view = 'build';
 
 function route(initial = false) {
   let v = location.hash.slice(1);
+  const toWhy = v === 'why';
+  if (toWhy) v = 'method';
   if (!VIEWS.includes(v)) v = initial && state.members.length ? 'results' : 'build';
   const changed = v !== view;
   view = v;
@@ -609,7 +631,8 @@ function route(initial = false) {
   for (const id of VIEWS) $(`#view-${id}`).hidden = id !== view;
   document.body.dataset.view = view;
   render();
-  if (changed || initial) window.scrollTo(0, 0);
+  if (toWhy) $('#why')?.scrollIntoView();
+  else if (changed || initial) window.scrollTo(0, 0);
 }
 
 function render() {
