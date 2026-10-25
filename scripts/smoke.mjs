@@ -127,6 +127,8 @@ try {
     c.send('Fetch.fulfillRequest', { requestId: m.params.requestId, responseCode: 200, body: '' }).catch(() => {});
   });
   await c.send('Network.setCacheDisabled', { cacheDisabled: true });
+  // Let the page count on preview hosts too, so the beacon can be inspected (it is intercepted below, never sent).
+  await c.send('Page.addScriptToEvaluateOnNewDocument', { source: 'window.__GC_ALLOW_PREVIEW__ = true' });
 
   const shoot = async (file) => {
     const { cssContentSize } = await c.send('Page.getLayoutMetrics');
@@ -188,6 +190,6 @@ if (errors.length) {
 } else {
   console.log(`✓ no console errors; screenshots in smoke/`);
   console.log([...new Set(counterRequests)].map((u) => `    ${decodeURIComponent(u)}`).join("\n"));
-  console.log(`  GoatCounter requests seen: ${counterRequests.length}${counterRequests.length ? ' (no coalition data in any)' : ' (none; counters ignore localhost)'}`);
+  console.log(`  GoatCounter beacons intercepted: ${counterRequests.length}${counterRequests.length ? ' (none carried coalition data)' : ''}`);
 }
 process.exit(exitCode);

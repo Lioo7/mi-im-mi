@@ -1,5 +1,6 @@
 import { S } from './strings.js';
 import * as C from './compat.js';
+import { countPageview } from './stats.js';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -628,6 +629,7 @@ async function main() {
   renderFooter();
   render();
   bind();
+  countPageview();
 }
 
 main().catch((err) => {
