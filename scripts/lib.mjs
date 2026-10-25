@@ -117,7 +117,8 @@ export function validatePositions(positions, parties, topics, where = (p) => key
     if (p.position !== null) {
       if (!isHttps(p.sourceUrl)) errors.push(`${at}: missing or invalid sourceUrl`);
       if (!SOURCE_TYPES.includes(p.sourceType)) errors.push(`${at}: bad sourceType "${p.sourceType}"`);
-      if (!isDate(p.sourceDate)) errors.push(`${at}: bad sourceDate "${p.sourceDate}"`);
+      // Undated source pages keep sourceDate null rather than an invented date.
+      if (p.sourceDate != null && !isDate(p.sourceDate)) errors.push(`${at}: bad sourceDate "${p.sourceDate}"`);
     }
     if (p.viaUrl && !isHttps(p.viaUrl)) errors.push(`${at}: invalid viaUrl`);
     if (p.confidence && !CONFIDENCE.includes(p.confidence)) errors.push(`${at}: bad confidence "${p.confidence}"`);
