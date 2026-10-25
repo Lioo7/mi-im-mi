@@ -288,3 +288,12 @@ Why these thresholds: on a 5-point scale, 3+ steps means the parties sit on oppo
 - Shared URLs: open the 4 presets, a 2-party link and an invalid id in a fresh browser and confirm the state restores.
 - **Only after your explicit OK:** `netlify deploy --prod --dir=site`, then commit and push.
 - Before the first push, run `git log --stat` and `git ls-files` to confirm that nothing under `research/` or `review/` was ever committed.
+
+---
+
+## Checkpoint B decisions (25.10)
+- **Red lines, wording test:** "without X we won't join or support a government" or "X is non-negotiable" counts; a stated priority ("בראש הדרישות") does not. Judged by wording only, never by bloc. Draft red lines: ש״ס and יהדות התורה (verified own words, 10.2026), הציונות הדתית, ישראל ביתנו, עמך ישראל. Inquiry red line: ישראל ביתנו.
+- **Joint lists:** lists that announced a post-election split are shown as separate parties. הציונות הדתית and זהות (ט) are soft-linked in the UI, with seats split ≈6/≈1 by Zehut's list slots (2, 8, 10, 11). No other joint list declared a split, so ביחד, הרשימה המשותפת, המילואימניקים והכלכלית and יהדות התורה stay single lists, with `componentsDisagree` (◐) per topic.
+- **Axes:** crime −2 = Shin Bet plus at least one other extraordinary measure (Shin Bet alone = −1; gun licensing removed). מדיני/עזה −2 now include emigration/expulsion as an *active state policy*; "allowing those who want to leave" goes in the summary only. Inquiry 0 = a mixed composition elected by the Knesset.
+- **Placements:** הליכוד גיוס −1 (`record`: the government-initiated enforcement freeze, Amendment 28, Knesset bill 2168881, struck down by the High Court on 3.9.2026); הליכוד פשיעה −1; רע״ם פשיעה +1; ישראל ביתנו עזה 0; עמך ישראל עזה −2 and חקירה 0; ביחד משפט +1.
+- **UI:** coverage footnote for parties with 3+ null topics; a hint to pick a ★ base party; GoatCounter `miimmi` (pathname only).
