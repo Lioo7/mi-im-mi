@@ -65,7 +65,7 @@ function cdp(wsUrl) {
   };
 }
 
-const { parties, topics } = loadData();
+const { parties, topics, meta } = loadData();
 const ctx = makeContext({ parties, topics, positions: [] });
 const pr = presets(ctx);
 const cases = [
@@ -130,6 +130,10 @@ try {
     await c.send('Page.navigate', { url: baseUrl + qs });
     await ready();
     await sleep(300);
+    if (meta.showSeats === false) {
+      const seatText = await evaluate("(document.body.innerText.match(/מנ׳|\\d+ מנדטים|מתוך 61|ל-61/) || [])[0] || ''");
+      if (seatText) errors.push(`[${name}] showSeats is off but seat text is visible: "${seatText}"`);
+    }
     const overflow = await evaluate('document.documentElement.scrollWidth > window.innerWidth');
     if (overflow) errors.push(`[${name}] horizontal page overflow at ${WIDTH}px`);
     await shoot(`${name}.png`);
