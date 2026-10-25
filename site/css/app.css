@@ -9,7 +9,7 @@
   --accent-fg: #ffffff;
   --chip: #e9eefb;
   --chip-on: #0038b8;
-  --focus: #ff8a00;
+  --focus: #0038b8;
   --radius: 12px;
   --gutter: 16px;
 
@@ -433,3 +433,10 @@ blockquote { margin: .4em 0 .6em; }
 blockquote p { margin: 0; }
 .q-by { margin-block-start: 4px; font-size: .8rem; color: var(--muted); font-style: normal; }
 .chev { inline-size: 24px; block-size: 24px; }
+
+/* round 8 */
+.prow-main:focus-visible { outline: 3px solid var(--focus); outline-offset: -3px; }
+.out-toggle { border: 0; background: none; border-radius: 4px; padding: 2px 4px; color: var(--muted); font-size: .8rem; text-decoration: underline dotted; text-underline-offset: 3px; }
+.out-toggle[aria-pressed="true"] { background: none; border: 0; padding: 2px 4px; color: var(--fg); font-weight: 700; text-decoration: none; }
+.out-toggle[aria-pressed="true"]::before { content: "✓ "; color: var(--accent); }
+.pair-list-head { margin: 8px 0 2px; font-weight: 700; font-size: .9rem; }

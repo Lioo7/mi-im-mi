@@ -369,7 +369,8 @@ function crisesCard(r) {
     const open = expandedTopics.has(c.topicId);
     const pairs = r.statuses.find((x) => x.topicId === c.topicId).pairs;
     const tag = R.pairsTag(S.levels[w.level].label, c.morePairs + 1);
-    const list = open ? `<ul class="pair-list" id="pairs-${c.topicId}" aria-label="${esc(R.pairsInTopic(pairs.length))}">${pairs.map((p) => `
+    const head = R.pairsInTopic(c.morePairs + 1, R.levelIn[w.level]);
+    const list = open ? `<p class="pair-list-head">${esc(head)}</p><ul class="pair-list" id="pairs-${c.topicId}" aria-label="${esc(head)}">${pairs.map((p) => `
       <li><button type="button" class="pair-btn" data-act="pair-sheet" data-a="${p.a}" data-b="${p.b}" data-key="pair-${c.topicId}-${p.a}-${p.b}">
         <span>${esc(name(p.a))} ↔ ${esc(name(p.b))}</span>${levelBadge(p.level)}</button></li>`).join('')}</ul>` : '';
     return `<li class="gap${open ? ' is-open' : ''}">

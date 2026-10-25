@@ -12,7 +12,7 @@ Static, Hebrew, RTL web app showing where possible coalition partners clash or a
 - No source means `position: null`. Never guess. Summaries are in our own words; quotes are verbatim.
 
 ## Glossary (our voice; quotes stay verbatim)
-"פטור/דחיית שירות" (not "השתמטות") · "השינויים המוצעים במערכת המשפט" (not "רפורמה"/"הפיכה") · "יהודה ושומרון / הגדה המערבית"
+"פטור/דחיית שירות" (not "השתמטות") · "השינויים המוצעים במערכת המשפט" (not "רפורמה"/"הפיכה") · "יהודה ושומרון / הגדה המערבית" · "החלת ריבונות / סיפוח" (both terms, never one side's alone)
 
 ## Data
 Change positions **only** via `node scripts/import-csv.mjs review/positions_review.csv`. Never hand-edit `site/data/positions.json`.
