@@ -297,3 +297,11 @@ Why these thresholds: on a 5-point scale, 3+ steps means the parties sit on oppo
 - **Axes:** crime −2 = Shin Bet plus at least one other extraordinary measure (Shin Bet alone = −1; gun licensing removed). מדיני/עזה −2 now include emigration/expulsion as an *active state policy*; "allowing those who want to leave" goes in the summary only. Inquiry 0 = a mixed composition elected by the Knesset.
 - **Placements:** הליכוד גיוס −1 (`record`: the government-initiated enforcement freeze, Amendment 28, Knesset bill 2168881, struck down by the High Court on 3.9.2026); הליכוד פשיעה −1; רע״ם פשיעה +1; ישראל ביתנו עזה 0; עמך ישראל עזה −2 and חקירה 0; ביחד משפט +1.
 - **UI:** coverage footnote for parties with 3+ null topics; a hint to pick a ★ base party; GoatCounter `miimmi` (pathname only).
+
+## Round 3 UI changes (after the phone check)
+- **Three views by hash:** `#build` (default), `#results`, `#method`. The coalition stays in the query string; a shared link without a hash opens `#results`.
+- **Build:** one intro line, a 2×2 preset grid, one grid of party chips (selected chips are filled in place with ★ base and ✕), and a sticky bottom bar (seats, progress, "לתוצאות ←", and a grey poll disclaimer with an ⓘ sheet), constrained to the 720px column.
+- **Add-chip counts:** `✓A ✕C ?U` per unselected chip, relative to the current coalition. Per topic the worst level against current members decides: AGREE/MINOR → ✓, CLASH → ✕, no stated position → ?; MAJOR counts in none. Never used to order chips. The results summary gives the same breakdown per topic status. No single score.
+- **Logo:** a Venn mark (two overlapping circles) with a wordmark, inline SVG, also the favicon and the OG image.
+- **Privacy:** GoatCounter's `count.js` is not loaded, because it always attaches `location.search`. `site/js/stats.js` sends only path, title, screen width and the referrer origin; it skips localhost and Netlify deploy previews.
+- **Data:** זהות · דת = +1 (low), with both sides in the summary.

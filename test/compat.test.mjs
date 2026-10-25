@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
   level, makeContext, topicStatus, crises, glue, friction, overall, newClashTopics,
   matrixCell, pairSummary, seats, analyze, without, presets, parseState, serializeState,
-  withLinked, lowCoverage,
+  withLinked, lowCoverage, addImpact, breakdown,
 } from '../site/js/compat.js';
 
 const P = (partyId, topicId, position, redLine = false) => ({ partyId, topicId, position, redLine });
@@ -210,4 +210,31 @@ test('lowCoverage lists members with 3+ null topics', () => {
     positions: [P('a', 't1', 0), P('b', 't1', 0), P('b', 't2', 1), P('b', 't3', 1)],
   });
   assert.deepEqual(lowCoverage(ctx, ['a', 'b']), [{ partyId: 'a', missing: 3 }]);
+});
+
+test('addImpact: worst level per topic against current members; MAJOR counts in neither', () => {
+  const ctx = fixture([
+    P('a', 't1', 0), P('b', 't1', 0), P('c', 't1', 1),   // c vs a: MINOR, vs b: MINOR -> agree
+    P('a', 't2', 0), P('b', 't2', 0), P('c', 't2', 2),   // MAJOR -> neither
+    P('a', 't3', -2), P('b', 't3', 0), P('c', 't3', 2),  // CLASH vs a -> clash
+  ]);
+  assert.deepEqual(addImpact(ctx, 'c', ['a', 'b']), { agree: 1, clash: 1, unknown: 0 });
+});
+
+test('addImpact: unknown when the candidate or every member lacks a position', () => {
+  const ctx = fixture([P('a', 't1', 0), P('b', 't1', null), P('c', 't1', 1), P('d', 't2', 1), P('a', 't2', 1)]);
+  // t1: candidate c has a position, members a (has) -> counted; t2: c null -> unknown; t3: c null -> unknown
+  assert.deepEqual(addImpact(ctx, 'c', ['a', 'b']), { agree: 1, clash: 0, unknown: 2 });
+  // members with no positions on t1 at all -> unknown
+  assert.deepEqual(addImpact(ctx, 'c', ['b']), { agree: 0, clash: 0, unknown: 3 });
+});
+
+test('addImpact does not depend on member order', () => {
+  const ctx = fixture([P('a', 't1', -2), P('b', 't1', 2), P('c', 't1', 0)]);
+  assert.deepEqual(addImpact(ctx, 'c', ['a', 'b']), addImpact(ctx, 'c', ['b', 'a']));
+});
+
+test('breakdown groups topic statuses', () => {
+  const st = [{ status: 'AGREE' }, { status: 'MINOR' }, { status: 'MAJOR' }, { status: 'CLASH' }, { status: 'CLASH' }, { status: 'NODATA' }];
+  assert.deepEqual(breakdown(st), { agree: 2, major: 1, clash: 2, nodata: 1 });
 });

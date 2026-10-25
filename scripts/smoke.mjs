@@ -1,4 +1,5 @@
-// Smoke test: opens key URLs in headless Chrome at phone width, saves screenshots, fails on any console error.
+// Smoke test: opens each view in headless Chrome at phone (390px) and desktop (1280px) width, saves screenshots,
+// and fails on console errors, page overflow, routing mistakes, or a GoatCounter beacon that carries coalition data.
 // Zero installs: drives Chrome over the DevTools protocol with Node's built-in WebSocket.
 // Usage: node scripts/smoke.mjs [baseUrl]   (default: serves ./site on a local port)
 import { spawn } from 'node:child_process';
@@ -11,7 +12,7 @@ import { makeContext, presets, serializeState } from '../site/js/compat.js';
 
 const CHROME = process.env.CHROME_PATH ?? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const OUT = join(ROOT, 'smoke');
-const WIDTH = 360;
+const SIZES = [{ tag: 'm', width: 390, height: 844, mobile: true, dpr: 2 }, { tag: 'd', width: 1280, height: 900, mobile: false, dpr: 1 }];
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function waitFor(fn, ms = 10000) {
@@ -68,13 +69,22 @@ function cdp(wsUrl) {
 const { parties, topics, meta } = loadData();
 const ctx = makeContext({ parties, topics, positions: [] });
 const pr = presets(ctx);
+const coalitionQs = serializeState(ctx, { base: null, ...pr.coalition });
+const oppositionQs = serializeState(ctx, { base: null, ...pr.opposition });
+
+// name, url suffix, expected view after load
 const cases = [
-  ['landing', ''],
-  ...Object.entries(pr).map(([k, v]) => [`preset-${k}`, serializeState(ctx, { base: null, ...v })]),
-  ['pair-together-democrats', '?m=together,democrats'],
-  ['base-likud', serializeState(ctx, { base: 'likud', members: pr.coalition.members, outside: [] })],
-  ['linked-zehut-only', '?m=zehut'],
-  ['low-coverage', '?m=shas,utj,zehut,likud'],
+  ['build-empty', '', 'build'],
+  ['build-coalition', `${coalitionQs}#build`, 'build'],
+  ['build-linked', '?m=zehut#build', 'build'],
+  ['results-coalition', coalitionQs, 'results'], // a shared link without a hash opens #results
+  ['results-opposition', oppositionQs, 'results'],
+  ['results-unity', serializeState(ctx, { base: null, ...pr.unity }), 'results'],
+  ['results-opposition-arab', serializeState(ctx, { base: null, ...pr['opposition-arab'] }), 'results'],
+  ['results-pair', '?m=together,democrats', 'results'],
+  ['results-base-likud', serializeState(ctx, { base: 'likud', members: pr.coalition.members, outside: [] }), 'results'],
+  ['results-low-coverage', '?m=shas,utj,zehut,likud', 'results'],
+  ['method', '#method', 'method'],
 ];
 
 const base = process.argv[2];
@@ -88,7 +98,7 @@ const chrome = spawn(CHROME, [
 ], { stdio: 'ignore' });
 
 const errors = [];
-const counterRequests = [];
+const beacons = [];
 let exitCode = 0;
 try {
   rmSync(OUT, { recursive: true, force: true });
@@ -103,77 +113,106 @@ try {
     if (m.method === 'Runtime.consoleAPICalled' && m.params.type === 'error') errors.push(`[${current}] console.error: ${m.params.args.map((a) => a.value ?? a.description).join(' ')}`);
     if (m.method === 'Log.entryAdded' && m.params.entry.level === 'error') errors.push(`[${current}] ${m.params.entry.text} ${m.params.entry.url ?? ''}`);
     if (m.method === 'Network.loadingFailed' && !m.params.canceled) errors.push(`[${current}] request failed: ${m.params.errorText}`);
-    if (m.method === 'Network.requestWillBeSent' && /goatcounter|zgo\.at/.test(m.params.request.url)) {
-      counterRequests.push(m.params.request.url);
-      // Privacy: only the pathname may be sent, never the coalition from the query string.
-      const decoded = decodeURIComponent(m.params.request.url);
-      if (/[?&;]([bmo])=|likud|shas|yashar|zehut|democrats/i.test(decoded.replace(/^https?:\/\/[^/]+\/count[^?]*\?/, ''))) {
-        errors.push(`[${current}] GoatCounter request leaks coalition data: ${decoded}`);
-      }
-    }
     if (m.method === 'Network.responseReceived' && m.params.response.status >= 400) errors.push(`[${current}] HTTP ${m.params.response.status} ${m.params.response.url}`);
+    if (m.method === 'Fetch.requestPaused') {
+      // GoatCounter beacons are recorded for the privacy check but never sent (no test traffic in the stats).
+      const url = m.params.request.url;
+      beacons.push(url);
+      const decoded = decodeURIComponent(url);
+      if (/[?&;]([bmoq])=|likud|shas|yashar|zehut|democrats/i.test(decoded.replace(/^https?:\/\/[^/]+\/count\?/, ''))) {
+        errors.push(`[${current}] GoatCounter beacon leaks coalition data: ${decoded}`);
+      }
+      c.send('Fetch.fulfillRequest', { requestId: m.params.requestId, responseCode: 200, body: '' }).catch(() => {});
+    }
   });
   for (const d of ['Page', 'Runtime', 'Log', 'Network']) await c.send(`${d}.enable`);
-  // Intercept GoatCounter beacons: record them for the privacy check, but never send them (no test traffic in the stats).
-  await c.send('Fetch.enable', { patterns: [{ urlPattern: '*goatcounter.com/count*' }] });
-  c.on((m) => {
-    if (m.method !== 'Fetch.requestPaused') return;
-    const url = m.params.request.url;
-    counterRequests.push(url);
-    const decoded = decodeURIComponent(url);
-    if (/[?&;]([bmo])=|likud|shas|yashar|zehut|democrats/i.test(decoded.replace(/^https?:\/\/[^/]+\/count[^?]*\?/, ''))) {
-      errors.push(`[${current}] GoatCounter beacon leaks coalition data: ${decoded}`);
-    }
-    c.send('Fetch.fulfillRequest', { requestId: m.params.requestId, responseCode: 200, body: '' }).catch(() => {});
-  });
   await c.send('Network.setCacheDisabled', { cacheDisabled: true });
-  // Let the page count on preview hosts too, so the beacon can be inspected (it is intercepted below, never sent).
+  await c.send('Fetch.enable', { patterns: [{ urlPattern: '*goatcounter.com/count*' }] });
+  // Let the page count on preview hosts too, so the beacon can be inspected.
   await c.send('Page.addScriptToEvaluateOnNewDocument', { source: 'window.__GC_ALLOW_PREVIEW__ = true' });
 
-  const shoot = async (file) => {
-    const { cssContentSize } = await c.send('Page.getLayoutMetrics');
-    const height = Math.ceil(cssContentSize.height);
-    await c.send('Emulation.setDeviceMetricsOverride', { width: WIDTH, height, deviceScaleFactor: 2, mobile: true });
-    await sleep(200);
-    const { data } = await c.send('Page.captureScreenshot', { format: 'png' });
-    writeFileSync(join(OUT, file), Buffer.from(data, 'base64'));
-    // Readable segments of the same page: <name>.<n>.png
-    const SEG = 900;
-    for (let i = 0; i * SEG < height; i++) {
-      const clip = { x: 0, y: i * SEG, width: WIDTH, height: Math.min(SEG, height - i * SEG), scale: 1 };
-      const seg = await c.send('Page.captureScreenshot', { format: 'png', clip });
-      writeFileSync(join(OUT, file.replace('.png', `.${i + 1}.png`)), Buffer.from(seg.data, 'base64'));
-    }
-    await c.send('Emulation.setDeviceMetricsOverride', { width: WIDTH, height: 800, deviceScaleFactor: 2, mobile: true });
-  };
   const evaluate = async (expr) => (await c.send('Runtime.evaluate', { expression: expr, returnByValue: true })).result.value;
   const ready = () => waitFor(() => evaluate("document.querySelector('#builder')?.children.length > 0"));
+  const setSize = (z, height = z.height) => c.send('Emulation.setDeviceMetricsOverride', { width: z.width, height, deviceScaleFactor: z.dpr, mobile: z.mobile });
 
-  await c.send('Emulation.setDeviceMetricsOverride', { width: WIDTH, height: 800, deviceScaleFactor: 2, mobile: true });
-  for (const [name, qs] of cases) {
-    current = name;
-    await c.send('Page.navigate', { url: baseUrl + qs });
-    await ready();
-    await sleep(300);
-    if (meta.showSeats === false) {
-      const seatText = await evaluate("(document.body.innerText.match(/מנ׳|\\d+ מנדטים|מתוך 61|ל-61/) || [])[0] || ''");
-      if (seatText) errors.push(`[${name}] showSeats is off but seat text is visible: "${seatText}"`);
+  const shoot = async (z, file, full = true) => {
+    let height = z.height;
+    if (full) {
+      const { cssContentSize } = await c.send('Page.getLayoutMetrics');
+      height = Math.min(Math.ceil(cssContentSize.height), 9000);
+      await setSize(z, height);
+      await sleep(200);
     }
-    const overflow = await evaluate('document.documentElement.scrollWidth > window.innerWidth');
-    if (overflow) errors.push(`[${name}] horizontal page overflow at ${WIDTH}px`);
-    await shoot(`${name}.png`);
-    console.log(`  ✓ ${name}`);
+    const { data } = await c.send('Page.captureScreenshot', { format: 'png' });
+    writeFileSync(join(OUT, file), Buffer.from(data, 'base64'));
+    // Readable segments of the same page: <name>.<n>.png (CSS px, 900 tall)
+    if (full) {
+      const SEG = 900;
+      for (let i = 0; i * SEG < height; i++) {
+        const clip = { x: 0, y: i * SEG, width: z.width, height: Math.min(SEG, height - i * SEG), scale: 1 };
+        const seg = await c.send('Page.captureScreenshot', { format: 'png', clip });
+        writeFileSync(join(OUT, file.replace('.png', `.${i + 1}.png`)), Buffer.from(seg.data, 'base64'));
+      }
+    }
+    await setSize(z);
+  };
+
+  for (const z of SIZES) {
+    await setSize(z);
+    for (const [name, suffix, expectView] of cases) {
+      current = `${name}@${z.width}`;
+      await c.send('Page.navigate', { url: 'about:blank' });
+      await c.send('Page.navigate', { url: baseUrl + suffix });
+      await waitFor(() => evaluate("document.body.dataset.view !== undefined && document.querySelector('#footer')?.children.length > 0"));
+      await sleep(250);
+      const view = await evaluate('document.body.dataset.view');
+      if (view !== expectView) errors.push(`[${current}] expected view "${expectView}", got "${view}"`);
+      if (expectView === 'results') {
+        const hash = await evaluate('location.hash');
+        if (hash !== '#results') errors.push(`[${current}] shared link did not settle on #results (hash "${hash}")`);
+      }
+      const overflow = await evaluate('document.documentElement.scrollWidth > window.innerWidth + 1');
+      if (overflow) errors.push(`[${current}] horizontal page overflow`);
+      if (meta.showSeats === false) {
+        const seatText = await evaluate("(document.body.innerText.match(/מנ׳|\\d+ מנדטים|מתוך 61|\\(61\\+\\)|סקרים/) || [])[0] || ''");
+        if (seatText) errors.push(`[${current}] showSeats is off but seat text is visible: "${seatText}"`);
+      } else if (expectView === 'build') {
+        const barVisible = await evaluate("!document.querySelector('#bar').hidden && /ממוצע סקרים/.test(document.querySelector('#bar').innerText)");
+        if (!barVisible) errors.push(`[${current}] build view must show the bar with the poll disclaimer`);
+      }
+      if (expectView === 'results' && meta.showSeats !== false) {
+        const ok = await evaluate("document.querySelectorAll('#results .seats-line').length === 0 || /ממוצע סקרים/.test(document.querySelector('#results').innerText)");
+        if (!ok) errors.push(`[${current}] results show seats without the poll disclaimer`);
+      }
+      await shoot(z, `${name}-${z.tag}.png`);
+    }
+    console.log(`  ✓ ${z.width}px: ${cases.length} views`);
   }
 
-  // One interaction: open a matrix cell's sheet (viewport screenshot).
-  current = 'sheet';
-  await c.send('Page.navigate', { url: baseUrl + cases.find(([n]) => n === 'preset-coalition')[1] });
+  // Interactions at phone width: pick a preset on the build view, open the poll note, go to results, open a cell, come back.
+  const z = SIZES[0];
+  await setSize(z);
+  current = 'interaction@390';
+  await c.send('Page.navigate', { url: baseUrl });
   await ready();
-  await evaluate("document.querySelector('.cell.lv-CLASH, .cell.lv-MAJOR, .cell')?.click()");
+  await evaluate("document.querySelector('[data-act=\"preset\"][data-id=\"unity\"]').click()");
   await sleep(300);
-  const { data } = await c.send('Page.captureScreenshot', { format: 'png' });
-  writeFileSync(join(OUT, 'sheet.png'), Buffer.from(data, 'base64'));
-  console.log('  ✓ sheet');
+  await shoot(z, 'interaction-build-unity-m.png', false);
+  await evaluate("document.querySelector('[data-act=\"poll-info\"]').click()");
+  await sleep(300);
+  await shoot(z, 'interaction-poll-info-m.png', false);
+  await evaluate("document.querySelector('#sheet').close(); document.querySelector('#bar a.btn').click()");
+  await sleep(400);
+  const afterClick = await evaluate('document.body.dataset.view');
+  if (afterClick !== 'results') errors.push(`[interaction] "לתוצאות" did not open results (view "${afterClick}")`);
+  await evaluate("document.querySelector('.cell')?.click()");
+  await sleep(300);
+  await shoot(z, 'interaction-cell-sheet-m.png', false);
+  await evaluate("document.querySelector('#sheet').close(); document.querySelector('#results-bar .back').click()");
+  await sleep(300);
+  const backView = await evaluate('document.body.dataset.view');
+  if (backView !== 'build') errors.push(`[interaction] "← עריכה" did not return to build (view "${backView}")`);
+  console.log('  ✓ interactions');
   c.close();
 } catch (e) {
   errors.push(`smoke failed: ${e.message}`);
@@ -188,8 +227,7 @@ if (errors.length) {
   console.error(`✗ ${errors.length} error(s):\n  ` + errors.join('\n  '));
   exitCode = 1;
 } else {
-  console.log(`✓ no console errors; screenshots in smoke/`);
-  console.log([...new Set(counterRequests)].map((u) => `    ${decodeURIComponent(u)}`).join("\n"));
-  console.log(`  GoatCounter beacons intercepted: ${counterRequests.length}${counterRequests.length ? ' (none carried coalition data)' : ''}`);
+  console.log('✓ no console errors; screenshots in smoke/');
+  console.log(`  GoatCounter beacons intercepted: ${beacons.length}${beacons.length ? ' (none carried coalition data)' : ' (none; localhost is not counted)'}`);
 }
 process.exit(exitCode);

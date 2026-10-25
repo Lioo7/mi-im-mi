@@ -132,6 +132,34 @@ export function newClashTopics(ctx, candidate, members) {
   return n;
 }
 
+// Per-topic effect of adding `candidate` to the current coalition (informational, never used to order chips).
+// Per topic, the worst level against current members decides: AGREE/MINOR -> agree, CLASH -> clash,
+// MAJOR -> neither, no stated position (candidate, or every member) -> unknown.
+export function addImpact(ctx, candidate, members) {
+  const out = { agree: 0, clash: 0, unknown: 0 };
+  for (const t of ctx.topics) {
+    if (!hasPos(posOf(ctx.idx, candidate, t.id))) { out.unknown++; continue; }
+    const levels = members.map((m) => pairLevel(ctx.idx, candidate, m, t.id).level).filter((l) => l !== 'NONE');
+    if (!levels.length) { out.unknown++; continue; }
+    const worst = Math.max(...levels.map((l) => SEV[l]));
+    if (worst === SEV.CLASH) out.clash++;
+    else if (worst <= SEV.MINOR) out.agree++;
+  }
+  return out;
+}
+
+// Topic-status counts for the results summary: agree = AGREE or MINOR; major; clash; no data.
+export function breakdown(statuses) {
+  const n = { agree: 0, major: 0, clash: 0, nodata: 0 };
+  for (const s of statuses) {
+    if (s.status === 'NODATA') n.nodata++;
+    else if (s.status === 'CLASH') n.clash++;
+    else if (s.status === 'MAJOR') n.major++;
+    else n.agree++;
+  }
+  return n;
+}
+
 // Matrix cell: vs the base if there is one, else the party's worst level vs any other member.
 export function matrixCell(ctx, partyId, topicId, members, base) {
   if (base) {
