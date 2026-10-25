@@ -204,7 +204,6 @@ function renderBuilder() {
   const B = S.builder;
   const { members, base, outside } = state;
 
-  const slip = (p) => `<span class="slip-letters" dir="rtl">${esc(p.ballotLetters)}</span><span class="chip-name-text">${esc(p.name)}</span>`;
   const chips = ctx.parties.map((p) => {
     const id = p.id;
     const tags = (outside.includes(id) ? `<span class="tag">${esc(B.outside)}</span>` : '')
@@ -212,20 +211,22 @@ function renderBuilder() {
     if (members.includes(id)) {
       const isBase = id === base;
       const own = ctx.topics.length - C.coverage(ctx, id);
+      const missing = own ? `<span class="impact" dir="ltr" title="${esc(B.ownMissingLabel(own))}" aria-label="${esc(B.ownMissingLabel(own))}"><span class="im-unk">${esc(B.ownMissing(own))}</span></span>` : '';
       return `<div class="chip is-on${isBase ? ' is-base' : ''}">
-        <button type="button" class="chip-name" data-act="party" data-id="${id}" data-key="party-${id}"><span class="slip-letters">${isBase ? '<span aria-hidden="true">★</span> ' : ''}${esc(p.ballotLetters)}</span><span class="chip-name-text">${esc(p.name)}</span></button>
-        <span class="chip-meta">${seatsChip(id)}${tags}${own ? `<span class="impact" dir="ltr" title="${esc(B.ownMissingLabel(own))}" aria-label="${esc(B.ownMissingLabel(own))}"><span class="im-unk">${esc(B.ownMissing(own))}</span></span>` : ''}</span>
-        <span class="chip-actions">
-          <button type="button" class="mini" data-act="base" data-id="${id}" data-key="base-${id}" aria-pressed="${isBase}" aria-label="${esc(isBase ? B.unsetBase(p.name) : B.setBase(p.name))}"><span aria-hidden="true">${isBase ? '★' : '☆'}</span></button>
-          <button type="button" class="mini" data-act="remove" data-id="${id}" data-key="remove-${id}" aria-label="${esc(B.remove(p.name))}"><span aria-hidden="true">✕</span></button>
+        <span class="chip-check" aria-hidden="true">✓</span>
+        <button type="button" class="chip-name" data-act="party" data-id="${id}" data-key="party-${id}"><span class="slip-letters">${esc(p.ballotLetters)}</span><span class="chip-name-text">${esc(p.name)}</span></button>
+        <span class="chip-meta">${seatsChip(id)}${missing}${isBase ? `<span class="tag tag-base">${esc(B.baseTag)}</span>` : ''}${tags}
+          <span class="chip-actions">
+            <button type="button" class="mini" data-act="base" data-id="${id}" data-key="base-${id}" aria-pressed="${isBase}" aria-label="${esc(isBase ? B.unsetBase(p.name) : B.setBase(p.name))}"><span aria-hidden="true">${isBase ? '★' : '☆'}</span></button>
+            <button type="button" class="mini" data-act="remove" data-id="${id}" data-key="remove-${id}" aria-label="${esc(B.remove(p.name))}"><span aria-hidden="true">✕</span></button>
+          </span>
         </span>
       </div>`;
     }
     const im = members.length ? C.addImpact(ctx, id, members) : null;
     return `<button type="button" class="chip" data-act="add" data-id="${id}" data-key="add-${id}" aria-label="${esc(B.addParty(p.name))}${im ? '. ' + esc(B.impactLabel(im.agree, im.clash, im.unknown)) : ''}">
-      ${slip(p)}
-      <span class="chip-meta">${seatsChip(id)}${tags}</span>
-      ${im ? impactHtml(im.agree, im.clash, im.unknown) : ''}
+      <span class="chip-top"><span class="slip-letters">${esc(p.ballotLetters)}</span><span class="chip-meta">${seatsChip(id)}${im ? impactHtml(im.agree, im.clash, im.unknown) : ''}</span></span>
+      <span class="chip-name-row"><span class="chip-name-text">${esc(p.name)}</span>${tags}</span>
     </button>`;
   }).join('');
 
@@ -282,6 +283,14 @@ function positionBlock(pid, tid, { heading = true } = {}) {
   </div>`;
 }
 
+// First sentence of a position's summary, shown under its axis label in the pair view.
+function pairSentence(pid, tid) {
+  const p = posOf(pid, tid);
+  if (!p || p.position == null || !p.summary) return '';
+  const m = p.summary.match(/^.+?[.!?](?=\s|$)/);
+  return `<span class="pair-sum">${esc(m ? m[0] : p.summary)}</span>`;
+}
+
 function pairHtml(a, b) {
   const s = C.pairSummary(ctx, a, b);
   const rows = s.rows.map((r) => `
@@ -289,8 +298,7 @@ function pairHtml(a, b) {
       <summary>
         <span class="pair-topic">${esc(topic(r.topicId).name)}</span> ${levelBadge(r.level)}
         <span class="pair-labels">
-          <span><strong>${esc(name(a))}:</strong> ${esc(axisLabel(r.topicId, posOf(a, r.topicId)?.position))}</span>
-          <span><strong>${esc(name(b))}:</strong> ${esc(axisLabel(r.topicId, posOf(b, r.topicId)?.position))}</span>
+          ${[a, b].map((x) => `<span><strong>${esc(name(x))}:</strong> ${esc(axisLabel(r.topicId, posOf(x, r.topicId)?.position))}${pairSentence(x, r.topicId)}</span>`).join('')}
         </span>
       </summary>
       <div class="pair-detail">

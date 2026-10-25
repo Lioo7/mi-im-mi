@@ -55,6 +55,7 @@ export const S = {
     borderline: 'על הסף',
     seatsChip: (n) => `${n} מנ׳`,
     pick: 'בחרו מפלגות',
+    baseTag: '★ בסיס',
     hint: '★ מפלגת בסיס (לא חובה): מראה את ההתאמה של כל מפלגה מהבסיס.',
     ownMissing: (n) => `?${n}`,
     ownMissingLabel: (n) => `אין עמדה מוצהרת ${inTopics(n)}`,
