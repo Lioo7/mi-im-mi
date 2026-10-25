@@ -124,6 +124,12 @@ Short column labels: **גיוס · משפט · חקירה · דת · מדיני 
 ---
 
 ## 3. Draft axes (checkpoint A: you review these before research starts)
+> **Superseded:** the axes were approved and frozen at checkpoint A (25.10). The source of truth is `site/data/topics.json`. Decisions made at that checkpoint:
+> - **גיוס** measures the *scope* of the service obligation. +2 only for parties that explicitly support an obligation for all citizens including Arabs. The Arab-service position always goes in the summary. A general rejection of compulsory service sits at −2 (e.g. the Joint List), with the party's own reasoning in the summary.
+> - **מדיני/עזה** −2 no longer mentions emigration. Any stated position on emigration must appear in that topic's summary in the party's own terms, and redLine applies by the usual rules.
+> - **משפט** −2 and **פשיעה** +2 were reworded; the Nation-State Law appears in summaries only.
+> - Research agents may use primary sources in Hebrew, Arabic or English (summary always in Hebrew). The shared research brief is `research/brief.md` (gitignored).
+
 The UI never shows the numbers, so the sign direction is arbitrary and carries no meaning. Each pole is worded the way its own supporters would describe it.
 
 1. **גיוס ושוויון בנטל.** The axis covers **Haredi conscription and yeshiva budgets only**. A party's position on service for Arab citizens goes in the summary, and if that is its only stance, the cell is null.
