@@ -1,6 +1,6 @@
-research/
-review/
-smoke/
+/research/
+/review/
+/smoke/
 .netlify/
 .DS_Store
 node_modules/
