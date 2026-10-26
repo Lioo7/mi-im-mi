@@ -176,6 +176,11 @@ try {
       if (expectView === 'build') {
         const purpose = await evaluate("document.querySelector('#purpose')?.innerText || ''");
         if (!purpose.includes('כל עמדה מגובה במקור. זו לא המלצת הצבעה.')) errors.push(`[${current}] build view is missing the purpose line`);
+        if (!purpose.includes('רקורד בפועל')) errors.push(`[${current}] purpose line must name all three source kinds`);
+        const mix = await evaluate("document.querySelector('#source-mix')?.innerText || ''");
+        if (!/\d+ עמדות מתועדות: \d+ לפי מצע, \d+ לפי הצהרות, \d+ לפי רקורד/.test(mix)) errors.push(`[${current}] source-mix line missing (${mix})`);
+        const outHint = await evaluate("document.querySelector('#builder').innerText.includes('תמיכה מבחוץ: מפלגה שתומכת בממשלה בלי לשבת בה')");
+        if (!outHint) errors.push(`[${current}] outside-support explanation missing in the picker`);
       }
       const overflow = await evaluate('document.documentElement.scrollWidth > window.innerWidth + 1');
       if (overflow) errors.push(`[${current}] horizontal page overflow`);
@@ -220,6 +225,7 @@ try {
       if (expectView === 'results' && meta.showSeats !== false) {
         const ok = await evaluate(`document.querySelectorAll('#results .seats-line').length === 0 || document.querySelector('#results').innerText.replace(/\\s+/g, ' ').includes(${JSON.stringify(legal)})`);
         if (!ok) errors.push(`[${current}] results show seats without the full legal poll sentence`);
+        if (expectView === 'results' && members_in_url(suffix) && !(await evaluate("document.querySelector('#matrix .tap-hint')?.innerText.includes('לחצו על כל תא או נושא')"))) errors.push(`[${current}] matrix tap hint missing`);
         const line = await evaluate("document.querySelector('#results-coalition')?.innerText || ''");
         if (!line.trim()) errors.push(`[${current}] results are missing the coalition line`);
       }

@@ -38,6 +38,8 @@ const rows = readJson(MERGED)
     summary: r.summary ?? '',
     quote: r.quote ?? '',
     quote_by: r.quoteBy ?? '',
+    quote_translated_by: r.quoteTranslatedBy ?? '',
+    quote_channel: r.quoteChannel ?? '',
     evidence_note: clean(r.evidenceNote),
   }));
 

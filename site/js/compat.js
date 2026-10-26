@@ -33,6 +33,7 @@ export function makeContext({ parties, topics, positions }) {
   return {
     parties,
     topics,
+    positions,
     idx: indexPositions(positions),
     order,
     byId: new Map(parties.map((p) => [p.id, p])),

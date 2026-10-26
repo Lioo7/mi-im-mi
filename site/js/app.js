@@ -61,6 +61,9 @@ function renderHeader() {
   $('#nav-method').textContent = S.nav.method;
   $('#intro').textContent = S.buildIntro;
   $('#purpose').textContent = S.buildPurpose;
+  const placed = ctx.positions ?? [];
+  const n = (type) => placed.filter((p) => p.position != null && p.sourceType === type).length;
+  $('#source-mix').textContent = S.sourceMix(placed.filter((p) => p.position != null).length, n('platform'), n('statement'), n('record'));
   $('#skip').textContent = S.skip;
   $('#method-back').textContent = S.nav.backFromMethod;
   if (meta.stub) {
@@ -117,6 +120,7 @@ function renderMethod() {
     <h1 class="page-title">${esc(M.title)}</h1>
     <p>${esc(M.intro(ctx.parties.length))}</p>
     <ol>${S.how.lines.map((l) => `<li>${esc(l)}</li>`).join('')}</ol>
+    <p>${esc(S.how.outside)}</p>
     <p class="disclaimer"><strong>${esc(M.disclaimer)}</strong> ${esc(M.independent)}</p>
 
     <h3>${esc(M.levelsTitle)}</h3>
@@ -387,6 +391,7 @@ function crisesCard(r) {
   const title = r.clashTopics > 0 ? R.crisesTitle(Math.max(r.crises.length, 1)) : R.gapsTitle;
   return `<section class="card">
     <h3>${esc(title)}</h3>
+    ${r.crises.length ? `<p class="muted small tap-hint">${esc(S.how.tapHint)}</p>` : ''}
     ${r.crises.length ? `<ol class="list">${items}</ol>` : `<p>${esc(R.noCrises)}</p>`}
   </section>`;
 }
@@ -496,6 +501,7 @@ function renderMatrix() {
     </div>`;
   el.innerHTML = `
     <h2>${esc(M.title)}</h2>
+    <p class="muted small tap-hint">${esc(S.how.tapHint)}</p>
     ${colorBy}
     <p class="muted small">${esc(base ? M.relBase(name(base)) : M.relWorst)}</p>
     <div class="table-wrap">

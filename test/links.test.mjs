@@ -30,3 +30,9 @@ test('quote attribution: speaker or party, channel, date', () => {
   assert.equal(quoteAttribution({ sourceUrl: 'https://beytenu.org.il/x', sourceType: 'platform', sourceDate: null }, 'ישראל ביתנו'), 'ישראל ביתנו, מצע המפלגה');
   assert.equal(quoteChannel({ sourceUrl: 'https://main.knesset.gov.il/a', sourceType: 'record' }), 'הצעת חוק בכנסת');
 });
+
+test('a translated quote names the translator and the original channel', () => {
+  assert.equal(
+    quoteAttribution({ quoteBy: 'מנסור עבאס', quoteChannel: 'פייסבוק', quoteTranslatedBy: 'כיפה', sourceUrl: 'https://www.kipa.co.il/x', sourceType: 'statement', sourceDate: '2026-08-26' }, 'רע״ם'),
+    'מנסור עבאס, פייסבוק, 26.08.2026 (תרגום: כיפה)');
+});
