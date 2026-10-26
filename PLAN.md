@@ -1,3 +1,5 @@
+> **Historical planning document from 24–25.10.2026.** For the current state see README.md, CLAUDE.md and docs/research/decisions.md.
+
 # Plan: "מי עם מי", a one-day static web app
 **Tagline:** "בנו קואליציה וגלו איפה היא תתפרק" · **Netlify site:** `mi-im-mi-2026` (`mi-im-mi` was taken by an unrelated site) · **Public GitHub repo:** `Lioo7/mi-im-mi`
 
