@@ -8,6 +8,12 @@
 
 > לא המלצת הצבעה. האתר עצמאי ואין לי קשר לאף מפלגה.
 
+<p align="center">
+  <img src="docs/media/demo.gif" width="300" alt="הדגמה: בחירת מפלגות, תמונת מצב, פערים, מפת העמדות ותא עם מקור">
+  <br><sub>הדגמה: בוחרים מפלגות, רואים את תמונת המצב ואת הפערים, ופותחים תא כדי לראות מקור והסבר.</sub>
+  <br><sub>Demo: pick parties, see the summary and the biggest gaps, then open a cell for its source and explanation.</sub>
+</p>
+
 <table>
   <tr><td align="center" width="33%"><img src="docs/screenshots/build.png" width="100%" alt="בחירת מפלגות, וליד כל מפלגה מה היא מוסיפה לקואליציה"><br><sub>בחירת מפלגות, וליד כל מפלגה מה היא מוסיפה לקואליציה</sub></td><td align="center" width="33%"><img src="docs/screenshots/results.png" width="100%" alt="תמונת מצב והנושאים עם הפערים הגדולים ביותר"><br><sub>תמונת מצב והנושאים עם הפערים הגדולים ביותר</sub></td><td align="center" width="33%"><img src="docs/screenshots/matrix.png" width="100%" alt="מפת העמדות, צבועה לפי הפער ממפלגת בסיס"><br><sub>מפת העמדות, צבועה לפי הפער ממפלגת בסיס</sub></td></tr>
   <tr><td align="center" width="33%"><img src="docs/screenshots/cell-sheet.png" width="100%" alt="מקור, ציטוט עם ייחוס, ולמה התא בצבע הזה"><br><sub>מקור, ציטוט עם ייחוס, ולמה התא בצבע הזה</sub></td><td align="center" width="33%"><img src="docs/screenshots/pair-view.png" width="100%" alt="השוואה בין שתי מפלגות, נושא אחרי נושא"><br><sub>השוואה בין שתי מפלגות, נושא אחרי נושא</sub></td><td align="center" width="33%"><img src="docs/screenshots/method.png" width="100%" alt="למה בניתי את זה, והמתודולוגיה"><br><sub>למה בניתי את זה, והמתודולוגיה</sub></td></tr>

@@ -4,3 +4,4 @@
 .netlify/
 .DS_Store
 node_modules/
+/docs/media/*.mp4
