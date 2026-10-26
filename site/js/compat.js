@@ -28,7 +28,8 @@ export function pairLevel(idx, partyA, partyB, topicId) {
 }
 
 // Context shared by everything below: data indexes and party order.
-export function makeContext({ parties, topics, positions }) {
+// rankBySeats=false (seats hidden) drops poll seats from every tie-break, so no ordering reveals poll standings.
+export function makeContext({ parties, topics, positions, rankBySeats = true }) {
   const order = new Map(parties.map((p, i) => [p.id, i]));
   return {
     parties,
@@ -38,14 +39,20 @@ export function makeContext({ parties, topics, positions }) {
     order,
     byId: new Map(parties.map((p) => [p.id, p])),
     seatsOf: (id) => parties[order.get(id)]?.pollAvg ?? 0,
+    rankBySeats,
   };
+}
+
+// Party order when seats are hidden: by ballot letters (Hebrew alphabetical), then name for shared letters.
+export function ballotOrder(parties) {
+  return [...parties].sort((a, b) => a.ballotLetters.localeCompare(b.ballotLetters, 'he') || a.name.localeCompare(b.name, 'he'));
 }
 
 const sortByParty = (ctx, ids) => [...ids].sort((a, b) => ctx.order.get(a) - ctx.order.get(b));
 
 // Higher = worse. Used to rank pairs and crises.
 function pairRank(ctx, pair) {
-  return [SEV[pair.level], pair.d ?? -1, pair.red ? 1 : 0, ctx.seatsOf(pair.a) + ctx.seatsOf(pair.b)];
+  return [SEV[pair.level], pair.d ?? -1, pair.red ? 1 : 0, ctx.rankBySeats === false ? 0 : ctx.seatsOf(pair.a) + ctx.seatsOf(pair.b)];
 }
 
 function compareRankDesc(x, y) {

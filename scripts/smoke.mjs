@@ -1,5 +1,6 @@
 // Smoke test: opens each view in headless Chrome at phone (390px) and desktop (1280px) width, saves screenshots,
 // and fails on console errors, page overflow, routing mistakes, or a GoatCounter beacon that carries coalition data.
+// Beacons: against production every beacon is checked (and never sent); on any other host none may be sent at all.
 // Zero installs: drives Chrome over the DevTools protocol with Node's built-in WebSocket.
 // Usage: node scripts/smoke.mjs [baseUrl]   (default: serves ./site on a local port)
 import { spawn } from 'node:child_process';
@@ -8,7 +9,8 @@ import { mkdirSync, mkdtempSync, writeFileSync, rmSync, readFileSync, existsSync
 import { tmpdir } from 'node:os';
 import { join, extname, normalize } from 'node:path';
 import { ROOT, loadData } from './lib.mjs';
-import { makeContext, presets, serializeState } from '../site/js/compat.js';
+import { makeContext, presets, serializeState, ballotOrder } from '../site/js/compat.js';
+import { PROD_HOST } from '../site/js/stats.js';
 
 const CHROME = process.env.CHROME_PATH ?? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const OUT = join(ROOT, 'smoke');
@@ -83,11 +85,15 @@ const cases = [
   ['results-unity', serializeState(ctx, { base: null, ...pr.unity }), 'results'],
   ['results-opposition-arab', serializeState(ctx, { base: null, ...pr['opposition-arab'] }), 'results'],
   ['results-pair', '?m=together,democrats', 'results'],
+  ['results-single', '?m=likud', 'results'],
   ['results-base-likud', serializeState(ctx, { base: 'likud', members: pr.coalition.members, outside: [] }), 'results'],
   ['results-low-coverage', '?m=shas,utj,zehut,likud', 'results'],
   ['method', '#method', 'method'],
 ];
 
+// Poll-derived text that must not appear anywhere when showSeats is off.
+const POLL_TEXT = /מנדטים|מנ׳|סקר|על הסף|מתוך 61|\(61\+\)|≈\d/;
+const leakIds = new RegExp(`[?&;]([bmoq])=|${parties.map((p) => p.id).join('|')}`, 'i');
 const legal = `ממוצע סקרים שפורסמו עד ${meta.pollsAsOf.split('-').reverse().join('.')}. הסקרים אינם עדכניים, ואין ללמוד מהם על דפוסי הצבעה או עמדות הציבור כיום.`;
 const base = process.argv[2];
 const server = base ? null : await serve();
@@ -121,8 +127,12 @@ try {
       const url = m.params.request.url;
       beacons.push(url);
       const decoded = decodeURIComponent(url);
-      if (/[?&;]([bmoq])=|likud|shas|yashar|zehut|democrats/i.test(decoded.replace(/^https?:\/\/[^/]+\/count\?/, ''))) {
+      const q = new URL(url).searchParams;
+      if (leakIds.test(decoded.replace(/^https?:\/\/[^/]+\/count\?/, ''))) {
         errors.push(`[${current}] GoatCounter beacon leaks coalition data: ${decoded}`);
+      }
+      if ([...q.keys()].some((k) => !['p', 't', 's', 'r', 'rnd'].includes(k)) || !/^\/(index\.html)?$/.test(q.get('p') ?? '')) {
+        errors.push(`[${current}] GoatCounter beacon carries unexpected fields or path: ${decoded}`);
       }
       c.send('Fetch.fulfillRequest', { requestId: m.params.requestId, responseCode: 200, body: '' }).catch(() => {});
     }
@@ -130,8 +140,6 @@ try {
   for (const d of ['Page', 'Runtime', 'Log', 'Network']) await c.send(`${d}.enable`);
   await c.send('Network.setCacheDisabled', { cacheDisabled: true });
   await c.send('Fetch.enable', { patterns: [{ urlPattern: '*goatcounter.com/count*' }] });
-  // Let the page count on preview hosts too, so the beacon can be inspected.
-  await c.send('Page.addScriptToEvaluateOnNewDocument', { source: 'window.__GC_ALLOW_PREVIEW__ = true' });
 
   const evaluate = async (expr) => (await c.send('Runtime.evaluate', { expression: expr, returnByValue: true })).result.value;
   const ready = () => waitFor(() => evaluate("document.querySelector('#builder')?.children.length > 0"));
@@ -179,14 +187,20 @@ try {
         if (!purpose.includes('רקורד בפועל')) errors.push(`[${current}] purpose line must name all three source kinds`);
         const mix = await evaluate("document.querySelector('#source-mix')?.innerText || ''");
         if (!/\d+ עמדות מתועדות: \d+ לפי מצע, \d+ לפי הצהרות, \d+ לפי רקורד/.test(mix)) errors.push(`[${current}] source-mix line missing (${mix})`);
+        const voter = await evaluate("(() => { const e = document.querySelector('#voter-info'); const a = e?.querySelector('a'); return e && a ? e.innerText + ' | ' + a.href : ''; })()");
+        if (!/27\.10/.test(voter) || !/7:00–22:00/.test(voter) || !/\| https:\/\/(www\.)?bechirot\.gov\.il\//.test(voter)) errors.push(`[${current}] voter-info line missing or wrong (${voter})`);
         const outHint = await evaluate("document.querySelector('#builder').innerText.includes('תמיכה מבחוץ: מפלגה שתומכת בממשלה בלי לשבת בה')");
         if (!outHint) errors.push(`[${current}] outside-support explanation missing in the picker`);
       }
       const overflow = await evaluate('document.documentElement.scrollWidth > window.innerWidth + 1');
       if (overflow) errors.push(`[${current}] horizontal page overflow`);
       if (meta.showSeats === false) {
-        const seatText = await evaluate("(document.body.innerText.match(/מנ׳|\\d+ מנדטים|מתוך 61|\\(61\\+\\)|סקרים/) || [])[0] || ''");
-        if (seatText) errors.push(`[${current}] showSeats is off but seat text is visible: "${seatText}"`);
+        const seatText = await evaluate(`(document.body.innerText.match(${POLL_TEXT}) || [])[0] || ''`);
+        if (seatText) errors.push(`[${current}] showSeats is off but poll-derived text is visible: "${seatText}"`);
+        if (expectView === 'build') {
+          const order = await evaluate("[...document.querySelectorAll('#builder [data-act=\"toggle\"]')].map((b) => b.dataset.id).join(',')");
+          if (order !== ballotOrder(parties).map((p) => p.id).join(',')) errors.push(`[${current}] showSeats is off but parties are not in ballot-letter order: ${order}`);
+        }
       } else if (expectView === 'build') {
         // The seats box above the chips carries the full legal sentence (also with no party selected, since chips show seats).
         const box = await evaluate(`(() => { const b = document.querySelector('#builder .seats-box'); if (!b) return 'missing box'; if (!b.innerText.replace(/\\s+/g, ' ').includes(${JSON.stringify(legal)})) return 'sentence missing';
@@ -225,9 +239,18 @@ try {
       if (expectView === 'results' && meta.showSeats !== false) {
         const ok = await evaluate(`document.querySelectorAll('#results .seats-line').length === 0 || document.querySelector('#results').innerText.replace(/\\s+/g, ' ').includes(${JSON.stringify(legal)})`);
         if (!ok) errors.push(`[${current}] results show seats without the full legal poll sentence`);
-        if (expectView === 'results' && members_in_url(suffix) && !(await evaluate("document.querySelector('#matrix .tap-hint')?.innerText.includes('לחצו על כל תא או נושא')"))) errors.push(`[${current}] matrix tap hint missing`);
+        if (expectView === 'results' && members_in_url(suffix) && name !== 'results-single' && !(await evaluate("document.querySelector('#matrix .tap-hint')?.innerText.includes('לחצו על כל תא או נושא')"))) errors.push(`[${current}] matrix tap hint missing`);
         const line = await evaluate("document.querySelector('#results-coalition')?.innerText || ''");
         if (!line.trim()) errors.push(`[${current}] results are missing the coalition line`);
+      }
+      if (expectView === 'results') {
+        const share = await evaluate("document.querySelectorAll('#results-bar [data-act=\"share\"]').length");
+        const want = name === 'results-single' ? 0 : 1;
+        if (share !== want) errors.push(`[${current}] share button count ${share}, expected ${want}`);
+      }
+      if (expectView === 'method' && meta.showSeats !== false) {
+        const joint = await evaluate("(() => { const h = [...document.querySelectorAll('#method h3')].find((x) => x.textContent.includes('רשימות משותפות')); const ul = h?.nextElementSibling; const p = ul?.nextElementSibling; return ul && /כ-7/.test(ul.innerText) && p?.classList.contains('poll-legal') ? p.innerText : 'missing'; })()");
+        if (joint.replace(/\s+/g, ' ').trim() !== legal) errors.push(`[${current}] joint-list seat numbers lack the legal sentence right after them (${joint})`);
       }
       await shoot(z, `${name}-${z.tag}.png`);
     }
@@ -243,9 +266,13 @@ try {
   await evaluate("document.querySelector('[data-act=\"preset\"][data-id=\"unity\"]').click()");
   await sleep(300);
   await shoot(z, 'interaction-build-unity-m.png', false);
-  await evaluate("document.querySelector('#builder [data-act=\"poll-info\"]').click()");
-  await sleep(300);
-  await shoot(z, 'interaction-poll-info-m.png', false);
+  if (meta.showSeats !== false) {
+    await evaluate("document.querySelector('#builder [data-act=\"poll-info\"]').click()");
+    await sleep(300);
+    const info = await evaluate("document.querySelector('#sheet').innerText.replace(/\\s+/g, ' ')");
+    if (!info.includes(legal)) errors.push('[interaction] poll-info sheet lacks the legal sentence');
+    await shoot(z, 'interaction-poll-info-m.png', false);
+  }
   await evaluate("document.querySelector('#sheet').close(); document.querySelector('#bar a.btn').click()");
   await sleep(400);
   const afterClick = await evaluate('document.body.dataset.view');
@@ -253,6 +280,8 @@ try {
   await evaluate("document.querySelector('.cell')?.click()");
   await sleep(300);
   await shoot(z, 'interaction-cell-sheet-m.png', false);
+  const dialogName = await evaluate("(() => { const d = document.querySelector('#sheet'); const t = document.getElementById(d.getAttribute('aria-labelledby') || ''); return t && d.contains(t) ? t.textContent.trim() : ''; })()");
+  if (!dialogName) errors.push('[interaction] sheet dialog has no accessible name (aria-labelledby)');
   // The cell sheet offers a corrections mailto with a prefilled subject and the page URL in the body.
   const mailto = await evaluate("document.querySelector('#sheet a[href^=\"mailto:\"]')?.getAttribute('href') || ''");
   const mq = mailto ? new URL(mailto).searchParams : null;
@@ -321,6 +350,20 @@ try {
     if (!pairOpen) errors.push('[interaction] tapping a pair did not open the pair view');
     await evaluate("document.querySelector('#sheet').close()");
   }
+  // Party sheets: the joint-list seat note carries the legal sentence; with seats hidden, no poll-derived text at all.
+  for (const pid of ['religious-zionism', 'zehut', 'kalkalit']) {
+    await c.send('Page.navigate', { url: `${baseUrl}?m=likud,${pid}#results` });
+    await waitFor(() => evaluate("document.body.dataset.view === 'results' && document.querySelectorAll('.party-btn').length > 0"));
+    await evaluate(`document.querySelector('.party-btn[data-id="${pid}"]').click()`);
+    await sleep(300);
+    const text = await evaluate("document.querySelector('#sheet').innerText.replace(/\\s+/g, ' ')");
+    if (meta.showSeats === false) {
+      const hit = text.match(POLL_TEXT);
+      if (hit) errors.push(`[interaction] ${pid} party sheet shows poll-derived text with seats hidden: "${hit[0]}"`);
+    } else if (/\(7\)/.test(text) && !text.includes(legal)) errors.push(`[interaction] ${pid} party sheet shows seat figures without the legal sentence`);
+    if (pid === 'religious-zionism') await shoot(z, 'interaction-party-sheet-m.png', false);
+    await evaluate("document.querySelector('#sheet').close()");
+  }
   // A cell sheet with a quote renders it in quotation marks with an attribution line underneath.
   const withQuote = JSON.parse(readFileSync(join(ROOT, 'site', 'data', 'positions.json'), 'utf8')).find((p) => p.quote && p.quoteBy && p.sourceDate);
   await c.send('Page.navigate', { url: `${baseUrl}?m=${withQuote.partyId},together#results` });
@@ -349,11 +392,15 @@ try {
   try { rmSync(profile, { recursive: true, force: true }); } catch { /* ignore */ }
 }
 
+const onProd = new URL(baseUrl).hostname === PROD_HOST;
+if (onProd && beacons.length === 0) errors.push('no GoatCounter beacon seen on production: the privacy check did not run');
+if (!onProd && beacons.length > 0) errors.push(`${beacons.length} GoatCounter beacon(s) sent from a non-production host (${new URL(baseUrl).host}); only ${PROD_HOST} may count`);
+
 if (errors.length) {
   console.error(`✗ ${errors.length} error(s):\n  ` + errors.join('\n  '));
   exitCode = 1;
 } else {
   console.log('✓ no console errors; screenshots in smoke/');
-  console.log(`  GoatCounter beacons intercepted: ${beacons.length}${beacons.length ? ' (none carried coalition data)' : ' (none; localhost is not counted)'}`);
+  console.log(`  GoatCounter beacons intercepted: ${beacons.length}${onProd ? ' (none carried coalition data)' : ' (none expected off production)'}`);
 }
 process.exit(exitCode);

@@ -441,3 +441,7 @@ blockquote p { margin: 0; }
 .out-toggle[aria-pressed="true"]::before { content: "✓ "; color: var(--accent); }
 .pair-list-head { margin: 8px 0 2px; font-weight: 700; font-size: .9rem; }
 .q-trans { margin-block-start: 6px; }
+
+/* round 9: voter info */
+.voter-info { margin: 0 0 8px; padding: 8px 12px; background: var(--card-tint); border: 1px solid #c3cff0; border-radius: 8px; font-size: .95rem; font-weight: 600; line-height: 1.5; }
+.voter-info a { white-space: nowrap; }

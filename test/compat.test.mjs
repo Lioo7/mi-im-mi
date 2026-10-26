@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
   level, makeContext, topicStatus, crises, glue, friction, overall, newClashTopics,
   matrixCell, pairSummary, seats, analyze, without, presets, parseState, serializeState,
-  withLinked, lowCoverage, addImpact, breakdown,
+  withLinked, lowCoverage, addImpact, breakdown, ballotOrder,
 } from '../site/js/compat.js';
 
 const P = (partyId, topicId, position, redLine = false) => ({ partyId, topicId, position, redLine });
@@ -246,4 +246,27 @@ test('withoutDelta: clash counts first, then substantial gaps, else null', async
   assert.deepEqual(withoutDelta(st('MAJOR', 'MAJOR', 'MAJOR'), st('MAJOR', 'MINOR', 'MINOR')), { kind: 'major', before: 3, after: 1 });
   assert.equal(withoutDelta(st('MINOR', 'AGREE'), st('AGREE', 'AGREE')), null);
   assert.equal(withoutDelta(st('CLASH', 'MAJOR'), st('CLASH', 'MAJOR')), null);
+});
+
+test('ballotOrder sorts by ballot letters (Hebrew), then name for shared letters', () => {
+  const ps = [
+    { id: 'l', ballotLetters: 'מחל', name: 'הליכוד' },
+    { id: 'z', ballotLetters: 'ט', name: 'זהות' },
+    { id: 'd', ballotLetters: 'אמת', name: 'הדמוקרטים' },
+    { id: 'k', ballotLetters: 'ך', name: 'עמך ישראל' },
+    { id: 'rz', ballotLetters: 'ט', name: 'הציונות הדתית' },
+  ];
+  assert.deepEqual(ballotOrder(ps).map((p) => p.id), ['d', 'rz', 'z', 'k', 'l']);
+  assert.deepEqual(ps.map((p) => p.id), ['l', 'z', 'd', 'k', 'rz'], 'input is not mutated');
+});
+
+test('rankBySeats=false: crisis ties fall back to topic order, not poll seats', () => {
+  const pos = [
+    P('c', 't1', -1), P('d', 't1', 1, true), // CLASH by red line, seats 18
+    P('a', 't2', -1), P('b', 't2', 1, true), // CLASH by red line, seats 50
+  ];
+  const base = fixture(pos);
+  const ctx = makeContext({ parties: base.parties, topics: base.topics, positions: pos, rankBySeats: false });
+  const st = ['t1', 't2', 't3'].map((t) => topicStatus(ctx, ['a', 'b', 'c', 'd'], t));
+  assert.deepEqual(crises(ctx, st).map((x) => x.topicId), ['t1', 't2']);
 });

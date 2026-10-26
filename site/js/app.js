@@ -61,6 +61,7 @@ function renderHeader() {
   $('#nav-method').textContent = S.nav.method;
   $('#intro').textContent = S.buildIntro;
   $('#purpose').textContent = S.buildPurpose;
+  $('#voter-info').innerHTML = `${esc(S.voterInfo)} <a href="${esc(S.voterInfoUrl)}" rel="noopener" target="_blank">${esc(S.voterInfoLink)}</a>`;
   const placed = ctx.positions ?? [];
   const n = (type) => placed.filter((p) => p.position != null && p.sourceType === type).length;
   $('#source-mix').textContent = S.sourceMix(placed.filter((p) => p.position != null).length, n('platform'), n('statement'), n('record'));
@@ -120,14 +121,14 @@ function renderMethod() {
     <h1 class="page-title">${esc(M.title)}</h1>
     <p>${esc(M.intro(ctx.parties.length))}</p>
     <ol>${S.how.lines.map((l) => `<li>${esc(l)}</li>`).join('')}</ol>
-    <p>${esc(S.how.outside)}</p>
+    <p>${esc(S.how.outside(showSeats()))}</p>
     <p class="disclaimer"><strong>${esc(M.disclaimer)}</strong> ${esc(M.independent)}</p>
 
     <h3>${esc(M.levelsTitle)}</h3>
     <ul class="level-rules">${M.levelRules.map(([lv, txt]) => `<li>${levelBadge(lv)} ${esc(txt)}</li>`).join('')}</ul>
     <p>${esc(M.colorRule)}</p>
     <p>${esc(M.matrixRule)}</p>
-    <p>${esc(M.resultsRule)}</p>
+    <p>${esc(M.resultsRule(showSeats()))}</p>
     <p>${esc(M.impactRule)}</p>
     <p>${esc(M.breakdownRule)}</p>
 
@@ -148,7 +149,8 @@ function renderMethod() {
     <p>${esc(M.names)} <a href="${esc(meta.partyNamesSourceUrl)}" rel="noopener">gov.il</a></p>
 
     <h3>${esc(M.jointTitle)}</h3>
-    <ul>${M.jointRules.map((r) => `<li>${esc(r)}</li>`).join('')}</ul>
+    <ul>${(showSeats() ? [M.jointRules[0], M.jointSeats, ...M.jointRules.slice(1)] : M.jointRules).map((r) => `<li>${esc(r)}</li>`).join('')}</ul>
+    ${showSeats() ? pollLegalLine() : ''}
     <p class="small"><a href="https://www.ynet.co.il/news/elections2026/article/rjuhrwvdfl" rel="noopener">${esc(M.jointSource)}</a></p>
 
     <h3>${esc(M.sourceMixTitle)}</h3>
@@ -166,7 +168,7 @@ function renderMethod() {
     </table></div>
 
     <h3>${esc(M.orderTitle)}</h3>
-    <ul>${M.orderRules.map((r) => `<li>${esc(r)}</li>`).join('')}</ul>
+    <ul>${M.orderRules(showSeats(), name(C.presets(ctx).unity.members[1])).map((r) => `<li>${esc(r)}</li>`).join('')}</ul>
 
     ${examples ? `<h3>${esc(M.examplesTitle)}</h3><ul>${examples}</ul>` : ''}
 
@@ -174,6 +176,8 @@ function renderMethod() {
     <p>${esc(M.pollsGuidance)} <a href="${esc(meta.pollGuidanceUrl)}" rel="noopener">${esc(M.pollsGuidanceLink)}</a></p>` : ''}
     <h3>${esc(M.researchDocs)}</h3>
     <p>${esc(M.researchDocsNote)} <a href="https://github.com/Lioo7/mi-im-mi/tree/main/docs/research" rel="noopener">${esc(M.researchDocs)}</a></p>
+    <h3>${esc(M.privacyTitle)}</h3>
+    <p>${esc(M.privacy)} ${esc(M.privacyStats)}</p>
     <p><strong>${esc(M.corrections)}</strong> <a href="mailto:lioz.akirav@gmail.com"><bdi>lioz.akirav@gmail.com</bdi></a></p>
     <p class="muted">${esc(M.updated(fmtDate(meta.dataUpdated)))}</p>`;
 }
@@ -210,7 +214,7 @@ function renderBuilder() {
     const im = !on && members.length ? C.addImpact(ctx, id, members) : null;
     const sub = [
       showSeats() && p.pollAvg != null ? S.builder.seatsChip(Math.round(p.pollAvg)) : '',
-      p.threshold === 'borderline' ? B.borderline : '',
+      showSeats() && p.threshold === 'borderline' ? B.borderline : '',
     ].filter(Boolean).join(' · ');
     const label = `${p.name}${im ? `. ${B.impactLabel(im.agree, im.clash, im.unknown)}` : ''}`;
     return `<li class="prow${on ? ' is-on' : ''}">
@@ -247,7 +251,7 @@ function renderBuilder() {
     ${seatsBox()}
     ${members.length ? `<p class="muted small">${esc(B.impactHeading)}: <span class="impact-legend"><span class="im-ok" aria-hidden="true">✓</span> ${esc(B.impactAgree)} · <span class="im-clash" aria-hidden="true">✕</span> ${esc(B.impactClash)} · <span class="im-unk" aria-hidden="true">?</span> ${esc(B.impactUnknown)}</span></p>` : ''}
     <ul class="plist" role="group" aria-label="${esc(B.pick)}">${rows}</ul>
-    <p class="muted small">${esc(B.hint)}</p>
+    <p class="muted small">${esc(B.hint(showSeats()))}</p>
     ${linkedNotes.join('')}
     ${unityNote}`;
 }
@@ -340,6 +344,10 @@ function seatsBox() {
       <div class="meter" role="img" aria-label="${esc(`${s.total} / 61`)}"><span style="inline-size:${pct}%"></span></div>`;
   }
   return `<section class="seats-box" aria-label="${esc(S.seats.boxTitle)}"><h3>${esc(S.seats.boxTitle)}</h3>${body}${pollNoteBtn()}</section>`;
+}
+
+function pollLegalLine() {
+  return `<p class="poll-legal">${esc(S.seats.pollLegal(fmtDate(meta.pollsAsOf)))}</p>`;
 }
 
 function pollNoteBtn() {
@@ -445,7 +453,7 @@ function renderResults() {
     ? `<p class="coalition-line"><span class="muted small">${esc(S.results.coalitionLabel)}:</span> ${esc(tags.join(' · '))}</p>` : '';
   $('#results-bar').innerHTML = `
     <a class="back" href="#build">${esc(S.nav.back)}</a>
-    <button type="button" class="btn btn-small" data-act="share" data-key="share">${esc(S.share.button)}</button>`;
+    ${members.length >= 2 ? `<button type="button" class="btn btn-small" data-act="share" data-key="share">${esc(S.share.button)}</button>` : ''}`;
   if (members.length === 0) {
     el.innerHTML = `<p class="empty">${esc(S.results.resultsEmpty)} <a href="#build">${esc(S.results.resultsEmptyLink)}</a></p>`;
     return;
@@ -540,6 +548,7 @@ function pollInfoSheet() {
     <h2>${esc(S.seats.infoTitle)}</h2>
     <p>${esc(S.seats.infoBody)}</p>
     ${s.borderline ? `<p>${esc(S.seats.borderlineNote(s.borderline))}</p>` : ''}
+    ${pollLegalLine()}
     <ul class="links">
       <li><a href="${esc(meta.pollSourceUrl)}" rel="noopener" target="_blank">${esc(S.seats.infoSource)}</a></li>
       <li><a href="${esc(meta.pollGuidanceUrl)}" rel="noopener" target="_blank">${esc(S.seats.infoGuidance)}</a></li>
@@ -567,6 +576,7 @@ function openSheet(html) {
   d.innerHTML = `<div class="sheet-inner">
     <button type="button" class="icon-btn sheet-close" data-act="close-sheet" aria-label="${esc(S.sheet.close)}"><span aria-hidden="true">✕</span></button>
     ${html}</div>`;
+  d.querySelector('h2')?.setAttribute('id', 'sheet-title');
   if (!d.open) d.showModal();
   d.scrollTop = 0;
 }
@@ -621,8 +631,9 @@ function partyNotes(p) {
     const [a, b] = ordered([p.id, p.linkedWith]);
     notes.push(S.builder.linkedNote(name(a), name(b)));
   }
-  if (p.seatNote && showSeats()) notes.push(p.seatNote);
-  return notes.map((n) => `<p class="note note-soft">${esc(n)}</p>`).join('');
+  const seatNote = p.seatNote && showSeats();
+  if (seatNote) notes.push(p.seatNote);
+  return notes.map((n) => `<p class="note note-soft">${esc(n)}</p>`).join('') + (seatNote ? pollLegalLine() : '');
 }
 
 function partySheet(pid, compareWith = '') {
@@ -759,7 +770,10 @@ async function main() {
   });
   const [parties, topics, positions, m] = await Promise.all(['parties', 'topics', 'positions', 'meta'].map(get));
   meta = m;
-  ctx = C.makeContext({ parties, topics, positions });
+  // With seats hidden, the poll order itself would reveal standings: order by ballot letters instead.
+  ctx = showSeats()
+    ? C.makeContext({ parties, topics, positions })
+    : C.makeContext({ parties: C.ballotOrder(parties), topics, positions, rankBySeats: false });
   const parsed = C.parseState(location.search, parties.map((p) => p.id));
   state = { ...parsed, members: ordered(parsed.members) };
   renderHeader();
