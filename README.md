@@ -1,6 +1,6 @@
 # מי עם מי
 
-**בחרו מפלגות וגלו איפה הן מסכימות ואיפה הן מתנגשות.**
+**בנו קואליציה וגלו איפה המפלגות מסכימות ואיפה הן מתנגשות.**
 
 כלי ניטרלי לבחירות לכנסת ה-26 (27.10.2026): בוחרים מפלגות שעשויות לשבת יחד בקואליציה, ורואים באילו נושאים העמדות שלהן קרובות ובאילו הן רחוקות. כל עמדה מגובה במקור.
 
@@ -107,6 +107,8 @@ node scripts/smoke.mjs [baseUrl]      # בדיקת smoke עם צילומי מס�
 ---
 
 ## English
+
+**Build a coalition and see where the parties agree and where they clash.**
 
 **Mi Im Mi ("Who With Whom")** is a neutral, Hebrew, mobile-first web app for Israel's Knesset election of 27 October 2026. Pick parties that might form a coalition, and see where their positions agree and where they clash.
 

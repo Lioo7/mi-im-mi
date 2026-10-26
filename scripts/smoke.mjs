@@ -11,6 +11,7 @@ import { join, extname, normalize } from 'node:path';
 import { ROOT, loadData } from './lib.mjs';
 import { makeContext, presets, serializeState, ballotOrder } from '../site/js/compat.js';
 import { PROD_HOST } from '../site/js/stats.js';
+import { S } from '../site/js/strings.js';
 
 const CHROME = process.env.CHROME_PATH ?? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const OUT = join(ROOT, 'smoke');
@@ -193,6 +194,8 @@ try {
         if (hash !== '#results') errors.push(`[${current}] shared link did not settle on #results (hash "${hash}")`);
       }
       if (expectView === 'build') {
+        const title = await evaluate('document.title');
+        if (title !== `${S.appName} · ${S.tagline}`) errors.push(`[${current}] <title> must be "${S.appName} · ${S.tagline}", got "${title}"`);
         const purpose = await evaluate("document.querySelector('#purpose')?.innerText || ''");
         if (!purpose.includes('כל עמדה מגובה במקור. זו לא המלצת הצבעה.')) errors.push(`[${current}] build view is missing the purpose line`);
         if (!purpose.includes('רקורד בפועל (הצעות חוק שהמפלגה יזמה או קידמה)') || purpose.includes('הצבעות')) errors.push(`[${current}] purpose line must name all three source kinds, with record = bills (no votes)`);
