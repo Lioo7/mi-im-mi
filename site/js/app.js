@@ -345,9 +345,10 @@ function seatsText() {
   return { s, html: `<strong><bdi dir="ltr">${esc(head)}</bdi></strong> · ${esc(s.missing ? S2.short(s.missing) : S2.majority)}` };
 }
 
+// The legal sentence always comes before the seat numbers, so scrolling down reaches it first on any screen.
 function seatsLine() {
   if (!showSeats() || !state.members.length) return '';
-  return `<p class="seats-line">${seatsText().html}</p>${pollNoteBtn()}`;
+  return `${pollNoteBtn()}<p class="seats-line">${seatsText().html}</p>`;
 }
 
 function seatsBox() {
@@ -360,7 +361,7 @@ function seatsBox() {
     body = `<p class="seats-line">${html}</p>
       <div class="meter" role="img" aria-label="${esc(`${s.total} / 61`)}"><span style="inline-size:${pct}%"></span></div>`;
   }
-  return `<section class="seats-box" aria-label="${esc(S.seats.boxTitle)}"><h3>${esc(S.seats.boxTitle)}</h3>${body}${pollNoteBtn()}</section>`;
+  return `<section class="seats-box" aria-label="${esc(S.seats.boxTitle)}"><h3>${esc(S.seats.boxTitle)}</h3>${pollNoteBtn()}${body}</section>`;
 }
 
 function pollLegalLine() {

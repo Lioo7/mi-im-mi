@@ -142,6 +142,15 @@ try {
   for (const d of ['Page', 'Runtime', 'Log', 'Network']) await c.send(`${d}.enable`);
   await c.send('Network.setCacheDisabled', { cacheDisabled: true });
   await c.send('Fetch.enable', { patterns: [{ urlPattern: '*goatcounter.com/count*' }] });
+  // Simulate the host's floating badge (202×64, bottom-right) wherever the real one is absent (local, drafts), so layout
+  // checks see what production visitors see. The marker script makes the app reserve room for it, as on production.
+  await c.send('Page.addScriptToEvaluateOnNewDocument', { source: `document.addEventListener('DOMContentLoaded', () => {
+    if (document.querySelector('script[data-nf-variant]')) return;
+    const s = document.createElement('script'); s.type = 'text/plain'; s.dataset.nfVariant = 'smoke-sim'; document.head.append(s);
+    const b = document.createElement('div'); b.id = 'sim-host-badge';
+    b.style.cssText = 'position:fixed;bottom:0;right:0;width:202px;height:64px;z-index:2147483647;background:rgba(20,22,28,.55)';
+    document.body.append(b);
+  });` });
 
   const evaluate = async (expr) => (await c.send('Runtime.evaluate', { expression: expr, returnByValue: true })).result.value;
   const ready = () => waitFor(() => evaluate("document.querySelector('#builder')?.children.length > 0"));
@@ -208,10 +217,8 @@ try {
         const box = await evaluate(`(() => { const b = document.querySelector('#builder .seats-box'); if (!b) return 'missing box'; if (!b.innerText.replace(/\\s+/g, ' ').includes(${JSON.stringify(legal)})) return 'sentence missing';
           const l = b.querySelector('.poll-legal'), sl = b.querySelector('.seats-line'); const a = getComputedStyle(l), c = getComputedStyle(sl);
           if (a.fontSize !== c.fontSize || a.color !== getComputedStyle(document.body).color) return 'style ' + a.fontSize + '/' + c.fontSize + ' ' + a.color;
-          const r = l.getBoundingClientRect(); const pts = []; for (const fx of [0.05, 0.3, 0.5, 0.7, 0.95]) for (const fy of [0.15, 0.5, 0.85]) pts.push([r.left + r.width * fx, r.top + r.height * fy]);
-          const inView = pts.every(([x, y]) => y >= 0 && y < innerHeight);
-          const bad = inView ? pts.filter(([x, y]) => { const e = document.elementFromPoint(x, y); return !e || !b.contains(e); }) : [];
-          return bad.length ? 'obscured at ' + bad.length + ' points by ' + (document.elementFromPoint(bad[0][0], bad[0][1])?.id || document.elementFromPoint(bad[0][0], bad[0][1])?.tagName) : 'ok'; })()`);
+          if (!(l.compareDocumentPosition(sl) & Node.DOCUMENT_POSITION_FOLLOWING)) return 'sentence must come before the numbers';
+          return 'ok'; })()`);
         if (box !== 'ok') errors.push(`[${current}] seats box: ${box}`);
         const line = await evaluate("(() => { const e = document.querySelector('#builder .seats-box .seats-line'); const lh = parseFloat(getComputedStyle(e).lineHeight); return e.getBoundingClientRect().height > lh * 1.5 ? 'wraps' : 'ok'; })()");
         if (line !== 'ok') errors.push(`[${current}] seat line wraps onto two lines`);
@@ -265,6 +272,47 @@ try {
       await shoot(z, `${name}-${z.tag}.png`);
     }
     console.log(`  ✓ ${z.width}px: ${cases.length} views`);
+  }
+
+  // Legal sentence vs seat numbers, with the host badge present: whenever seat totals are visible, the full sentence must
+  // be visible too, except for parts already scrolled past the top (reading down, the sentence always comes first).
+  // Checked on first load and at every 40px of scroll, on a regular and a short phone.
+  if (meta.showSeats !== false) {
+    const LEGAL_CHECK = `(() => {
+      const pts = (el, fxs, fys) => { const r = el.getBoundingClientRect(); return fxs.flatMap((fx) => fys.map((fy) => [r.left + r.width * fx, r.top + r.height * fy])); };
+      const hit = (el, [x, y]) => y >= 0 && y < innerHeight && x >= 0 && x < innerWidth && el.contains(document.elementFromPoint(x, y));
+      // Content under the sticky results bar at the top has been scrolled past, like content above the viewport.
+      const bar = [...document.querySelectorAll('.resbar')].find((e) => e.getClientRects().length);
+      const top = bar ? Math.max(0, bar.getBoundingClientRect().bottom) : 0;
+      const bad = [];
+      for (const box of document.querySelectorAll('.seats-box, .overall')) {
+        const n = box.querySelector('.seats-line:not(.muted)'); const l = box.querySelector('.poll-legal');
+        if (!n || !n.getClientRects().length) continue;
+        if (!pts(n, [0.05, 0.5, 0.95], [0.25, 0.75]).some((p) => p[1] >= top && hit(n, p))) continue; // numbers not visible
+        const shown = l && pts(l, [0.05, 0.3, 0.5, 0.7, 0.95], [0.15, 0.5, 0.85]).every((p) => p[1] < top || hit(l, p));
+        if (!shown) bad.push(box.classList.contains('overall') ? 'results summary' : 'seats box');
+      }
+      return bad.join(', ');
+    })()`;
+    const legalCases = cases.filter(([n, suffix, v]) => members_in_url(suffix) && n !== 'results-single' && (v === 'build' || v === 'results'));
+    for (const z of [{ ...SIZES[0] }, { tag: 's', width: 375, height: 667, mobile: true, dpr: 2 }]) {
+      await setSize(z);
+      for (const [name, suffix] of legalCases) {
+        current = `legal-${name}@${z.width}x${z.height}`;
+        await c.send('Page.navigate', { url: 'about:blank' });
+        await c.send('Page.navigate', { url: baseUrl + suffix });
+        await waitFor(() => evaluate("document.body.dataset.view !== undefined && document.querySelector('#footer')?.children.length > 0 && (document.querySelector('script[data-nf-variant]') !== null)"));
+        await sleep(400);
+        const first = await evaluate(LEGAL_CHECK);
+        if (first) errors.push(`[${current}] first load: seat numbers visible without the full legal sentence (${first})`);
+        const scrolled = await evaluate(`(() => { const out = []; const max = document.documentElement.scrollHeight - innerHeight;
+          for (let y = 0; y <= max; y += 40) { window.scrollTo(0, y); const r = ${LEGAL_CHECK}; if (r) out.push(y + ': ' + r); }
+          window.scrollTo(0, 0); return out.slice(0, 3).join(' | '); })()`);
+        if (scrolled) errors.push(`[${current}] while scrolling: seat numbers visible without the full legal sentence at ${scrolled}`);
+        if (await evaluate('document.documentElement.scrollWidth > window.innerWidth + 1')) errors.push(`[${current}] horizontal page overflow`);
+      }
+    }
+    console.log(`  ✓ legal sentence vs seat numbers: ${legalCases.length} views × 390×844, 375×667 (with host badge)`);
   }
 
   // Interactions at phone width: pick a preset on the build view, open the poll note, go to results, open a cell, come back.

@@ -447,3 +447,7 @@ blockquote p { margin: 0; }
 .voter-info a { white-space: nowrap; }
 .anchor { scroll-margin-block-start: 12px; }
 .anchor:focus { outline: none; }
+/* round 10: legal sentence above the seat numbers */
+.seats-box .poll-legal { margin: 0 0 8px; }
+.overall .poll-legal { margin-block: 10px 6px; }
+.overall .seats-line { margin-block-start: 0; }
