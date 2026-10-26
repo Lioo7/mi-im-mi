@@ -39,7 +39,7 @@ Do not change anything under `site/`, and do not deploy, without the user's expl
 - Party names come only from `parties.json` (`name` / `officialName`, from the CEC list), never from bakalpi, and never include ballot letters. Ballot letters appear only as the separate `ballotLetters` tag.
 
 ## Sources
-- `sourceType`: `platform` | `statement` (party/leader's own words: site, X, recorded interview, direct quote) | `record` (a bill the party led/sponsored, or a vote breaking from its bloc; not plain bloc-discipline votes). A journalist's characterization is never a source.
+- `sourceType`: `platform` | `statement` (party/leader's own words: site, X, recorded interview, direct quote) | `record` (a bill the party initiated or advanced). Votes breaking from the bloc were planned as evidence, but no position uses one; plain bloc-discipline votes never count. A journalist's characterization is never a source.
 - `redLine=true` only when the party or its leader said in its own words, on the record, that this is a coalition condition. Never from news reports.
 - No source means `position: null`. Never guess. Summaries are in our own words; quotes are verbatim.
 

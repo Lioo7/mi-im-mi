@@ -195,7 +195,7 @@ try {
       if (expectView === 'build') {
         const purpose = await evaluate("document.querySelector('#purpose')?.innerText || ''");
         if (!purpose.includes('כל עמדה מגובה במקור. זו לא המלצת הצבעה.')) errors.push(`[${current}] build view is missing the purpose line`);
-        if (!purpose.includes('רקורד בפועל')) errors.push(`[${current}] purpose line must name all three source kinds`);
+        if (!purpose.includes('רקורד בפועל (הצעות חוק שהמפלגה יזמה או קידמה)') || purpose.includes('הצבעות')) errors.push(`[${current}] purpose line must name all three source kinds, with record = bills (no votes)`);
         const mix = await evaluate("document.querySelector('#source-mix')?.innerText || ''");
         if (!/\d+ עמדות מתועדות: \d+ לפי מצע, \d+ לפי הצהרות, \d+ לפי רקורד/.test(mix)) errors.push(`[${current}] source-mix line missing (${mix})`);
         const voter = await evaluate("(() => { const e = document.querySelector('#voter-info'); const a = e?.querySelector('a'); return e && a ? e.innerText + ' | ' + a.href : ''; })()");
