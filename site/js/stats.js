@@ -4,13 +4,12 @@
 // page title, screen width and the referrer's origin are sent. No events, no cookies, no per-user data.
 export const ENDPOINT = 'https://miimmi.goatcounter.com/count';
 
-const PRIVATE_HOST = /^(localhost$|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/;
+export const PROD_HOST = 'mi-im-mi-2026.netlify.app';
 
-// Not counted: local development, and Netlify deploy previews ("<id>--site.netlify.app").
-export function shouldCount(hostname, allowPreview = false) {
-  if (PRIVATE_HOST.test(hostname)) return false;
-  if (!allowPreview && hostname.includes('--')) return false;
-  return true;
+// Allow-list: only the production site over https is counted. Everything else (file:// previews, which would send
+// a local file path, localhost, Netlify drafts and previews) sends nothing.
+export function shouldCount({ protocol, hostname }) {
+  return protocol === 'https:' && hostname === PROD_HOST;
 }
 
 export function beaconUrl({ pathname, title, referrer, width }) {
@@ -24,7 +23,7 @@ export function beaconUrl({ pathname, title, referrer, width }) {
 
 export function countPageview(win = window) {
   try {
-    if (!shouldCount(win.location.hostname, Boolean(win.__GC_ALLOW_PREVIEW__))) return;
+    if (!shouldCount(win.location)) return;
     if (win.localStorage?.getItem('skipgc') === 't') return;
     const url = beaconUrl({
       pathname: win.location.pathname,

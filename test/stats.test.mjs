@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { beaconUrl, shouldCount } from '../site/js/stats.js';
+import { beaconUrl, shouldCount, countPageview } from '../site/js/stats.js';
 
 test('beacon never carries the query string or any coalition data', () => {
   const url = decodeURIComponent(beaconUrl({
@@ -19,11 +19,27 @@ test('only pathname, title, width, referrer origin and a cache-buster are sent',
   assert.deepEqual(keys, ['p', 'r', 'rnd', 's', 't']);
 });
 
-test('local and deploy-preview hosts are not counted unless allowed', () => {
-  assert.equal(shouldCount('localhost'), false);
-  assert.equal(shouldCount('127.0.0.1'), false);
-  assert.equal(shouldCount('192.168.1.5'), false);
-  assert.equal(shouldCount('6ade56d9--mi-im-mi-2026.netlify.app'), false);
-  assert.equal(shouldCount('6ade56d9--mi-im-mi-2026.netlify.app', true), true);
-  assert.equal(shouldCount('mi-im-mi-2026.netlify.app'), true);
+test('only https on the production host is counted', () => {
+  assert.equal(shouldCount({ protocol: 'https:', hostname: 'mi-im-mi-2026.netlify.app' }), true);
+  assert.equal(shouldCount({ protocol: 'file:', hostname: '' }), false);
+  assert.equal(shouldCount({ protocol: 'http:', hostname: 'mi-im-mi-2026.netlify.app' }), false);
+  assert.equal(shouldCount({ protocol: 'http:', hostname: 'localhost' }), false);
+  assert.equal(shouldCount({ protocol: 'http:', hostname: '127.0.0.1' }), false);
+  assert.equal(shouldCount({ protocol: 'https:', hostname: '6ade56d9--mi-im-mi-2026.netlify.app' }), false);
+  assert.equal(shouldCount({ protocol: 'https:', hostname: 'mi-im-mi-2026.netlify.app.evil.example' }), false);
+});
+
+test('countPageview sends nothing from a file:// preview', () => {
+  const sent = [];
+  const win = {
+    location: { protocol: 'file:', hostname: '', pathname: '/Users/someone/site/index.html' },
+    document: { title: 't', referrer: '' }, screen: { width: 390 },
+    navigator: { sendBeacon: (u) => { sent.push(u); return true; } },
+    Image: function Image() { sent.push('img'); },
+  };
+  countPageview(win);
+  assert.deepEqual(sent, []);
+  countPageview({ ...win, location: { protocol: 'https:', hostname: 'mi-im-mi-2026.netlify.app', pathname: '/' } });
+  assert.equal(sent.length, 1);
+  assert.ok(sent[0].includes('p=%2F'), sent[0]);
 });
