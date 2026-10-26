@@ -51,11 +51,11 @@
   - ציטוט שיוחס בטעות למנהיג מפלגה. הוא תוקן לפי המקור.
   - סקריפט האנליטיקס המקורי שלח את הקואליציה של המשתמש, והוחלף בגרסה שלא שולחת אותה.
   - תג שהאחסון הוסיף בתחתית המסך הסתיר את ההסתייגות החוקית על הסקרים.
-- **מספרי המנדטים** הם ממוצע סקרים שפורסמו עד 23.10.2026, ומוצגים עם ההסתייגות שנדרשת בחוק. ביום הבחירות עצמו הם יוסתרו, בעזרת הדגל `showSeats` ב-`meta.json`.
+- **מספרי המנדטים** הם ממוצע סקרים שפורסמו עד 23.10.2026, ומוצגים עם ההסתייגות שנדרשת בחוק. ביום הבחירות עצמו הם יוסתרו בעזרת הדגל `showSeats` ב-`meta.json`, יחד עם כל מידע אחר שנגזר מהסקרים: המפלגות יסודרו לפי אותיות הפתק.
 
 ## פרטיות
 
-אין עוגיות ואין משתמשים. הקואליציה שבונים נשמרת רק בכתובת (בפרמטרים של ה-URL), ולא נשלחת לשום שירות צד שלישי. כמו כל כתובת, כשפותחים קישור משותף היא מגיעה לשרת האחסון (Netlify) שמגיש את הדף. מונה הכניסות ([GoatCounter](https://www.goatcounter.com)) מקבל רק את נתיב העמוד, הכותרת, רוחב המסך והדומיין שממנו הגיעו, בלי פרמטרי הקואליציה. בדיקת ה-smoke מוודאת את זה כשמריצים אותה מול כתובת הפריסה.
+אין עוגיות ואין משתמשים. הקואליציה נשמרת בכתובת. אם משתפים קישור, הבחירה מופיעה בו, ושרת האחסון רואה אותה כמו כל כתובת. אנחנו לא שומרים ולא מנתחים אותה. מונה הכניסות ([GoatCounter](https://www.goatcounter.com)) פועל רק באתר עצמו, ומקבל רק את נתיב העמוד, הכותרת, רוחב המסך והדומיין שממנו הגיעו, בלי פרמטרי הקואליציה. בדיקת ה-smoke מוודאת את זה מול האתר, ומוודאת שמכל כתובת אחרת לא נשלח כלום.
 
 ## מצאתם טעות?
 
@@ -77,7 +77,7 @@
 | HTML, CSS ו-JavaScript (ES modules), בלי framework ובלי build | עמוד אחד עם כמה תצוגות. פחות מ-60KB דחוס, כולל כל הנתונים, נטען מהר בטלפון, ואין שלב בנייה שיכול להישבר ביום הבחירות |
 | נתונים ב-JSON סטטי | אין שרת ואין מסד נתונים שיכולים ליפול. תיקון הוא עריכת קובץ ופריסה |
 | Netlify | פריסה בפקודה אחת, CDN, וכתובות טיוטה לבדיקה לפני פרודקשן |
-| `node --test` | 40 בדיקות לאלגוריתם ולנתונים, כולל בדיקת סימטריה: היפוך כיוון הציר חייב לתת תוצאה זהה |
+| `node --test` | 43 בדיקות לאלגוריתם ולנתונים, כולל בדיקת סימטריה: היפוך כיוון הציר חייב לתת תוצאה זהה |
 | בדיקת smoke עם Chrome headless | צילומי מסך ב-390 וב-1280 פיקסלים, בדיקת שגיאות, בדיקה שההסתייגות על הסקרים גלויה ולא מוסתרת, ובדיקה שמונה הכניסות לא מקבל נתוני קואליציה |
 
 ### הרצה מקומית
@@ -136,7 +136,7 @@ node scripts/smoke.mjs [baseUrl]      # בדיקת smoke עם צילומי מס�
   - an analytics script that leaked users' coalitions
   - a host badge covering the legally required poll disclaimer
 
-**Privacy.** No cookies. The coalition lives only in the URL's query string and is never sent to a third party; like any URL, it reaches the host (Netlify) when a shared link is opened. The page-view beacon sends only the path, page title, screen width and referrer origin. The smoke test checks this when run against the deployed site.
+**Privacy.** No cookies. The coalition is kept in the URL. A shared link contains it, and the host sees it like any URL; we don't store or analyze it. The page-view beacon runs only on the production site and sends only the path, page title, screen width and referrer origin. The smoke test checks this against the live site, and checks that nothing is sent from any other host.
 
 **How it was built.** In under two days, against a hard deadline (election day):
 - planning with Claude
@@ -144,7 +144,7 @@ node scripts/smoke.mjs [baseUrl]      # בדיקת smoke עם צילומי מס�
 - human checkpoints throughout
 - about 40 commits
 
-**Stack.** Static vanilla JS with no build step (<60KB gzipped including all data), JSON data, Netlify, `node --test` (40 tests, including mirror-symmetry tests: flipping the axis direction must give identical results), and a headless-Chrome smoke test that also checks that the page-view beacon carries no coalition data and that the poll disclaimer is visible.
+**Stack.** Static vanilla JS with no build step (<60KB gzipped including all data), JSON data, Netlify, `node --test` (43 tests, including mirror-symmetry tests: flipping the axis direction must give identical results), and a headless-Chrome smoke test that also checks that the page-view beacon carries no coalition data and that the poll disclaimer is visible.
 
 **Corrections.** Every cell has a "found an error?" link. You can also email lioz.akirav@gmail.com or open an issue.
 

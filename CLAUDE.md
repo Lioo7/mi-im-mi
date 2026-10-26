@@ -11,7 +11,7 @@ Do not change anything under `site/`, and do not deploy, without the user's expl
   - `js/compat.js`: pure compatibility logic and URL state (`?b=&m=&o=`), unit-tested
   - `js/strings.js`: all UI strings
   - `js/links.js`: correction mailto and quote attribution
-  - `js/stats.js`: cookieless GoatCounter beacon (path, title, screen width, referrer origin; never the query)
+  - `js/stats.js`: cookieless GoatCounter beacon, sent only from `https://mi-im-mi-2026.netlify.app` (path, title, screen width, referrer origin; never the query)
   - `data/`: `parties.json`, `topics.json`, `positions.json`, `meta.json`
 - `scripts/`: Node built-ins only. `lib.mjs` holds shared IO, CSV and validation.
 - `test/*.test.mjs`: unit tests for `node --test`.
@@ -24,7 +24,7 @@ Do not change anything under `site/`, and do not deploy, without the user's expl
 ## Commands
 - **Test:** `node --test`
 - **Validate:** `node scripts/validate.mjs`
-- **Smoke:** `node scripts/smoke.mjs [baseUrl]`, then look at `smoke/*.png`. The beacon privacy check only runs against a deployed URL.
+- **Smoke:** `node scripts/smoke.mjs [baseUrl]`, then look at `smoke/*.png`. Against production every beacon is inspected (never sent); on any other host, no beacon may be sent at all. To test seat-hidden mode, copy `site/` and `scripts/` to a scratch dir, set `showSeats` to `false` there, and run smoke in the copy.
 - **Local:** `python3 -m http.server -d site 8080`
 - **Export CSV:** `node scripts/export-csv.mjs` (`research/merged.json` → `review/positions_review.csv`)
 - **Import CSV:** `node scripts/import-csv.mjs review/positions_review.csv [--dry-run]`. This validates the file, prints the diff and writes `site/data/positions.json`.
@@ -34,7 +34,7 @@ Do not change anything under `site/`, and do not deploy, without the user's expl
 - **Deploy:** draft with `netlify deploy --dir=site`; prod with `netlify deploy --prod --dir=site`, only after the user confirms.
 
 ## Neutrality (a product requirement)
-- One neutral color for all parties; severity colors encode distance only. Parties are ordered by poll average, presets alphabetically.
+- One neutral color for all parties; severity colors encode distance only. Parties are ordered by poll average (by ballot letters when `showSeats` is `false`), presets alphabetically.
 - No default coalition and no example clashes in UI copy. Axis numbers are never shown. Each pole is worded the way its supporters would put it.
 - Party names come only from `parties.json` (`name` / `officialName`, from the CEC list), never from bakalpi, and never include ballot letters. Ballot letters appear only as the separate `ballotLetters` tag.
 
@@ -55,7 +55,8 @@ Do not change anything under `site/`, and do not deploy, without the user's expl
 
 ## Data and polls
 - Change positions **only** via `node scripts/import-csv.mjs review/positions_review.csv`. Never hand-edit `site/data/positions.json`.
-- `meta.json → showSeats` (boolean): `false` hides every seat number. The plan is to set it to `false` on election day (27.10), which is a deploy and needs the user's OK. Re-run smoke with the flag off first.
+- `meta.json → showSeats` (boolean): `false` hides every seat number and all poll-derived info: the threshold badge, the joint-list seat split, the poll ordering and the seat tie-breaks.
+- The election-day flip is prepared as a one-line commit on the local branch `election-day-flip`. It needs the user's OK, then `git cherry-pick election-day-flip` onto `main`, validate, smoke, and a prod deploy.
 - Wherever seat numbers or poll-derived figures show, the full legal sentence (`S.seats.pollLegal`, ממוצע סקרים שפורסמו עד … הסקרים אינם עדכניים …) must be visible with them.
 
 ## Conventions
