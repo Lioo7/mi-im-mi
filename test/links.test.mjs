@@ -36,3 +36,9 @@ test('a translated quote names the translator and the original channel', () => {
     quoteAttribution({ quoteBy: 'מנסור עבאס', quoteChannel: 'פייסבוק', quoteTranslatedBy: 'כיפה', sourceUrl: 'https://www.kipa.co.il/x', sourceType: 'statement', sourceDate: '2026-08-26' }, 'רע״ם'),
     'מנסור עבאס, פייסבוק, 26.08.2026 (תרגום: כיפה)');
 });
+
+test('a free translation by the site is marked on the translation line, not added to the attribution', () => {
+  assert.equal(
+    quoteAttribution({ quoteBy: 'מנסור עבאס', quoteTranslatedBy: 'האתר', sourceUrl: 'https://www.arab48.com/x', sourceType: 'statement', sourceDate: '2026-08-22' }, 'רע״ם'),
+    'מנסור עבאס, Arab48, 22.08.2026');
+});

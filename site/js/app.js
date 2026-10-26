@@ -1,7 +1,7 @@
 import { S } from './strings.js';
 import * as C from './compat.js';
 import { countPageview } from './stats.js';
-import { correctionMailto, quoteAttribution } from './links.js';
+import { correctionMailto, quoteAttribution, SITE_TRANSLATOR } from './links.js';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -266,7 +266,7 @@ function positionBlock(pid, tid, { heading = true } = {}) {
     ${heading ? `<p class="pos-label">${esc(axisLabel(tid, p.position))}</p>` : ''}
     ${p.redLine || p.componentsDisagree ? `<p>${p.redLine ? `<span class="tag tag-red"><span aria-hidden="true">🚩</span> ${esc(S.redLine)}</span> ` : ''}${p.componentsDisagree ? `<span class="tag tag-split"><span aria-hidden="true">${S.componentsIcon}</span> ${esc(S.componentsDisagree)}</span>` : ''}</p>` : ''}
     <p>${esc(p.summary)}</p>
-    ${p.quote ? `<blockquote><p class="q-text">״${esc(p.quote)}״</p><footer class="q-by">${esc(quoteAttribution(p, name(pid)))}</footer></blockquote>` : ''}
+    ${p.quote ? `<blockquote><p class="q-text"${/[\u0600-\u06FF]/.test(p.quote) ? ' lang="ar" dir="rtl"' : ''}>״${esc(p.quote)}״</p>${p.quoteTranslation ? `<p class="q-text q-trans">״${esc(p.quoteTranslation)}״ ${esc(p.quoteTranslatedBy === SITE_TRANSLATOR ? S.sheet.siteTranslation : S.sheet.translationBy(p.quoteTranslatedBy))}</p>` : ''}<footer class="q-by">${esc(quoteAttribution(p, name(pid)))}</footer></blockquote>` : ''}
     <p class="source">
       <span class="tag tag-src">${esc(T.sourceTypes[p.sourceType] ?? '')}</span>
       ${p.sourceDate ? `<span class="muted">${esc(T.date(fmtDate(p.sourceDate)))}</span>` : ''}

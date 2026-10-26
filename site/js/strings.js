@@ -184,6 +184,8 @@ export const S = {
   },
 
   sheet: {
+    siteTranslation: '(תרגום חופשי של האתר)',
+    translationBy: (n) => `(תרגום: ${n})`,
     close: 'סגירה',
     source: 'מקור',
     via: 'דרך בקלפי',

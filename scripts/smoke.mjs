@@ -331,6 +331,13 @@ try {
   if (!q || !/^״.+״$/.test(q.text ?? '')) errors.push(`[interaction] quote must be wrapped in quotation marks (${JSON.stringify(q)})`);
   if (!q || !q.by.startsWith(withQuote.quoteBy) || !/\d{2}\.\d{2}\.\d{4}$/.test(q.by)) errors.push(`[interaction] quote attribution should read "<speaker>, <channel>, <date>" (${q?.by})`);
   await shoot(z, 'interaction-cell-quote-m.png', false);
+  // Arabic quotes keep the original and add a marked Hebrew translation under it.
+  await c.send('Page.navigate', { url: `${baseUrl}?m=raam,together#results` });
+  await waitFor(() => evaluate("document.body.dataset.view === 'results' && document.querySelectorAll('.cell').length > 0"));
+  await evaluate('document.querySelector(\'.cell[data-party="raam"][data-topic="palestinian"]\').click()');
+  await sleep(300);
+  const ar = await evaluate("(() => { const q = [...document.querySelectorAll('#sheet blockquote .q-text')]; return q.map((e) => e.textContent).join(' | '); })()");
+  if (!/[\u0600-\u06FF]/.test(ar) || !ar.includes('(תרגום חופשי של האתר)')) errors.push(`[interaction] Arabic quote must show the original plus a marked translation (${ar})`);
   console.log('  ✓ interactions');
   c.close();
 } catch (e) {

@@ -440,3 +440,4 @@ blockquote p { margin: 0; }
 .out-toggle[aria-pressed="true"] { background: none; border: 0; padding: 2px 4px; color: var(--fg); font-weight: 700; text-decoration: none; }
 .out-toggle[aria-pressed="true"]::before { content: "✓ "; color: var(--accent); }
 .pair-list-head { margin: 8px 0 2px; font-weight: 700; font-size: .9rem; }
+.q-trans { margin-block-start: 6px; }

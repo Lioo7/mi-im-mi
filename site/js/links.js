@@ -24,9 +24,11 @@ export function quoteChannel({ sourceUrl, sourceType }) {
 }
 
 // "<speaker or party>, <channel>, <date>" (the date is left out when the source is undated).
+export const SITE_TRANSLATOR = 'האתר';
+
 // A translated quote says so: "<speaker>, <original channel>, <date> (תרגום: <translator>)".
 export function quoteAttribution({ quoteBy, quoteChannel: channel, quoteTranslatedBy, sourceUrl, sourceType, sourceDate }, partyName) {
   const date = sourceDate ? sourceDate.split('-').reverse().join('.') : '';
   const line = [quoteBy || partyName, channel || quoteChannel({ sourceUrl, sourceType }), date].filter(Boolean).join(', ');
-  return quoteTranslatedBy ? `${line} (תרגום: ${quoteTranslatedBy})` : line;
+  return quoteTranslatedBy && quoteTranslatedBy !== SITE_TRANSLATOR ? `${line} (תרגום: ${quoteTranslatedBy})` : line;
 }
