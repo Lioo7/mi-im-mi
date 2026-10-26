@@ -8,13 +8,10 @@
 
 > לא המלצת הצבעה. האתר עצמאי ואין לי קשר לאף מפלגה.
 
-<p align="center">
-  <img src="docs/screenshots/build.png" width="19%" alt="בחירת מפלגות">
-  <img src="docs/screenshots/results.png" width="19%" alt="תוצאות">
-  <img src="docs/screenshots/gap-expanded.png" width="19%" alt="הנושאים עם הפערים הגדולים ביותר">
-  <img src="docs/screenshots/cell-sheet.png" width="19%" alt="מקור והסבר לתא">
-  <img src="docs/screenshots/pair-view.png" width="19%" alt="השוואה בין שתי מפלגות">
-</p>
+<table>
+  <tr><td align="center" width="33%"><img src="docs/screenshots/build.png" width="100%" alt="בחירת מפלגות, וליד כל מפלגה מה היא מוסיפה לקואליציה"><br><sub>בחירת מפלגות, וליד כל מפלגה מה היא מוסיפה לקואליציה</sub></td><td align="center" width="33%"><img src="docs/screenshots/results.png" width="100%" alt="תמונת מצב והנושאים עם הפערים הגדולים ביותר"><br><sub>תמונת מצב והנושאים עם הפערים הגדולים ביותר</sub></td><td align="center" width="33%"><img src="docs/screenshots/matrix.png" width="100%" alt="מפת העמדות, צבועה לפי הפער ממפלגת בסיס"><br><sub>מפת העמדות, צבועה לפי הפער ממפלגת בסיס</sub></td></tr>
+  <tr><td align="center" width="33%"><img src="docs/screenshots/cell-sheet.png" width="100%" alt="מקור, ציטוט עם ייחוס, ולמה התא בצבע הזה"><br><sub>מקור, ציטוט עם ייחוס, ולמה התא בצבע הזה</sub></td><td align="center" width="33%"><img src="docs/screenshots/pair-view.png" width="100%" alt="השוואה בין שתי מפלגות, נושא אחרי נושא"><br><sub>השוואה בין שתי מפלגות, נושא אחרי נושא</sub></td><td align="center" width="33%"><img src="docs/screenshots/method.png" width="100%" alt="למה בניתי את זה, והמתודולוגיה"><br><sub>למה בניתי את זה, והמתודולוגיה</sub></td></tr>
+</table>
 
 ## למה בניתי את זה
 
@@ -55,7 +52,7 @@
 
 ## פרטיות
 
-אין עוגיות ואין משתמשים. הקואליציה נשמרת בכתובת. אם משתפים קישור, הבחירה מופיעה בו, ושרת האחסון רואה אותה כמו כל כתובת. אנחנו לא שומרים ולא מנתחים אותה. מונה הכניסות ([GoatCounter](https://www.goatcounter.com)) פועל רק באתר עצמו, ומקבל רק את נתיב העמוד, הכותרת, רוחב המסך והדומיין שממנו הגיעו, בלי פרמטרי הקואליציה. בדיקת ה-smoke מוודאת את זה מול האתר, ומוודאת שמכל כתובת אחרת לא נשלח כלום.
+אין עוגיות ואין משתמשים. הקואליציה נשמרת בכתובת. אם משתפים קישור, הבחירה מופיעה בו, ושרת האחסון רואה אותה כמו כל כתובת. אנחנו לא שומרים ולא מנתחים אותה. פירוט מלא נמצא בסעיף [פרטיות](https://mi-im-mi-2026.netlify.app/#privacy) באתר, ולידו [הצהרת הנגישות](https://mi-im-mi-2026.netlify.app/#accessibility) (ת״י 5568, ברמה AA), כולל מגבלות ידועות. מונה הכניסות ([GoatCounter](https://www.goatcounter.com)) פועל רק באתר עצמו, ומקבל רק את נתיב העמוד, הכותרת, רוחב המסך והדומיין שממנו הגיעו, בלי פרמטרי הקואליציה. בדיקת ה-smoke מוודאת את זה מול האתר, ומוודאת שמכל כתובת אחרת לא נשלח כלום.
 
 ## מצאתם טעות?
 
@@ -115,6 +112,11 @@ node scripts/smoke.mjs [baseUrl]      # בדיקת smoke עם צילומי מס�
 
 🔗 https://mi-im-mi-2026.netlify.app
 
+<table>
+  <tr><td align="center" width="33%"><img src="docs/screenshots/build.png" width="100%" alt="Pick parties; each row shows what it would add"><br><sub>Pick parties; each row shows what it would add</sub></td><td align="center" width="33%"><img src="docs/screenshots/results.png" width="100%" alt="Status summary and the topics with the biggest gaps"><br><sub>Status summary and the topics with the biggest gaps</sub></td><td align="center" width="33%"><img src="docs/screenshots/matrix.png" width="100%" alt="Position map, colored by distance from a base party"><br><sub>Position map, colored by distance from a base party</sub></td></tr>
+  <tr><td align="center" width="33%"><img src="docs/screenshots/cell-sheet.png" width="100%" alt="Source, attributed quote, and why the cell has its color"><br><sub>Source, attributed quote, and why the cell has its color</sub></td><td align="center" width="33%"><img src="docs/screenshots/pair-view.png" width="100%" alt="Two parties compared, topic by topic"><br><sub>Two parties compared, topic by topic</sub></td><td align="center" width="33%"><img src="docs/screenshots/method.png" width="100%" alt="Why I built this, and the method"><br><sub>Why I built this, and the method</sub></td></tr>
+</table>
+
 **Why.** Before every election, people talk about "blocs", but rarely check whether the parties expected to govern together actually agree with each other. I wanted a simple tool that shows this, with a source for every position, and leaves the conclusions to the user. My background is in software engineering and computational social choice research, which is exactly about aggregating and comparing preferences.
 
 **Method.**
@@ -136,7 +138,7 @@ node scripts/smoke.mjs [baseUrl]      # בדיקת smoke עם צילומי מס�
   - an analytics script that leaked users' coalitions
   - a host badge covering the legally required poll disclaimer
 
-**Privacy.** No cookies. The coalition is kept in the URL. A shared link contains it, and the host sees it like any URL; we don't store or analyze it. The page-view beacon runs only on the production site and sends only the path, page title, screen width and referrer origin. The smoke test checks this against the live site, and checks that nothing is sent from any other host.
+**Privacy.** No cookies. The coalition is kept in the URL. A shared link contains it, and the host sees it like any URL; we don't store or analyze it. The page-view beacon runs only on the production site and sends only the path, page title, screen width and referrer origin. The smoke test checks this against the live site, and checks that nothing is sent from any other host. The site has a full [privacy section](https://mi-im-mi-2026.netlify.app/#privacy) and an [accessibility statement](https://mi-im-mi-2026.netlify.app/#accessibility) (Israeli standard IS 5568, WCAG 2.0 AA), including known limitations.
 
 **How it was built.** In under two days, against a hard deadline (election day):
 - planning with Claude
