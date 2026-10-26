@@ -89,6 +89,8 @@ const cases = [
   ['results-base-likud', serializeState(ctx, { base: 'likud', members: pr.coalition.members, outside: [] }), 'results'],
   ['results-low-coverage', '?m=shas,utj,zehut,likud', 'results'],
   ['method', '#method', 'method'],
+  ['privacy', '#privacy', 'method'],
+  ['accessibility', '#accessibility', 'method'],
 ];
 
 // Poll-derived text that must not appear anywhere when showSeats is off.
@@ -188,7 +190,7 @@ try {
         const mix = await evaluate("document.querySelector('#source-mix')?.innerText || ''");
         if (!/\d+ עמדות מתועדות: \d+ לפי מצע, \d+ לפי הצהרות, \d+ לפי רקורד/.test(mix)) errors.push(`[${current}] source-mix line missing (${mix})`);
         const voter = await evaluate("(() => { const e = document.querySelector('#voter-info'); const a = e?.querySelector('a'); return e && a ? e.innerText + ' | ' + a.href : ''; })()");
-        if (!/27\.10/.test(voter) || !/7:00–22:00/.test(voter) || !/\| https:\/\/(www\.)?bechirot\.gov\.il\//.test(voter)) errors.push(`[${current}] voter-info line missing or wrong (${voter})`);
+        if (!/27\.10/.test(voter) || !/7:00–22:00/.test(voter) || !voter.endsWith('| https://www.gov.il/apps/moin/bocharim/')) errors.push(`[${current}] voter-info line missing or wrong (${voter})`);
         const outHint = await evaluate("document.querySelector('#builder').innerText.includes('תמיכה מבחוץ: מפלגה שתומכת בממשלה בלי לשבת בה')");
         if (!outHint) errors.push(`[${current}] outside-support explanation missing in the picker`);
       }
@@ -247,6 +249,14 @@ try {
         const share = await evaluate("document.querySelectorAll('#results-bar [data-act=\"share\"]').length");
         const want = name === 'results-single' ? 0 : 1;
         if (share !== want) errors.push(`[${current}] share button count ${share}, expected ${want}`);
+      }
+      if (expectView === 'method') {
+        const secs = await evaluate("(() => { const p = document.querySelector('#privacy'), a = document.querySelector('#accessibility'); const f = [...document.querySelectorAll('#footer a')].map((x) => x.getAttribute('href')); return [p?.innerText.includes('GoatCounter') && p.innerText.includes('lioz.akirav@gmail.com'), a?.innerText.includes('5568') && a.innerText.includes('26.10.2026'), f.includes('#privacy'), f.includes('#accessibility')].join(','); })()");
+        if (secs !== 'true,true,true,true') errors.push(`[${current}] privacy/accessibility sections or footer links missing (${secs})`);
+        if (name !== 'method') {
+          const top = await evaluate(`Math.round(document.querySelector('#${name}').getBoundingClientRect().top)`);
+          if (top < 0 || top > z.height - 120) errors.push(`[${current}] #${name} did not scroll into view (top ${top})`);
+        }
       }
       if (expectView === 'method' && meta.showSeats !== false) {
         const joint = await evaluate("(() => { const h = [...document.querySelectorAll('#method h3')].find((x) => x.textContent.includes('רשימות משותפות')); const ul = h?.nextElementSibling; const p = ul?.nextElementSibling; return ul && /כ-7/.test(ul.innerText) && p?.classList.contains('poll-legal') ? p.innerText : 'missing'; })()");

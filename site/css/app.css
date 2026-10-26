@@ -445,3 +445,5 @@ blockquote p { margin: 0; }
 /* round 9: voter info */
 .voter-info { margin: 0 0 8px; padding: 8px 12px; background: var(--card-tint); border: 1px solid #c3cff0; border-radius: 8px; font-size: .95rem; font-weight: 600; line-height: 1.5; }
 .voter-info a { white-space: nowrap; }
+.anchor { scroll-margin-block-start: 12px; }
+.anchor:focus { outline: none; }
