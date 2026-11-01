@@ -424,7 +424,8 @@ try {
     }
     if (!scen.items.find((x) => x.id === 'segal-unity')?.src.startsWith('הצעת הפרשן עמית סגל')) errors.push('[interaction] the commentator scenario must say it is a commentator\'s proposal');
     await shoot(z, 'interaction-scenarios-m.png', false);
-    const b = scenarios.scenarios.find((x) => x.id === 'change-abstentions') ?? scenarios.scenarios[0];
+    if (await evaluate("document.querySelector('#presets .scen-note') !== null")) errors.push('[interaction] scenario notes must not be rendered (they live in decisions.md)');
+    const b = scenarios.scenarios.find((x) => x.supporters.length && x.abstainers.length) ?? scenarios.scenarios[0];
     await evaluate(`document.querySelector('[data-act="scenario"][data-id="${b.id}"]').click()`);
     await sleep(300);
     const q = new URLSearchParams(await evaluate('location.search'));

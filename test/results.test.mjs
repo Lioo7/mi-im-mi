@@ -100,11 +100,10 @@ test('media scenarios: valid, at most 4, and their investiture math on the CEC r
     const v = investiture(ctx, scenarios.scenarios.find((x) => x.id === id));
     return [v.for, v.against, v.abstain, v.approved, v.membersSeats];
   };
-  assert.equal(scenarios.scenarios.length, 4);
+  assert.equal(scenarios.scenarios.length, 3);
+  assert.ok(scenarios.scenarios.every((sc) => !('note' in sc)), 'notes live in decisions.md, not in the data');
   // mako 28.10 + Tibi 31.10: הרשימה המשותפת supporting, רע״ם abstaining: 59 vs 53. Unlike ynet, יהדות התורה votes against.
   assert.deepEqual(vote('change-arab-not-opposing'), [59, 53, 8, true, 48]);
-  // b (ynet 1.11 + Tibi 31.10): הרשימה המשותפת supporting, רע״ם and יהדות התורה abstaining: 59 vs 46.
-  assert.deepEqual(vote('change-abstentions'), [59, 46, 15, true, 48]);
   // c (jpost 29.10), as reported, without זהות: 60 vs 60, a tie, so not approved.
   assert.deepEqual(vote('likud-yashar-right'), [60, 60, 0, false, 60]);
   // d (Amit Segal, kipa 31.10): "33 + 33" = הליכוד 27 + the full ט list 6, ישר! 21 + ביחד 12.

@@ -2,17 +2,6 @@
   "asOf": "2026-11-01",
   "scenarios": [
     {
-      "id": "change-abstentions",
-      "members": ["yashar", "together", "democrats", "yisrael-beiteinu"],
-      "supporters": ["joint-list"],
-      "abstainers": ["raam", "utj"],
-      "sources": [
-        { "outlet": "ynet", "date": "2026-11-01", "url": "https://www.ynet.co.il/news/article/h1ri3yeagx" },
-        { "outlet": "זמן ישראל", "date": "2026-10-31", "url": "https://www.zman.co.il/live/738237/", "by": "אחמד טיבי" }
-      ],
-      "note": "לפי ynet, ח״כ אחד מרע״ם (סגלוביץ׳) יתמוך בממשלה באופן פעיל. ישר!: ״הפרסומים השונים אינם על דעתנו ולאו דווקא מתארים את המציאות כפי שהיא״. לפי ynet: ״אביגדור ליברמן, שכבר הבהיר כי אינו מוכן להקים ממשלה שנשענת על המפלגות הערביות והחרדיות. 'לא במישרין ולא בעקיפין', כלשונו״."
-    },
-    {
       "id": "change-arab-not-opposing",
       "members": ["yashar", "together", "democrats", "yisrael-beiteinu"],
       "supporters": ["joint-list"],
@@ -20,8 +9,7 @@
       "sources": [
         { "outlet": "mako", "date": "2026-10-28", "url": "https://www.mako.co.il/news-israel-elections/2026/Article-9b8beb9041f71a1027.htm" },
         { "outlet": "זמן ישראל", "date": "2026-10-31", "url": "https://www.zman.co.il/live/738237/", "by": "אחמד טיבי" }
-      ],
-      "note": "לפי mako: ״ליברמן הצהיר כי לא יתמוך בממשלה שנשענת על קולות הערבים או על ההימנעות״."
+      ]
     },
     {
       "id": "likud-yashar-right",
@@ -30,8 +18,7 @@
       "abstainers": [],
       "sources": [
         { "outlet": "The Jerusalem Post", "date": "2026-10-29", "url": "https://www.jpost.com/israel-election-2026/article-913185" }
-      ],
-      "note": "לפי The Jerusalem Post: ״those promoting the initiative acknowledge that Eisenkot has given no indication he would be willing to discuss the proposal״ (תרגום חופשי של האתר: ״היוזמים מודים שאיזנקוט לא נתן כל סימן שהוא מוכן לדון בהצעה״)."
+      ]
     },
     {
       "id": "segal-unity",
@@ -41,8 +28,7 @@
       "sources": [
         { "outlet": "כיפה", "date": "2026-10-31", "url": "https://www.kipa.co.il/%D7%97%D7%93%D7%A9%D7%95%D7%AA/1235161-0/", "by": "הצעת הפרשן עמית סגל" },
         { "outlet": "mako", "date": "2026-10-28", "url": "https://www.mako.co.il/news-israel-elections/2026/Article-9b8beb9041f71a1027.htm" }
-      ],
-      "note": "לפי mako: ״לפי הצהרותיהם של איזנקוט, בנט ולפיד, לא תוקם כזו ממשלה תחת נתניהו״."
+      ]
     }
   ]
 }
