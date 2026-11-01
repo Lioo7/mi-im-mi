@@ -596,6 +596,7 @@ function renderResults() {
   $('#results-bar').innerHTML = `
     <a class="back" href="#build">${esc(S.nav.back)}</a>
     ${chosen.length >= 2 ? `<button type="button" class="btn btn-small" data-act="share" data-key="share">${esc(S.share.button)}</button>` : ''}`;
+  syncResbarHeight();
   if (chosen.length === 0) {
     el.innerHTML = `<p class="empty">${esc(S.results.resultsEmpty)} <a href="#build">${esc(S.results.resultsEmptyLink)}</a></p>`;
     return;
@@ -651,6 +652,12 @@ function completionsCard() {
     ${currentRedLines.length ? `<p class="small"><span class="tag tag-red"><span aria-hidden="true">🚩</span> ${esc(K.currentRedLines(currentRedLines.length, redList(currentRedLines)))}</span></p>` : ''}
     ${list.length ? `<ul class="list">${items}</ul>${toggle}` : `<p>${esc(K.none)}</p>`}
   </section>`;
+}
+
+// The results header is sticky: scroll targets below it keep a matching scroll margin (CSS --resbar-h).
+function syncResbarHeight() {
+  const h = $('#results-bar').getBoundingClientRect().height;
+  if (h) document.documentElement.style.setProperty('--resbar-h', `${Math.ceil(h)}px`);
 }
 
 // Under the snapshot: a pointer to the supporters/abstainers card, whose clashes the snapshot does not count.
@@ -990,6 +997,7 @@ function onClick(e) {
 function bind() {
   document.addEventListener('click', onClick);
   window.addEventListener('hashchange', () => route());
+  window.addEventListener('resize', () => { if (view === 'results') syncResbarHeight(); });
   document.addEventListener('change', (e) => {
     const el = e.target.closest('select[data-act="compare"]');
     if (el) partySheet(el.dataset.id, el.value);

@@ -565,14 +565,21 @@ try {
     if (m !== 'religious-zionism') errors.push(`[interaction] results mode: selecting הציונות הדתית should not add זהות (m=${m})`);
     const notes = await evaluate("['religious-zionism', 'zehut'].map((id) => document.querySelector(`[data-act=\"toggle\"][data-id=\"${id}\"] .prow-sub`)?.innerText || '').join('|')");
     if (!notes.split('|').every((t) => t.includes('רצו ברשימה משותפת (ט)'))) errors.push(`[interaction] joint-list note missing on the ט rows (${notes})`);
-    // The snapshot's pointer scrolls to the supporters/abstainers card.
-    await c.send('Page.navigate', { url: `${baseUrl}?m=yashar,together,democrats,yisrael-beiteinu&o=joint-list&a=raam,utj#results` });
-    await waitFor(() => evaluate("document.body.dataset.view === 'results' && document.querySelector('[data-act=\"to-periphery\"]') !== null"));
-    await evaluate("document.querySelector('[data-act=\"to-periphery\"]').click()");
-    await sleep(300);
-    const top = await evaluate("Math.round(document.querySelector('#periphery-card h3').getBoundingClientRect().top)");
-    if (top < 0 || top > 200 || (await evaluate('document.activeElement?.closest("#periphery-card") === null'))) errors.push(`[interaction] pointer did not move to the supporters/abstainers card (top ${top})`);
-    if ((await evaluate('document.body.dataset.view')) !== 'results') errors.push('[interaction] pointer must not change the view');
+    // The snapshot's pointer scrolls to the supporters/abstainers card, with its title below the sticky header.
+    for (const size of SIZES) {
+      await setSize(size);
+      await c.send('Page.navigate', { url: `${baseUrl}?m=yashar,together,democrats,yisrael-beiteinu&o=joint-list&a=raam,utj#results` });
+      await waitFor(() => evaluate("document.body.dataset.view === 'results' && document.querySelector('[data-act=\"to-periphery\"]') !== null"));
+      await sleep(200);
+      await evaluate("document.querySelector('[data-act=\"to-periphery\"]').click()");
+      await sleep(400);
+      const pos = await evaluate("(() => { const t = document.querySelector('#periphery-card h3').getBoundingClientRect(); const bar = document.querySelector('#results-bar').getBoundingClientRect(); return { top: Math.round(t.top), barBottom: Math.round(bar.bottom) }; })()");
+      if (pos.top < pos.barBottom || pos.top > pos.barBottom + 60) errors.push(`[interaction@${size.width}] after the pointer jump the card title must sit just below the sticky header (title top ${pos.top}, header bottom ${pos.barBottom})`);
+      if (await evaluate('document.activeElement?.closest("#periphery-card") === null')) errors.push(`[interaction@${size.width}] focus did not move to the supporters/abstainers card`);
+      if ((await evaluate('document.body.dataset.view')) !== 'results') errors.push(`[interaction@${size.width}] pointer must not change the view`);
+      if (size === SIZES[0]) await shoot(size, 'interaction-periphery-jump-m.png', false);
+    }
+    await setSize(z);
   }
   // "מה חסר לרוב של 61": the coalition bloc is short; each row is minimal, tapping one adds it, undo restores.
   if (!SEATS_HIDDEN) {
