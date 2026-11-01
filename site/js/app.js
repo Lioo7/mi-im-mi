@@ -264,12 +264,17 @@ function scenarioList() {
   })).sort((a, b) => a.label.localeCompare(b.label, 'he'));
 }
 
+// A note may quote an English source: the quotation, marks included, stays one LTR run so the marks land at its ends.
+function noteHtml(text) {
+  return String(text).split(/(״[A-Za-z][^״]*״)/).map((part, i) => (i % 2 ? `<bdi dir="ltr">${esc(part)}</bdi>` : bidi(part))).join('');
+}
+
 function renderScenarios() {
   const P = S.presets;
   const items = scenarioList().map((sc) => `<li class="scenario">
     <button type="button" class="preset" data-act="scenario" data-id="${esc(sc.id)}" data-key="scenario-${esc(sc.id)}">${esc(sc.label)}</button>
     <p class="scen-src">${sc.sources.map((src) => `${src.by ? `${esc(src.by)} · ` : ''}<a href="${esc(src.url)}" rel="noopener" target="_blank">${bidi(src.outlet)}</a> · ${esc(P.shortDate(src.date))}`).join(' | ')}</p>
-    ${sc.note ? `<p class="scen-note">${bidi(sc.note)}</p>` : ''}
+    ${sc.note ? `<p class="scen-note">${noteHtml(sc.note)}</p>` : ''}
   </li>`).join('');
   $('#presets').innerHTML = `
     <h2>${esc(P.scenariosTitle(P.shortDate(scenarioData.asOf)))}</h2>
