@@ -1,0 +1,29 @@
+{
+  "election": "הבחירות לכנסת ה-26",
+  "asOf": "2026-10-30",
+  "asOfTime": "13:54",
+  "sourceUrl": "https://votes26.bechirot.gov.il/",
+  "validVotes": 5690685,
+  "threshold": 3.25,
+  "thresholdVotes": 184947,
+  "totalSeats": 120,
+  "lists": [
+    { "parties": ["likud"], "votes": 1167458, "pct": 20.52, "seats": 27 },
+    { "parties": ["yashar"], "votes": 913502, "pct": 16.05, "seats": 21 },
+    { "parties": ["together"], "votes": 531476, "pct": 9.34, "seats": 12 },
+    { "parties": ["joint-list"], "votes": 500147, "pct": 8.79, "seats": 11 },
+    { "parties": ["democrats"], "votes": 366352, "pct": 6.44, "seats": 8 },
+    { "parties": ["yisrael-beiteinu"], "votes": 337413, "pct": 5.93, "seats": 7 },
+    { "parties": ["raam"], "votes": 337253, "pct": 5.93, "seats": 8 },
+    { "parties": ["otzma-yehudit"], "votes": 326624, "pct": 5.74, "seats": 7 },
+    { "parties": ["utj"], "votes": 312604, "pct": 5.49, "seats": 7 },
+    { "parties": ["shas"], "votes": 299506, "pct": 5.26, "seats": 6 },
+    {
+      "parties": ["religious-zionism", "zehut"], "votes": 290451, "pct": 5.10, "seats": 6,
+      "split": { "religious-zionism": 5, "zehut": 1 },
+      "splitNote": "חלוקת 6 המנדטים של הרשימה (ט) לפי מיקומי זהות ברשימה (2, 8, 10, 11): 5 להציונות הדתית ו-1 לזהות."
+    },
+    { "parties": ["kalkalit"], "votes": 154995, "pct": 2.72, "seats": 0 },
+    { "parties": ["amcha-yisrael"], "votes": 95663, "pct": 1.68, "seats": 0 }
+  ]
+}

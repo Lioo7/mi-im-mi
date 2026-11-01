@@ -11,6 +11,7 @@ export const REVIEW_CSV = join(ROOT, 'review', 'positions_review.csv');
 export const readJson = (p) => JSON.parse(readFileSync(p, 'utf8'));
 export const writeJson = (p, v) => writeFileSync(p, JSON.stringify(v, null, 2) + '\n');
 export const exists = existsSync;
+export const RESULTS_FILE = 'results-26.json';
 
 export function loadData() {
   return {
@@ -18,6 +19,7 @@ export function loadData() {
     topics: readJson(join(DATA, 'topics.json')),
     meta: readJson(join(DATA, 'meta.json')),
     positions: exists(join(DATA, 'positions.json')) ? readJson(join(DATA, 'positions.json')) : [],
+    results: exists(join(DATA, RESULTS_FILE)) ? readJson(join(DATA, RESULTS_FILE)) : null,
   };
 }
 
@@ -91,6 +93,39 @@ export function validateParties(parties) {
   for (const p of parties) {
     if (p.linkedWith && byId.get(p.linkedWith)?.linkedWith !== p.id) errors.push(`party ${p.id}: linkedWith is not reciprocal`);
   }
+  return errors;
+}
+
+export const MODES = ['polls', 'results'];
+
+// meta.mode and, in results mode, the CEC results file. Seats are entered as published (surplus agreements
+// make them differ from a proportional split), so only their consistency is checked here, never recomputed.
+export function validateResults(meta, results, parties) {
+  const errors = [];
+  if (!MODES.includes(meta.mode)) errors.push(`meta: mode must be one of ${MODES.join('/')}`);
+  if (meta.mode !== 'results') return errors;
+  for (const f of ['resultsAsOf', 'resultsStatus', 'resultsSourceUrl']) if (!meta[f]) errors.push(`meta: missing ${f}`);
+  if (meta.resultsAsOf && !isDate(meta.resultsAsOf)) errors.push('meta: resultsAsOf must be YYYY-MM-DD');
+  if (!results) return [...errors, `results: site/data/${RESULTS_FILE} is missing`];
+  const seen = new Map();
+  let total = 0;
+  for (const l of results.lists ?? []) {
+    const at = `results ${l.parties?.join('+')}`;
+    for (const id of l.parties ?? []) seen.set(id, (seen.get(id) ?? 0) + 1);
+    if (!Number.isInteger(l.votes) || l.votes < 0) errors.push(`${at}: bad votes`);
+    if (typeof l.pct !== 'number') errors.push(`${at}: bad pct`);
+    if (!Number.isInteger(l.seats) || l.seats < 0) errors.push(`${at}: bad seats`);
+    if ((l.seats === 0) !== (l.pct < results.threshold)) errors.push(`${at}: seats=0 must match pct below the threshold`);
+    if (l.parties?.length > 1) {
+      const split = l.split ?? {};
+      const sum = l.parties.reduce((n, id) => n + (split[id] ?? NaN), 0);
+      if (sum !== l.seats) errors.push(`${at}: split must give every party a seat count summing to ${l.seats}`);
+    }
+    total += l.seats ?? 0;
+  }
+  if (total !== results.totalSeats) errors.push(`results: seats sum to ${total}, expected ${results.totalSeats}`);
+  for (const p of parties) if (seen.get(p.id) !== 1) errors.push(`results: party ${p.id} must appear in exactly one list`);
+  for (const id of seen.keys()) if (!parties.some((p) => p.id === id)) errors.push(`results: unknown party ${id}`);
   return errors;
 }
 

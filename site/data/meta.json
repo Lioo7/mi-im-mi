@@ -7,5 +7,9 @@
   "partyNamesSourceUrl": "https://www.gov.il/he/pages/candidates-lists-26",
   "showSeats": true,
   "stub": false,
-  "pollGuidanceUrl": "https://www.gov.il/BlobFolder/guide/knesset25-elections-info/he/survey_section16_acces.pdf"
+  "pollGuidanceUrl": "https://www.gov.il/BlobFolder/guide/knesset25-elections-info/he/survey_section16_acces.pdf",
+  "mode": "results",
+  "resultsAsOf": "2026-10-30",
+  "resultsStatus": "לפי תוצאות ועדת הבחירות המרכזית, נכון ל-30.10.2026, לפני הגשה לנשיא",
+  "resultsSourceUrl": "https://votes26.bechirot.gov.il/"
 }
