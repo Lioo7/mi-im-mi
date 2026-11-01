@@ -2,16 +2,6 @@
   "asOf": "2026-11-01",
   "scenarios": [
     {
-      "id": "change-raam-support",
-      "members": ["yashar", "together", "democrats", "yisrael-beiteinu"],
-      "supporters": ["raam"],
-      "abstainers": [],
-      "sources": [
-        { "outlet": "mako", "date": "2026-10-29", "url": "https://www.mako.co.il/news-israel-elections/2026/Article-35228e631f881a1027.htm" }
-      ],
-      "note": null
-    },
-    {
       "id": "change-abstentions",
       "members": ["yashar", "together", "democrats", "yisrael-beiteinu"],
       "supporters": ["joint-list"],

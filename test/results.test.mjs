@@ -100,8 +100,7 @@ test('media scenarios: valid, at most 4, and their investiture math on the CEC r
     const v = investiture(ctx, scenarios.scenarios.find((x) => x.id === id));
     return [v.for, v.against, v.abstain, v.approved, v.membersSeats];
   };
-  // a (mako 29.10): 4 change parties + רע״ם supporting: 56 vs 64.
-  assert.deepEqual(vote('change-raam-support'), [56, 64, 0, false, 48]);
+  assert.equal(scenarios.scenarios.length, 3);
   // b (ynet 1.11 + Tibi 31.10): הרשימה המשותפת supporting, רע״ם and יהדות התורה abstaining: 59 vs 46.
   assert.deepEqual(vote('change-abstentions'), [59, 46, 15, true, 48]);
   // c (jpost 29.10), as reported, without זהות: 60 vs 60, a tie, so not approved.
@@ -115,7 +114,8 @@ test('validateScenarios rejects a fifth scenario, double roles, seatless lists a
   const m = { ...meta, mode: 'results' };
   const one = scenarios.scenarios[0];
   const bad = (sc) => validateScenarios(m, { ...scenarios, scenarios: [sc] }, parties, results);
-  assert.ok(validateScenarios(m, { ...scenarios, scenarios: [...scenarios.scenarios, { ...one, id: 'x' }] }, parties, results).some((e) => e.includes('1–4')));
+  const five = ['x1', 'x2', 'x3', 'x4', 'x5'].map((id) => ({ ...one, id }));
+  assert.ok(validateScenarios(m, { ...scenarios, scenarios: five }, parties, results).some((e) => e.includes('1–4')));
   assert.ok(bad({ ...one, supporters: [one.members[0]] }).some((e) => e.includes('two roles')));
   assert.ok(bad({ ...one, abstainers: ['kalkalit'] }).some((e) => e.includes('kalkalit')));
   assert.ok(bad({ ...one, sources: [{ outlet: 'x', url: 'https://x.y' }] }).some((e) => e.includes('date')));
