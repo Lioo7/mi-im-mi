@@ -10,6 +10,7 @@ const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '
 
 let ctx;
 let meta;
+let electionResults = null;
 let state = { base: null, members: [], outside: [] };
 let lastPreset = null;
 let undoState = null;
@@ -23,7 +24,11 @@ const posOf = (pid, tid) => ctx.idx.get(`${pid}|${tid}`);
 const axisLabel = (tid, position) => (position == null ? S.sheet.noPositionLabel : topic(tid).axis[String(position)]);
 const fmtDate = (iso) => (iso ? iso.split('-').reverse().join('.') : '');
 const ordered = (ids) => [...ids].sort((a, b) => ctx.order.get(a) - ctx.order.get(b));
-const showSeats = () => meta.showSeats !== false;
+const isResults = () => ctx.mode === 'results';
+// Official results are always shown; poll averages only while showSeats is on.
+const showSeats = () => isResults() || meta.showSeats !== false;
+const fmtNum = (n) => n.toLocaleString('en-US');
+const passedIds = () => ctx.parties.filter((p) => ctx.passed(p.id)).map((p) => p.id);
 
 function levelBadge(level, extraClass = '') {
   const l = S.levels[level] ?? S.levels.NONE;
@@ -63,7 +68,14 @@ function renderHeader() {
   $('#nav-method').textContent = S.nav.method;
   $('#intro').textContent = S.buildIntro;
   $('#purpose').textContent = S.buildPurpose;
-  $('#voter-info').innerHTML = `${esc(S.voterInfo)} <a href="${esc(S.voterInfoUrl)}" rel="noopener" target="_blank">${esc(S.voterInfoLink)}</a>`;
+  if (isResults()) {
+    $('#voter-info').remove();
+    const n = $('#results-notice');
+    n.textContent = S.elected.notice;
+    n.hidden = false;
+  } else {
+    $('#voter-info').innerHTML = `${esc(S.voterInfo)} <a href="${esc(S.voterInfoUrl)}" rel="noopener" target="_blank">${esc(S.voterInfoLink)}</a>`;
+  }
   const placed = ctx.positions ?? [];
   const n = (type) => placed.filter((p) => p.position != null && p.sourceType === type).length;
   $('#source-mix').textContent = S.sourceMix(placed.filter((p) => p.position != null).length, n('platform'), n('statement'), n('record'));
@@ -153,8 +165,9 @@ function renderMethod() {
     <p>${esc(M.names)} <a href="${esc(meta.partyNamesSourceUrl)}" rel="noopener">gov.il</a></p>
 
     <h3>${esc(M.jointTitle)}</h3>
-    <ul>${(showSeats() ? [M.jointRules[0], M.jointSeats, ...M.jointRules.slice(1)] : M.jointRules).map((r) => `<li>${esc(r)}</li>`).join('')}</ul>
-    ${showSeats() ? pollLegalLine() : ''}
+    ${isResults() ? seatSourceLine() : ''}
+    <ul>${(showSeats() ? [M.jointRules[0], isResults() ? ctx.listOf('zehut').splitNote : M.jointSeats, ...M.jointRules.slice(1)] : M.jointRules).map((r) => `<li>${esc(r)}</li>`).join('')}</ul>
+    ${showSeats() && !isResults() ? pollLegalLine() : ''}
     <p class="small"><a href="https://www.ynet.co.il/news/elections2026/article/rjuhrwvdfl" rel="noopener">${esc(M.jointSource)}</a></p>
 
     <h3>${esc(M.sourceMixTitle)}</h3>
@@ -172,11 +185,12 @@ function renderMethod() {
     </table></div>
 
     <h3>${esc(M.orderTitle)}</h3>
-    <ul>${M.orderRules(showSeats(), name(C.presets(ctx).unity.members[1])).map((r) => `<li>${esc(r)}</li>`).join('')}</ul>
+    <ul>${M.orderRules(isResults() ? 'results' : showSeats() ? 'polls' : 'ballot', name(C.presets(ctx).unity.members[1])).map((r) => `<li>${esc(r)}</li>`).join('')}</ul>
 
     ${examples ? `<h3>${esc(M.examplesTitle)}</h3><ul>${examples}</ul>` : ''}
 
-    ${showSeats() ? `<h3>${esc(M.pollsTitle)}</h3><p>${esc(M.pollsText)}</p><p><strong>${esc(meta.pollNote)}</strong></p>
+    ${isResults() ? `<h3>${esc(S.elected.resultsTitle)}</h3><p>${esc(S.elected.resultsText)}</p>${seatSourceLine()}` : ''}
+    ${showSeats() && !isResults() ? `<h3>${esc(M.pollsTitle)}</h3><p>${esc(M.pollsText)}</p><p><strong>${esc(meta.pollNote)}</strong></p>
     <p>${esc(M.pollsGuidance)} <a href="${esc(meta.pollGuidanceUrl)}" rel="noopener">${esc(M.pollsGuidanceLink)}</a></p>` : ''}
     <h3>${esc(M.researchDocs)}</h3>
     <p>${esc(M.researchDocsNote)} <a href="https://github.com/Lioo7/mi-im-mi/tree/main/docs/research" rel="noopener">${esc(M.researchDocs)}</a></p>
@@ -224,14 +238,14 @@ function renderBuilder() {
   const B = S.builder;
   const { members, outside } = state;
 
-  const rows = ctx.parties.map((p) => {
+  const rows = ctx.parties.filter((p) => ctx.passed(p.id)).map((p) => {
     const id = p.id;
     const on = members.includes(id);
     const out = outside.includes(id);
     const im = !on && members.length ? C.addImpact(ctx, id, members) : null;
     const sub = [
-      showSeats() && p.pollAvg != null ? S.builder.seatsChip(Math.round(p.pollAvg)) : '',
-      showSeats() && p.threshold === 'borderline' ? B.borderline : '',
+      showSeats() && (isResults() || p.pollAvg != null) ? S.builder.seatsChip(Math.round(ctx.seatsOf(id))) : '',
+      showSeats() && !isResults() && p.threshold === 'borderline' ? B.borderline : '',
     ].filter(Boolean).join(' · ');
     const label = `${p.name}${im ? `. ${B.impactLabel(im.agree, im.clash, im.unknown)}` : ''}`;
     return `<li class="prow${on ? ' is-on' : ''}">
@@ -268,9 +282,23 @@ function renderBuilder() {
     ${seatsBox()}
     ${members.length ? `<p class="muted small">${esc(B.impactHeading)}: <span class="impact-legend"><span class="im-ok" aria-hidden="true">✓</span> ${esc(B.impactAgree)} · <span class="im-clash" aria-hidden="true">✕</span> ${esc(B.impactClash)} · <span class="im-unk" aria-hidden="true">?</span> ${esc(B.impactUnknown)}</span></p>` : ''}
     <ul class="plist" role="group" aria-label="${esc(B.pick)}">${rows}</ul>
+    ${belowThreshold()}
     <p class="muted small">${esc(B.hint(showSeats()))}</p>
     ${linkedNotes.join('')}
     ${unityNote}`;
+}
+
+// Results mode: lists under the threshold. Positions stay viewable; the lists cannot be selected.
+function belowThreshold() {
+  const below = ctx.parties.filter((p) => !ctx.passed(p.id));
+  if (!below.length) return '';
+  const E = S.elected;
+  return `<details class="below">
+    <summary>${esc(E.belowTitle)} (${below.length})</summary>
+    <p class="muted small">${esc(E.belowHint)}</p>
+    <ul class="below-list">${below.map((p) => `<li><button type="button" class="row-btn below-btn" data-act="party" data-id="${p.id}" data-key="below-${p.id}" aria-label="${esc(E.viewPositions(p.name))}">
+      <span class="slip-tag">${esc(p.ballotLetters)}</span><span class="prow-name">${esc(p.name)}</span><span class="muted small">${esc(E.belowPct(ctx.listOf(p.id).pct.toFixed(2)))}</span></button></li>`).join('')}</ul>
+  </details>`;
 }
 
 // ---------- results ----------
@@ -341,14 +369,14 @@ function seatsText() {
   const { members, outside } = state;
   const s = C.seats(ctx, members, outside);
   const S2 = S.seats;
-  const head = outside.length ? S2.totalWithOutside(s.total, s.inside, s.outside) : S2.total2(s.inside);
+  const head = outside.length ? S2.totalWithOutside(s.total, s.inside, s.outside, isResults()) : S2.total2(s.inside, isResults());
   return { s, html: `<strong><bdi dir="ltr">${esc(head)}</bdi></strong> · ${esc(s.missing ? S2.short(s.missing) : S2.majority)}` };
 }
 
 // The legal sentence always comes before the seat numbers, so scrolling down reaches it first on any screen.
 function seatsLine() {
   if (!showSeats() || !state.members.length) return '';
-  return `${pollNoteBtn()}<p class="seats-line">${seatsText().html}</p>`;
+  return `${seatSourceLine()}<p class="seats-line">${seatsText().html}</p>`;
 }
 
 function seatsBox() {
@@ -361,11 +389,17 @@ function seatsBox() {
     body = `<p class="seats-line">${html}</p>
       <div class="meter" role="img" aria-label="${esc(`${s.total} / 61`)}"><span style="inline-size:${pct}%"></span></div>`;
   }
-  return `<section class="seats-box" aria-label="${esc(S.seats.boxTitle)}"><h3>${esc(S.seats.boxTitle)}</h3>${pollNoteBtn()}${body}</section>`;
+  return `<section class="seats-box" aria-label="${esc(S.seats.boxTitle)}"><h3>${esc(S.seats.boxTitle)}</h3>${seatSourceLine()}${body}</section>`;
 }
 
 function pollLegalLine() {
   return `<p class="poll-legal">${esc(S.seats.pollLegal(fmtDate(meta.pollsAsOf)))}</p>`;
+}
+
+// What the seat numbers are, placed before them: the CEC results status, or the legally required poll sentence.
+function seatSourceLine() {
+  if (!isResults()) return pollNoteBtn();
+  return `<p class="seat-src">${esc(meta.resultsStatus)} · <a href="${esc(meta.resultsSourceUrl)}" rel="noopener" target="_blank">${esc(S.elected.sourceLink)}</a></p>`;
 }
 
 function pollNoteBtn() {
@@ -649,6 +683,14 @@ function partyNotes(p) {
     const [a, b] = ordered([p.id, p.linkedWith]);
     notes.push(S.builder.linkedNote(name(a), name(b)));
   }
+  if (isResults()) {
+    const l = ctx.listOf(p.id);
+    const result = ctx.passed(p.id)
+      ? S.elected.partyResult(ctx.seatsOf(p.id), l.pct.toFixed(2), fmtNum(l.votes), l.parties.length > 1)
+      : S.elected.partyBelow(l.pct.toFixed(2), electionResults.threshold);
+    if (l.splitNote) notes.push(l.splitNote);
+    return seatSourceLine() + `<p class="note">${esc(result)}</p>` + notes.map((n) => `<p class="note note-soft">${esc(n)}</p>`).join('');
+  }
   const seatNote = p.seatNote && showSeats();
   if (seatNote) notes.push(p.seatNote);
   return notes.map((n) => `<p class="note note-soft">${esc(n)}</p>`).join('') + (seatNote ? pollLegalLine() : '');
@@ -789,14 +831,21 @@ async function main() {
     if (!r.ok) throw new Error(`${f}: ${r.status}`);
     return r.json();
   });
-  const [parties, topics, positions, m] = await Promise.all(['parties', 'topics', 'positions', 'meta'].map(get));
+  // The results file is needed only in results mode; in polls mode a missing file is fine.
+  const [parties, topics, positions, m, results] = await Promise.all([
+    ...['parties', 'topics', 'positions', 'meta'].map(get),
+    get('results-26').catch(() => null),
+  ]);
   meta = m;
-  // With seats hidden, the poll order itself would reveal standings: order by ballot letters instead.
-  ctx = showSeats()
-    ? C.makeContext({ parties, topics, positions })
-    : C.makeContext({ parties: C.ballotOrder(parties), topics, positions, rankBySeats: false });
-  const parsed = C.parseState(location.search, parties.map((p) => p.id));
+  electionResults = results;
+  if (meta.mode === 'results' && !results) throw new Error('results-26: missing');
+  // Results: seat order. Polls: poll order, or ballot letters with seats hidden (the poll order would reveal standings).
+  ctx = C.contextFor({ meta, parties, topics, positions, results });
+  // Lists under the threshold (results mode) cannot be selected, so a link naming them drops them like unknown ids.
+  const parsed = C.parseState(location.search, passedIds());
   state = { ...parsed, members: ordered(parsed.members) };
+  // Rewrite the link without the dropped ids, so sharing it again does not carry them.
+  if (location.search) history.replaceState(null, '', location.pathname + C.serializeState(ctx, state) + location.hash);
   renderHeader();
   renderPresets();
   renderMethod();

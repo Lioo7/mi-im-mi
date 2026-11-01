@@ -9,7 +9,7 @@ import { mkdirSync, mkdtempSync, writeFileSync, rmSync, readFileSync, existsSync
 import { tmpdir } from 'node:os';
 import { join, extname, normalize } from 'node:path';
 import { ROOT, loadData } from './lib.mjs';
-import { makeContext, presets, serializeState, ballotOrder } from '../site/js/compat.js';
+import { contextFor, presets, serializeState, ballotOrder } from '../site/js/compat.js';
 import { PROD_HOST } from '../site/js/stats.js';
 import { S } from '../site/js/strings.js';
 
@@ -70,8 +70,13 @@ function cdp(wsUrl) {
   };
 }
 
-const { parties, topics, meta } = loadData();
-const ctx = makeContext({ parties, topics, positions: [] });
+const { parties, topics, meta, results } = loadData();
+const ctx = contextFor({ meta, parties, topics, positions: [], results });
+// Results mode: official CEC seats, introduced by the results status line. Polls mode: poll averages, introduced by the
+// legally required sentence, and hidden entirely with showSeats=false.
+const RESULTS = meta.mode === 'results';
+const SEATS_HIDDEN = !RESULTS && meta.showSeats === false;
+const passedIds = ctx.parties.filter((p) => ctx.passed(p.id)).map((p) => p.id);
 const pr = presets(ctx);
 const coalitionQs = serializeState(ctx, { base: null, ...pr.coalition });
 const oppositionQs = serializeState(ctx, { base: null, ...pr.opposition });
@@ -98,6 +103,9 @@ const cases = [
 const POLL_TEXT = /מנדטים|מנ׳|סקר|על הסף|מתוך 61|\(61\+\)|≈\d/;
 const leakIds = new RegExp(`[?&;]([bmoq])=|${parties.map((p) => p.id).join('|')}`, 'i');
 const legal = `ממוצע סקרים שפורסמו עד ${meta.pollsAsOf.split('-').reverse().join('.')}. הסקרים אינם עדכניים, ואין ללמוד מהם על דפוסי הצבעה או עמדות הציבור כיום.`;
+// The line that must precede any seat number, and its element.
+const SRC_TEXT = RESULTS ? meta.resultsStatus : legal;
+const SRC_SEL = RESULTS ? '.seat-src' : '.poll-legal';
 const base = process.argv[2];
 const server = base ? null : await serve();
 const baseUrl = (base ?? server.url).replace(/\/?$/, '/');
@@ -201,14 +209,23 @@ try {
         if (!purpose.includes('רקורד בפועל (הצעות חוק שהמפלגה יזמה או קידמה)') || purpose.includes('הצבעות')) errors.push(`[${current}] purpose line must name all three source kinds, with record = bills (no votes)`);
         const mix = await evaluate("document.querySelector('#source-mix')?.innerText || ''");
         if (!/\d+ עמדות מתועדות: \d+ לפי מצע, \d+ לפי הצהרות, \d+ לפי רקורד/.test(mix)) errors.push(`[${current}] source-mix line missing (${mix})`);
-        const voter = await evaluate("(() => { const e = document.querySelector('#voter-info'); const a = e?.querySelector('a'); return e && a ? e.innerText + ' | ' + a.href : ''; })()");
-        if (!/27\.10/.test(voter) || !/7:00–22:00/.test(voter) || !voter.endsWith('| https://www.gov.il/apps/moin/bocharim/')) errors.push(`[${current}] voter-info line missing or wrong (${voter})`);
+        if (RESULTS) {
+          if (await evaluate("document.querySelector('#voter-info') !== null")) errors.push(`[${current}] election-day voter-info line still shown in results mode`);
+        } else {
+          const voter = await evaluate("(() => { const e = document.querySelector('#voter-info'); const a = e?.querySelector('a'); return e && a ? e.innerText + ' | ' + a.href : ''; })()");
+          if (!/27\.10/.test(voter) || !/7:00–22:00/.test(voter) || !voter.endsWith('| https://www.gov.il/apps/moin/bocharim/')) errors.push(`[${current}] voter-info line missing or wrong (${voter})`);
+        }
         const outHint = await evaluate("document.querySelector('#builder').innerText.includes('תמיכה מבחוץ: מפלגה שתומכת בממשלה בלי לשבת בה')");
         if (!outHint) errors.push(`[${current}] outside-support explanation missing in the picker`);
       }
       const overflow = await evaluate('document.documentElement.scrollWidth > window.innerWidth + 1');
       if (overflow) errors.push(`[${current}] horizontal page overflow`);
-      if (meta.showSeats === false) {
+      if (RESULTS && (expectView === 'build' || expectView === 'results')) {
+        const notice = await evaluate("(() => { const n = document.querySelector('#results-notice'); return n && n.getClientRects().length ? n.innerText.trim() : ''; })()");
+        if (notice !== S.elected.notice) errors.push(`[${current}] results-mode notice missing (${notice})`);
+      }
+      if (RESULTS && /הסקרים אינם עדכניים|ממוצע סקרים/.test(await evaluate('document.body.innerText'))) errors.push(`[${current}] poll disclaimer shown in results mode`);
+      if (SEATS_HIDDEN) {
         const seatText = await evaluate(`(document.body.innerText.match(${POLL_TEXT}) || [])[0] || ''`);
         if (seatText) errors.push(`[${current}] showSeats is off but poll-derived text is visible: "${seatText}"`);
         if (expectView === 'build') {
@@ -216,9 +233,9 @@ try {
           if (order !== ballotOrder(parties).map((p) => p.id).join(',')) errors.push(`[${current}] showSeats is off but parties are not in ballot-letter order: ${order}`);
         }
       } else if (expectView === 'build') {
-        // The seats box above the chips carries the full legal sentence (also with no party selected, since chips show seats).
-        const box = await evaluate(`(() => { const b = document.querySelector('#builder .seats-box'); if (!b) return 'missing box'; if (!b.innerText.replace(/\\s+/g, ' ').includes(${JSON.stringify(legal)})) return 'sentence missing';
-          const l = b.querySelector('.poll-legal'), sl = b.querySelector('.seats-line'); const a = getComputedStyle(l), c = getComputedStyle(sl);
+        // The seats box above the chips carries the full source line (also with no party selected, since chips show seats).
+        const box = await evaluate(`(() => { const b = document.querySelector('#builder .seats-box'); if (!b) return 'missing box'; if (!b.innerText.replace(/\\s+/g, ' ').includes(${JSON.stringify(SRC_TEXT)})) return 'sentence missing';
+          const l = b.querySelector('${SRC_SEL}'), sl = b.querySelector('.seats-line'); const a = getComputedStyle(l), c = getComputedStyle(sl);
           if (a.fontSize !== c.fontSize || a.color !== getComputedStyle(document.body).color) return 'style ' + a.fontSize + '/' + c.fontSize + ' ' + a.color;
           if (!(l.compareDocumentPosition(sl) & Node.DOCUMENT_POSITION_FOLLOWING)) return 'sentence must come before the numbers';
           return 'ok'; })()`);
@@ -239,7 +256,8 @@ try {
       }
       if (expectView === 'build') {
         // Party picker: one checkbox row per party, no nested controls inside a checkbox, rows >= 44px, aligned pill column.
-        const pick = await evaluate(`(() => { const rows = [...document.querySelectorAll('#builder .prow-main')]; if (rows.length !== ${parties.length}) return 'rows ' + rows.length;
+        const pick = await evaluate(`(() => { const rows = [...document.querySelectorAll('#builder .prow-main')]; if (rows.length !== ${passedIds.length}) return 'rows ' + rows.length;
+          if (rows.map((r) => r.dataset.id).join(',') !== ${JSON.stringify(passedIds.join(','))}) return 'order ' + rows.map((r) => r.dataset.id).join(',');
           if (rows.some((r) => r.getAttribute('role') !== 'checkbox' || !['true', 'false'].includes(r.getAttribute('aria-checked')))) return 'role/aria-checked';
           if (rows.some((r) => r.querySelector('button, a, input'))) return 'nested control in a checkbox row';
           if (rows.some((r) => r.getBoundingClientRect().height < 44)) return 'row under 44px';
@@ -247,10 +265,17 @@ try {
           const xs = [...document.querySelectorAll('#builder .pills')].map((e) => Math.round(e.getBoundingClientRect().left)); if (new Set(xs).size > 1) return 'pills not aligned: ' + [...new Set(xs)].join(',');
           return 'ok'; })()`);
         if (pick !== 'ok') errors.push(`[${current}] party picker: ${pick}`);
+        if (RESULTS) {
+          // Lists under the threshold: one collapsed section, viewable, not selectable.
+          const below = await evaluate(`(() => { const d = document.querySelector('#builder details.below'); if (!d) return 'missing'; if (d.open) return 'open by default';
+            if (d.querySelector('[role="checkbox"], input')) return 'selectable';
+            const ids = [...d.querySelectorAll('[data-act="party"]')].map((b) => b.dataset.id).join(','); return ids === ${JSON.stringify(ctx.parties.filter((p) => !ctx.passed(p.id)).map((p) => p.id).join(','))} ? 'ok' : 'ids ' + ids; })()`);
+          if (below !== 'ok') errors.push(`[${current}] below-threshold section: ${below}`);
+        }
       }
-      if (expectView === 'results' && meta.showSeats !== false) {
-        const ok = await evaluate(`document.querySelectorAll('#results .seats-line').length === 0 || document.querySelector('#results').innerText.replace(/\\s+/g, ' ').includes(${JSON.stringify(legal)})`);
-        if (!ok) errors.push(`[${current}] results show seats without the full legal poll sentence`);
+      if (expectView === 'results' && !SEATS_HIDDEN) {
+        const ok = await evaluate(`document.querySelectorAll('#results .seats-line').length === 0 || document.querySelector('#results').innerText.replace(/\\s+/g, ' ').includes(${JSON.stringify(SRC_TEXT)})`);
+        if (!ok) errors.push(`[${current}] results show seats without the full source line`);
         if (expectView === 'results' && members_in_url(suffix) && name !== 'results-single' && !(await evaluate("document.querySelector('#matrix .tap-hint')?.innerText.includes('לחצו על כל תא או נושא')"))) errors.push(`[${current}] matrix tap hint missing`);
         const line = await evaluate("document.querySelector('#results-coalition')?.innerText || ''");
         if (!line.trim()) errors.push(`[${current}] results are missing the coalition line`);
@@ -268,7 +293,11 @@ try {
           if (top < 0 || top > z.height - 120) errors.push(`[${current}] #${name} did not scroll into view (top ${top})`);
         }
       }
-      if (expectView === 'method' && meta.showSeats !== false) {
+      if (expectView === 'method' && RESULTS) {
+        const joint = await evaluate("(() => { const h = [...document.querySelectorAll('#method h3')].find((x) => x.textContent.includes('רשימות משותפות')); const src = h?.nextElementSibling; const ul = src?.nextElementSibling; return src?.classList.contains('seat-src') && /5 להציונות הדתית ו-1 לזהות/.test(ul?.innerText ?? '') ? 'ok' : 'missing'; })()");
+        if (joint !== 'ok') errors.push(`[${current}] joint-list seat split must follow the results source line`);
+      }
+      if (expectView === 'method' && !RESULTS && !SEATS_HIDDEN) {
         const joint = await evaluate("(() => { const h = [...document.querySelectorAll('#method h3')].find((x) => x.textContent.includes('רשימות משותפות')); const ul = h?.nextElementSibling; const p = ul?.nextElementSibling; return ul && /כ-7/.test(ul.innerText) && p?.classList.contains('poll-legal') ? p.innerText : 'missing'; })()");
         if (joint.replace(/\s+/g, ' ').trim() !== legal) errors.push(`[${current}] joint-list seat numbers lack the legal sentence right after them (${joint})`);
       }
@@ -280,7 +309,7 @@ try {
   // Legal sentence vs seat numbers, with the host badge present: whenever seat totals are visible, the full sentence must
   // be visible too, except for parts already scrolled past the top (reading down, the sentence always comes first).
   // Checked on first load and at every 40px of scroll, on a regular and a short phone.
-  if (meta.showSeats !== false) {
+  if (!SEATS_HIDDEN) {
     const LEGAL_CHECK = `(() => {
       const pts = (el, fxs, fys) => { const r = el.getBoundingClientRect(); return fxs.flatMap((fx) => fys.map((fy) => [r.left + r.width * fx, r.top + r.height * fy])); };
       const hit = (el, [x, y]) => y >= 0 && y < innerHeight && x >= 0 && x < innerWidth && el.contains(document.elementFromPoint(x, y));
@@ -289,7 +318,7 @@ try {
       const top = bar ? Math.max(0, bar.getBoundingClientRect().bottom) : 0;
       const bad = [];
       for (const box of document.querySelectorAll('.seats-box, .overall')) {
-        const n = box.querySelector('.seats-line:not(.muted)'); const l = box.querySelector('.poll-legal');
+        const n = box.querySelector('.seats-line:not(.muted)'); const l = box.querySelector('${SRC_SEL}');
         if (!n || !n.getClientRects().length) continue;
         if (!pts(n, [0.05, 0.5, 0.95], [0.25, 0.75]).some((p) => p[1] >= top && hit(n, p))) continue; // numbers not visible
         const shown = l && pts(l, [0.05, 0.3, 0.5, 0.7, 0.95], [0.15, 0.5, 0.85]).every((p) => p[1] < top || hit(l, p));
@@ -327,7 +356,7 @@ try {
   await evaluate("document.querySelector('[data-act=\"preset\"][data-id=\"unity\"]').click()");
   await sleep(300);
   await shoot(z, 'interaction-build-unity-m.png', false);
-  if (meta.showSeats !== false) {
+  if (!RESULTS && !SEATS_HIDDEN) {
     await evaluate("document.querySelector('#builder [data-act=\"poll-info\"]').click()");
     await sleep(300);
     const info = await evaluate("document.querySelector('#sheet').innerText.replace(/\\s+/g, ' ')");
@@ -411,14 +440,26 @@ try {
     if (!pairOpen) errors.push('[interaction] tapping a pair did not open the pair view');
     await evaluate("document.querySelector('#sheet').close()");
   }
-  // Party sheets: the joint-list seat note carries the legal sentence; with seats hidden, no poll-derived text at all.
+  // Party sheets: the joint-list seat note carries the source line; with seats hidden, no poll-derived text at all.
+  // In results mode a list under the threshold is opened from its section on the build view.
   for (const pid of ['religious-zionism', 'zehut', 'kalkalit']) {
-    await c.send('Page.navigate', { url: `${baseUrl}?m=likud,${pid}#results` });
-    await waitFor(() => evaluate("document.body.dataset.view === 'results' && document.querySelectorAll('.party-btn').length > 0"));
-    await evaluate(`document.querySelector('.party-btn[data-id="${pid}"]').click()`);
+    if (ctx.passed(pid)) {
+      await c.send('Page.navigate', { url: `${baseUrl}?m=likud,${pid}#results` });
+      await waitFor(() => evaluate("document.body.dataset.view === 'results' && document.querySelectorAll('.party-btn').length > 0"));
+      await evaluate(`document.querySelector('.party-btn[data-id="${pid}"]').click()`);
+    } else {
+      await c.send('Page.navigate', { url: `${baseUrl}?m=likud,${pid}#build` });
+      await ready();
+      if (await evaluate(`location.search.includes('${pid}') || document.querySelector('[data-act="toggle"][data-id="${pid}"]') !== null`)) errors.push(`[interaction] ${pid} is under the threshold but still selectable or kept in the URL`);
+      await evaluate(`document.querySelector('details.below').open = true; document.querySelector('details.below [data-id="${pid}"]').click()`);
+    }
     await sleep(300);
     const text = await evaluate("document.querySelector('#sheet').innerText.replace(/\\s+/g, ' ')");
-    if (meta.showSeats === false) {
+    if (RESULTS) {
+      if (!text.includes(meta.resultsStatus)) errors.push(`[interaction] ${pid} party sheet lacks the results source line`);
+      if (!ctx.passed(pid) && !text.includes('לא עברה את אחוז החסימה')) errors.push(`[interaction] ${pid} party sheet should say it did not pass the threshold`);
+      if (!topics.every((t) => text.includes(t.name))) errors.push(`[interaction] ${pid} party sheet should list its positions on all topics`);
+    } else if (SEATS_HIDDEN) {
       const hit = text.match(POLL_TEXT);
       if (hit) errors.push(`[interaction] ${pid} party sheet shows poll-derived text with seats hidden: "${hit[0]}"`);
     } else if (/\(7\)/.test(text) && !text.includes(legal)) errors.push(`[interaction] ${pid} party sheet shows seat figures without the legal sentence`);

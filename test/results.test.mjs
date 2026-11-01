@@ -45,3 +45,37 @@ test('validateResults catches a wrong total, a missing party and a bad split', (
   assert.ok(validateResults({ ...meta, mode: 'nope' }, results, parties).some((e) => e.includes('mode')));
   assert.deepEqual(validateResults({ ...meta, mode: 'polls' }, null, parties), [], 'polls mode needs no results file');
 });
+
+test('mode switch: meta.mode alone flips seats and order between polls and results', async () => {
+  const { contextFor } = await import('../site/js/compat.js');
+  const { topics, positions } = loadData();
+  const ctxFor = (mode) => contextFor({ meta: { ...meta, mode }, parties, topics, positions, results });
+
+  const polls = ctxFor('polls');
+  assert.equal(polls.mode, 'polls');
+  assert.deepEqual(polls.parties.map((p) => p.id), parties.map((p) => p.id), 'polls: parties.json (poll) order');
+  for (const p of parties) assert.equal(polls.seatsOf(p.id), p.pollAvg ?? 0, `polls: ${p.id} seats = pollAvg`);
+  assert.ok(parties.every((p) => polls.passed(p.id)), 'polls: every party selectable');
+
+  const res = ctxFor('results');
+  assert.equal(res.mode, 'results');
+  for (const p of parties) assert.equal(res.seatsOf(p.id), seatsOf(p.id), `results: ${p.id} CEC seats`);
+  assert.deepEqual(res.parties.map((p) => p.id), [
+    'likud', 'yashar', 'together', 'joint-list', 'democrats', 'raam', 'yisrael-beiteinu',
+    'otzma-yehudit', 'utj', 'shas', 'religious-zionism', 'zehut', 'kalkalit', 'amcha-yisrael',
+  ], 'results: seats, then votes (Yisrael Beiteinu has more votes than Ra\'am but fewer seats)');
+  assert.deepEqual(res.parties.filter((p) => !res.passed(p.id)).map((p) => p.id), ['kalkalit', 'amcha-yisrael']);
+  assert.ok(parties.every((p, i) => p.pollAvg === loadData().parties[i].pollAvg), 'pollAvg untouched');
+
+  // Seats hidden is a polls-mode setting; results are official and always shown.
+  const hidden = contextFor({ meta: { ...meta, mode: 'polls', showSeats: false }, parties, topics, positions, results });
+  assert.equal(hidden.rankBySeats, false);
+  assert.equal(contextFor({ meta: { ...meta, mode: 'results', showSeats: false }, parties, topics, positions, results }).seatsOf('likud'), 27);
+});
+
+test('results mode: bloc presets skip lists under the threshold', async () => {
+  const { contextFor, presets } = await import('../site/js/compat.js');
+  const { topics, positions } = loadData();
+  const ctx = contextFor({ meta: { ...meta, mode: 'results' }, parties, topics, positions, results });
+  for (const p of Object.values(presets(ctx))) assert.ok(p.members.every((id) => ctx.passed(id)));
+});

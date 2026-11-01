@@ -29,18 +29,57 @@ export function pairLevel(idx, partyA, partyB, topicId) {
 
 // Context shared by everything below: data indexes and party order.
 // rankBySeats=false (seats hidden) drops poll seats from every tie-break, so no ordering reveals poll standings.
-export function makeContext({ parties, topics, positions, rankBySeats = true }) {
+// `seats` (optional Map id -> seats) overrides pollAvg, e.g. with election results; `lists` maps id -> its results list.
+export function makeContext({ parties, topics, positions, rankBySeats = true, seats = null, lists = null, mode = 'polls' }) {
   const order = new Map(parties.map((p, i) => [p.id, i]));
+  const byId = new Map(parties.map((p) => [p.id, p]));
   return {
     parties,
     topics,
     positions,
     idx: indexPositions(positions),
     order,
-    byId: new Map(parties.map((p) => [p.id, p])),
-    seatsOf: (id) => parties[order.get(id)]?.pollAvg ?? 0,
+    byId,
+    seatsOf: seats ? (id) => seats.get(id) ?? 0 : (id) => byId.get(id)?.pollAvg ?? 0,
+    listOf: (id) => lists?.get(id) ?? null,
+    // In results mode a list under the threshold has no seats and cannot take part in a government.
+    passed: (id) => mode !== 'results' || (seats?.get(id) ?? 0) > 0,
     rankBySeats,
+    mode,
   };
+}
+
+// Seats per party for meta.mode ('polls' | 'results'). Switching modes is the one-line change meta.mode;
+// pollAvg is never touched. In results mode a joint list's seats come from its published `split`.
+export function seatSource(meta, parties, results) {
+  if (meta.mode !== 'results') return { mode: 'polls', seats: null, lists: null };
+  const seats = new Map();
+  const lists = new Map();
+  for (const l of results.lists) {
+    for (const id of l.parties) {
+      seats.set(id, l.split?.[id] ?? l.seats);
+      lists.set(id, l);
+    }
+  }
+  return { mode: 'results', seats, lists };
+}
+
+// Results order: seats, then the list's votes, then the original (poll) order.
+export function resultsOrder(parties, { seats, lists }) {
+  const at = new Map(parties.map((p, i) => [p.id, i]));
+  return [...parties].sort((a, b) => (seats.get(b.id) ?? 0) - (seats.get(a.id) ?? 0)
+    || (lists.get(b.id)?.votes ?? 0) - (lists.get(a.id)?.votes ?? 0)
+    || at.get(a.id) - at.get(b.id));
+}
+
+// The app's context for the active mode. Results: CEC seats and seat order. Polls: poll order, or ballot
+// order with seats hidden. Seats are official in results mode, so showSeats applies to polls mode only.
+export function contextFor({ meta, parties, topics, positions, results }) {
+  const src = seatSource(meta, parties, results);
+  if (src.mode === 'results') return makeContext({ parties: resultsOrder(parties, src), topics, positions, ...src });
+  return meta.showSeats !== false
+    ? makeContext({ parties, topics, positions })
+    : makeContext({ parties: ballotOrder(parties), topics, positions, rankBySeats: false });
 }
 
 // Party order when seats are hidden: by ballot letters (Hebrew alphabetical), then name for shared letters.
@@ -269,7 +308,7 @@ export function without(ctx, state, partyId) {
 }
 
 export function presets(ctx) {
-  const inBloc = (bloc) => ctx.parties.filter((p) => p.bloc === bloc).map((p) => p.id);
+  const inBloc = (bloc) => ctx.parties.filter((p) => p.bloc === bloc && ctx.passed(p.id)).map((p) => p.id);
   const opposition = inBloc('opposition');
   const largestOpposition = [...opposition].sort((a, b) => ctx.seatsOf(b) - ctx.seatsOf(a) || ctx.order.get(a) - ctx.order.get(b))[0];
   const arab = inBloc('arab');
