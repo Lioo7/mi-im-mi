@@ -1,0 +1,46 @@
+{
+  "asOf": "2026-11-01",
+  "scenarios": [
+    {
+      "id": "change-raam-support",
+      "members": ["yashar", "together", "democrats", "yisrael-beiteinu"],
+      "supporters": ["raam"],
+      "abstainers": [],
+      "sources": [
+        { "outlet": "mako", "date": "2026-10-29", "url": "https://www.mako.co.il/news-israel-elections/2026/Article-35228e631f881a1027.htm" }
+      ],
+      "note": null
+    },
+    {
+      "id": "change-abstentions",
+      "members": ["yashar", "together", "democrats", "yisrael-beiteinu"],
+      "supporters": ["joint-list"],
+      "abstainers": ["raam", "utj"],
+      "sources": [
+        { "outlet": "ynet", "date": "2026-11-01", "url": "https://www.ynet.co.il/news/article/h1ri3yeagx" },
+        { "outlet": "זמן ישראל", "date": "2026-10-31", "url": "https://www.zman.co.il/live/738237/", "by": "אחמד טיבי" }
+      ],
+      "note": "לפי ynet, ח״כ אחד מרע״ם (סגלוביץ׳) יתמוך ויצטרף."
+    },
+    {
+      "id": "likud-yashar-right",
+      "members": ["likud", "yashar", "otzma-yehudit", "religious-zionism"],
+      "supporters": [],
+      "abstainers": [],
+      "sources": [
+        { "outlet": "The Jerusalem Post", "date": "2026-10-29", "url": "https://www.jpost.com/israel-election-2026/article-913185" }
+      ],
+      "note": null
+    },
+    {
+      "id": "segal-unity",
+      "members": ["likud", "yashar", "together", "religious-zionism", "zehut"],
+      "supporters": [],
+      "abstainers": [],
+      "sources": [
+        { "outlet": "כיפה", "date": "2026-10-31", "url": "https://www.kipa.co.il/%D7%97%D7%93%D7%A9%D7%95%D7%AA/1235161-0/", "by": "הצעת הפרשן עמית סגל" }
+      ],
+      "note": null
+    }
+  ]
+}

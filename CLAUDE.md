@@ -15,7 +15,7 @@ Update `meta.json → resultsStatus` to the official wording, and update `result
   - `js/strings.js`: all UI strings
   - `js/links.js`: correction mailto and quote attribution
   - `js/stats.js`: cookieless GoatCounter beacon, sent only from `https://mi-im-mi-2026.netlify.app` (path, title, screen width, referrer origin; never the query)
-  - `data/`: `parties.json`, `topics.json`, `positions.json`, `meta.json`, `results-26.json` (CEC results per list, as published)
+  - `data/`: `parties.json`, `topics.json`, `positions.json`, `meta.json`, `results-26.json` (CEC results per list, as published), `scenarios.json` (media scenarios, results mode)
 - `scripts/`: Node built-ins only. `lib.mjs` holds shared IO, CSV and validation.
 - `test/*.test.mjs`: unit tests for `node --test`.
 - `docs/`:
@@ -62,6 +62,8 @@ Update `meta.json → resultsStatus` to the official wording, and update `result
 - **Results mode:** seats come from `results-26.json`, entered **as published by the CEC, never computed** (surplus agreements change the split). The ט list's 6 seats are split 5/1 by Zehut's list slots (2, 8, 10, 11). Parties are ordered by seats, then votes. Lists under the threshold are not selectable (positions stay viewable). Every seat number is preceded by the results status line (`meta.resultsStatus` + CEC link). The poll disclaimer is not shown. `showSeats` does not apply.
 - **Polls mode:** `meta.json → showSeats` (boolean): `false` hides every seat number and all poll-derived info: the threshold badge, the joint-list seat split, the poll ordering and the seat tie-breaks. Wherever seat numbers or poll-derived figures show, the full legal sentence (`S.seats.pollLegal`, ממוצע סקרים שפורסמו עד … הסקרים אינם עדכניים …) must be visible with them, placed before the numbers.
 - Smoke enforces the source line before the numbers (results line or legal sentence) with a simulated host badge at 390×844 and 375×667, on first load and while scrolling.
+- **Scenarios (results mode):** at most 4, replacing the bloc presets. Named by composition only (generated from the roles, never hand-labeled), sorted alphabetically. Each source is opened and checked against the members and roles before it is added; a role the source doesn't clearly support is raised with the user, never guessed. A commentator's proposal says so in the source line (`by`). Log each in `docs/research/decisions.md`.
+- **הציונות הדתית / זהות:** soft-linked (one unit) in polls mode only; with results they are chosen and counted independently.
 - **Roles:** member / supporter (`o=`) / abstainer (`a=`); unselected = opponent. Clash analysis is members only; supporters' and abstainers' gaps have their own card. Investiture: for = members + supporters, against = all others except abstainers, approved when for > against. Old `o=` links mean supporters.
 
 ## Conventions

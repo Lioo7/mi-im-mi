@@ -242,7 +242,14 @@ try {
           const l = src?.nextElementSibling; return l?.classList.contains('positions-asof') ? l.innerText.trim() : 'missing'; })()`);
         if (asOf !== S.elected.positionsAsOf) errors.push(`[${current}] positions-as-of line missing after the source line (${asOf})`);
       }
-      if (RESULTS && /הסקרים אינם עדכניים|ממוצע סקרים/.test(await evaluate('document.body.innerText'))) errors.push(`[${current}] poll disclaimer shown in results mode`);
+      // Results mode: no poll disclaimer anywhere, and no poll figures outside the method page's comparison table.
+      if (RESULTS && (expectView === 'method' ? /הסקרים אינם עדכניים/ : /הסקרים אינם עדכניים|ממוצע סקרים/).test(await evaluate('document.body.innerText'))) errors.push(`[${current}] poll disclaimer or poll figures shown in results mode`);
+      if (RESULTS && name === 'method') {
+        const vs = await evaluate(`(() => { const t = document.querySelector('#method .vs-table'); if (!t) return 'missing';
+          const rows = [...t.querySelectorAll('tbody tr')]; const seats = rows.reduce((n, r) => n + Number(r.cells[2].innerText), 0); // cells: name, poll average, seats
+          return rows.length + ',' + seats; })()`);
+        if (vs !== `${parties.length},120`) errors.push(`[${current}] polls-vs-results table: expected ${parties.length} rows summing to 120 seats (${vs})`);
+      }
       if (SEATS_HIDDEN) {
         const seatText = await evaluate(`(document.body.innerText.match(${POLL_TEXT}) || [])[0] || ''`);
         if (seatText) errors.push(`[${current}] showSeats is off but poll-derived text is visible: "${seatText}"`);
@@ -396,7 +403,36 @@ try {
   current = 'interaction@390';
   await c.send('Page.navigate', { url: baseUrl });
   await ready();
-  await evaluate("document.querySelector('[data-act=\"preset\"][data-id=\"unity\"]').click()");
+  if (RESULTS) {
+    // Media scenarios replace the bloc presets: up to 4, named by composition, sorted alphabetically, each with a
+    // dated, linked source; tapping one fills members, supporters and abstainers.
+    const { scenarios } = loadData();
+    const scen = await evaluate(`(() => { const sec = document.querySelector('#presets'); return { title: sec.querySelector('h2')?.innerText,
+      old: sec.querySelectorAll('[data-act="preset"]').length, items: [...sec.querySelectorAll('.scenario')].map((li) => ({
+        id: li.querySelector('[data-act="scenario"]').dataset.id, label: li.querySelector('[data-act="scenario"]').innerText.trim(),
+        links: [...li.querySelectorAll('.scen-src a')].map((a) => a.href), src: li.querySelector('.scen-src').innerText })) }; })()`);
+    if (scen.title !== S.presets.scenariosTitle(S.presets.shortDate(scenarios.asOf))) errors.push(`[interaction] scenarios heading wrong (${scen.title})`);
+    if (scen.old) errors.push('[interaction] bloc presets still shown in results mode');
+    if (scen.items.length !== scenarios.scenarios.length || scen.items.length > 4) errors.push(`[interaction] expected ${scenarios.scenarios.length} scenarios, got ${scen.items.length}`);
+    const labels = scen.items.map((x) => x.label);
+    if (labels.join('|') !== [...labels].sort((a, b) => a.localeCompare(b, 'he')).join('|')) errors.push('[interaction] scenarios are not sorted alphabetically');
+    if (labels.some((l) => /אחדות|ימין|שמאל|שינוי|ממשלת/.test(l))) errors.push(`[interaction] scenario names must be compositions only (${labels.join(' | ')})`);
+    for (const it of scen.items) {
+      const sc = scenarios.scenarios.find((x) => x.id === it.id);
+      if (it.links.join() !== sc.sources.map((x) => x.url).join() && it.links.join() !== sc.sources.map((x) => new URL(x.url).href).join()) errors.push(`[interaction] scenario ${it.id} source links wrong`);
+      if (!/\d{1,2}\.\d{1,2}/.test(it.src)) errors.push(`[interaction] scenario ${it.id} source line lacks a date`);
+    }
+    if (!scen.items.find((x) => x.id === 'segal-unity')?.src.startsWith('הצעת הפרשן עמית סגל')) errors.push('[interaction] the commentator scenario must say it is a commentator\'s proposal');
+    await shoot(z, 'interaction-scenarios-m.png', false);
+    const b = scenarios.scenarios.find((x) => x.id === 'change-abstentions') ?? scenarios.scenarios[0];
+    await evaluate(`document.querySelector('[data-act="scenario"][data-id="${b.id}"]').click()`);
+    await sleep(300);
+    const q = new URLSearchParams(await evaluate('location.search'));
+    const ids = (k) => (q.get(k) ?? '').split(',').filter(Boolean).sort().join(',');
+    if (ids('m') !== [...b.members].sort().join(',') || ids('o') !== [...b.supporters].sort().join(',') || ids('a') !== [...b.abstainers].sort().join(',')) errors.push(`[interaction] scenario tap did not set its roles (${q})`);
+  } else {
+    await evaluate("document.querySelector('[data-act=\"preset\"][data-id=\"unity\"]').click()");
+  }
   await sleep(300);
   await shoot(z, 'interaction-build-unity-m.png', false);
   if (!RESULTS && !SEATS_HIDDEN) {

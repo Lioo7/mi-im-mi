@@ -11,6 +11,7 @@ const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '
 let ctx;
 let meta;
 let electionResults = null;
+let scenarioData = null;
 let state = { base: null, members: [], supporters: [], abstainers: [] };
 let lastPreset = null;
 let undoState = null;
@@ -207,11 +208,11 @@ function renderMethod() {
     </table></div>
 
     <h3>${esc(M.orderTitle)}</h3>
-    <ul>${M.orderRules(isResults() ? 'results' : showSeats() ? 'polls' : 'ballot', name(C.presets(ctx).unity.members[1])).map((r) => `<li>${esc(r)}</li>`).join('')}</ul>
+    <ul>${(isResults() ? M.orderRulesResults : M.orderRules(showSeats() ? 'polls' : 'ballot', name(C.presets(ctx).unity.members[1]))).map((r) => `<li>${esc(r)}</li>`).join('')}</ul>
 
     ${examples ? `<h3>${esc(M.examplesTitle)}</h3><ul>${examples}</ul>` : ''}
 
-    ${isResults() ? `<h3>${esc(S.elected.resultsTitle)}</h3><p>${esc(S.elected.resultsText)}</p>${seatSourceLine()}` : ''}
+    ${isResults() ? `<h3>${esc(S.elected.resultsTitle)}</h3><p>${esc(S.elected.resultsText)}</p>${seatSourceLine()}${pollsVsResults()}` : ''}
     ${showSeats() && !isResults() ? `<h3>${esc(M.pollsTitle)}</h3><p>${esc(M.pollsText)}</p><p><strong>${esc(meta.pollNote)}</strong></p>
     <p>${esc(M.pollsGuidance)} <a href="${esc(meta.pollGuidanceUrl)}" rel="noopener">${esc(M.pollsGuidanceLink)}</a></p>` : ''}
     <h3>${esc(M.researchDocs)}</h3>
@@ -235,13 +236,49 @@ function renderMethod() {
     <p class="muted">${esc(M.updated(fmtDate(meta.dataUpdated)))}</p>`;
 }
 
+// Method page, results mode: the pre-election poll average next to the CEC seats, numbers only.
+function pollsVsResults() {
+  const E = S.elected;
+  // Our split of a joint list's poll average (seatNote) is marked, since it is not a poll figure itself.
+  const rows = ctx.parties.map((p) => `<tr><th scope="row">${esc(p.name)}</th><td>${p.pollAvg == null ? '–' : p.pollAvg.toFixed(1)}${p.seatNote ? '*' : ''}</td><td>${ctx.seatsOf(p.id)}</td></tr>`).join('');
+  return `<h4>${esc(E.vsTitle(fmtDate(meta.pollsAsOf)))}</h4>
+    <div class="table-wrap"><table class="coverage vs-table">
+      <thead><tr>${E.vsCols(fmtDate(meta.pollsAsOf)).map((c) => `<th scope="col">${esc(c)}</th>`).join('')}</tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>
+    ${ctx.parties.some((p) => p.seatNote) ? `<p class="muted small">${esc(E.vsSplitNote)}</p>` : ''}`;
+}
+
 // ---------- presets & builder ----------
 function presetOrder() {
   const keys = ['opposition-arab', 'unity', 'opposition', 'coalition'];
   return keys.sort((a, b) => S.presets[a].localeCompare(S.presets[b], 'he'));
 }
 
+// Results mode: scenarios raised in the media, named by their composition only, sorted alphabetically by that name.
+function scenarioList() {
+  const P = S.presets;
+  return (scenarioData?.scenarios ?? []).map((sc) => ({
+    ...sc,
+    label: P.scenarioLabel(ordered(sc.members).map(name), ordered(sc.supporters).map(name), ordered(sc.abstainers).map(name)),
+  })).sort((a, b) => a.label.localeCompare(b.label, 'he'));
+}
+
+function renderScenarios() {
+  const P = S.presets;
+  const items = scenarioList().map((sc) => `<li class="scenario">
+    <button type="button" class="preset" data-act="scenario" data-id="${esc(sc.id)}" data-key="scenario-${esc(sc.id)}">${esc(sc.label)}</button>
+    <p class="scen-src">${sc.sources.map((src) => `${src.by ? `${esc(src.by)} · ` : ''}<a href="${esc(src.url)}" rel="noopener" target="_blank">${bidi(src.outlet)}</a> · ${esc(P.shortDate(src.date))}`).join(' | ')}</p>
+    ${sc.note ? `<p class="scen-note">${bidi(sc.note)}</p>` : ''}
+  </li>`).join('');
+  $('#presets').innerHTML = `
+    <h2>${esc(P.scenariosTitle(P.shortDate(scenarioData.asOf)))}</h2>
+    <ul class="scenario-list" aria-label="${esc(P.scenariosTitle(P.shortDate(scenarioData.asOf)))}">${items}</ul>
+    <p class="muted small">${esc(P.scenariosNote)}</p>`;
+}
+
 function renderPresets() {
+  if (isResults() && scenarioData) { renderScenarios(); return; }
   $('#presets').innerHTML = `
     <h2>${esc(S.presets.title)}</h2>
     <div class="preset-grid" role="group" aria-label="${esc(S.presets.title)}">
@@ -872,6 +909,12 @@ function onClick(e) {
       setState({ base: null, ...p });
       break;
     }
+    case 'scenario': {
+      const sc = scenarioData.scenarios.find((x) => x.id === id);
+      lastPreset = null;
+      setState({ base: null, members: sc.members, supporters: sc.supporters, abstainers: sc.abstainers });
+      break;
+    }
     case 'toggle':
       lastPreset = null;
       setState(withRole(id, roleOf(id) ? null : 'member'), { announceParty: id });
@@ -961,12 +1004,14 @@ async function main() {
     return r.json();
   });
   // The results file is needed only in results mode; in polls mode a missing file is fine.
-  const [parties, topics, positions, m, results] = await Promise.all([
+  const [parties, topics, positions, m, results, scenarios] = await Promise.all([
     ...['parties', 'topics', 'positions', 'meta'].map(get),
     get('results-26').catch(() => null),
+    get('scenarios').catch(() => null),
   ]);
   meta = m;
   electionResults = results;
+  scenarioData = meta.mode === 'results' ? scenarios : null;
   if (meta.mode === 'results' && !results) throw new Error('results-26: missing');
   // Results: seat order. Polls: poll order, or ballot letters with seats hidden (the poll order would reveal standings).
   ctx = C.contextFor({ meta, parties, topics, positions, results });

@@ -4,7 +4,7 @@
 
 כלי ניטרלי לבחירות לכנסת ה-26 (27.10.2026): בוחרים מפלגות שעשויות לשבת יחד בקואליציה, ורואים באילו נושאים העמדות שלהן קרובות ובאילו הן רחוקות. כל עמדה מגובה במקור.
 
-**מאז 1.11: לפי תוצאות הבחירות.** מספרי המנדטים הם התוצאות שפרסמה ועדת הבחירות המרכזית (נכון ל-30.10, לפני הגשה לנשיא). לכל מפלגה אפשר לסמן תפקיד (בקואליציה, תומכת מבחוץ, נמנעת; מי שלא נבחרה מתנגדת), ולראות אם הממשלה הייתה זוכה באמון ומה חסר לחברות הקואליציה כדי להגיע ל-61. העמדות עצמן מתועדות לפי ערב הבחירות.
+**מאז 1.11: לפי תוצאות הבחירות.** מספרי המנדטים הם התוצאות שפרסמה ועדת הבחירות המרכזית (נכון ל-30.10, לפני הגשה לנשיא). לכל מפלגה אפשר לסמן תפקיד (בקואליציה, תומכת מבחוץ, נמנעת; מי שלא נבחרה מתנגדת), ולראות אם הממשלה הייתה זוכה באמון ומה חסר לחברות הקואליציה כדי להגיע ל-61. במקום התרחישים לפי גושים יש ארבעה תרחישים שעלו בתקשורת, כל אחד עם מקור ותאריך. העמדות עצמן מתועדות לפי ערב הבחירות.
 
 🔗 **האתר:** https://mi-im-mi-2026.netlify.app
 
@@ -84,7 +84,7 @@
 | HTML, CSS ו-JavaScript (ES modules), בלי framework ובלי build | עמוד אחד עם כמה תצוגות. פחות מ-60KB דחוס, כולל כל הנתונים, נטען מהר בטלפון, ואין שלב בנייה שיכול להישבר ביום הבחירות |
 | נתונים ב-JSON סטטי | אין שרת ואין מסד נתונים שיכולים ליפול. תיקון הוא עריכת קובץ ופריסה |
 | Netlify | פריסה בפקודה אחת, CDN, וכתובות טיוטה לבדיקה לפני פרודקשן |
-| `node --test` | 63 בדיקות לאלגוריתם ולנתונים, כולל בדיקת סימטריה (היפוך כיוון הציר חייב לתת תוצאה זהה), בדיקה שהמנדטים מסתכמים ב-120, ובדיקה מול חיפוש ממצה של הצירופים ל-61 |
+| `node --test` | 64 בדיקות לאלגוריתם ולנתונים, כולל בדיקת סימטריה (היפוך כיוון הציר חייב לתת תוצאה זהה), בדיקה שהמנדטים מסתכמים ב-120, ובדיקה מול חיפוש ממצה של הצירופים ל-61 |
 | בדיקת smoke עם Chrome headless | צילומי מסך ב-390 וב-1280 פיקסלים, בדיקת שגיאות, בדיקה שההסתייגות על הסקרים גלויה ולא מוסתרת, ובדיקה שמונה הכניסות לא מקבל נתוני קואליציה |
 
 ### הרצה מקומית
@@ -106,6 +106,7 @@ node scripts/smoke.mjs [baseUrl]      # בדיקת smoke עם צילומי מס�
 | [`site/data/topics.json`](site/data/topics.json) | 8 נושאים, ולכל אחד תוויות ל-5 הדרגות בציר |
 | [`site/data/positions.json`](site/data/positions.json) | 112 עמדות: מיקום, קו אדום, סיכום, ציטוט וייחוס, מקור, סוג מקור, תאריך ועותק בארכיון |
 | [`site/data/meta.json`](site/data/meta.json) | תאריכי עדכון, `mode` (תוצאות או סקרים), סטטוס התוצאות, משפט ההסתייגות על הסקרים, קישורי המקורות ו-`showSeats` |
+| [`site/data/scenarios.json`](site/data/scenarios.json) | עד 4 תרחישים שעלו בתקשורת: חברות, תומכות ונמנעות, ומקור עם תאריך לכל אחד |
 | [`site/data/results-26.json`](site/data/results-26.json) | תוצאות ועדת הבחירות לכל רשימה: קולות, אחוזים ומנדטים, כפי שפורסמו (30.10.2026, לפני הגשה לנשיא) |
 | [`docs/research/`](docs/research/) | יומן ההחלטות, הערות הראיות לכל עמדה, ותוצאות הבדיקות |
 
@@ -123,7 +124,7 @@ node scripts/smoke.mjs [baseUrl]      # בדיקת smoke עם צילומי מס�
 
 **Mi Im Mi ("Who With Whom")** is a neutral, Hebrew, mobile-first web app for Israel's Knesset election of 27 October 2026. Pick parties that might form a coalition, and see where their positions agree and where they clash.
 
-**Since 1 November it runs on the results:** seats as published by the Central Elections Committee (as of 30.10, before submission to the President). Each party can be marked as a member, an outside supporter or an abstainer (everyone else votes against). The app shows whether the government would win the investiture vote (for > against), the smallest sets of extra parties that would give the members alone 61 seats (fewest parties first, with the new head-on clashes and newly crossed red lines of each), and how far supporters and abstainers are from the coalition. Positions are as documented on election eve.
+**Since 1 November it runs on the results:** seats as published by the Central Elections Committee (as of 30.10, before submission to the President). Each party can be marked as a member, an outside supporter or an abstainer (everyone else votes against). The app shows whether the government would win the investiture vote (for > against), the smallest sets of extra parties that would give the members alone 61 seats (fewest parties first, with the new head-on clashes and newly crossed red lines of each), and how far supporters and abstainers are from the coalition. Four scenarios raised in the media (each with its source and date, named by composition only) replace the bloc presets. Positions are as documented on election eve.
 
 🔗 https://mi-im-mi-2026.netlify.app
 
@@ -161,7 +162,7 @@ node scripts/smoke.mjs [baseUrl]      # בדיקת smoke עם צילומי מס�
 - human checkpoints throughout
 - about 40 commits
 
-**Stack.** Static vanilla JS with no build step (<60KB gzipped including all data), JSON data, Netlify, `node --test` (63 tests, including mirror-symmetry tests, a 120-seat check and a brute-force check of the completions to 61), and a headless-Chrome smoke test that also checks that the page-view beacon carries no coalition data and that the poll disclaimer is visible.
+**Stack.** Static vanilla JS with no build step (<60KB gzipped including all data), JSON data, Netlify, `node --test` (64 tests, including mirror-symmetry tests, a 120-seat check and a brute-force check of the completions to 61), and a headless-Chrome smoke test that also checks that the page-view beacon carries no coalition data and that the poll disclaimer is visible.
 
 **Corrections.** Every cell has a "found an error?" link. You can also email lioz.akirav@gmail.com or open an issue.
 

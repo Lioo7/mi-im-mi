@@ -477,3 +477,8 @@ details.below summary { cursor: pointer; font-weight: 600; padding-block: 10px; 
 .positions-asof { margin: -4px 0 8px; font-size: .85rem; color: var(--muted); }
 .periphery-link { margin: 8px 0 0; }
 .periphery-link .link-btn { font-size: .95rem; text-align: start; }
+.scenario-list { list-style: none; margin: 0 0 6px; padding: 0; display: grid; gap: 10px; }
+.scenario .preset { inline-size: 100%; text-align: start; }
+.scen-src { margin: 4px 4px 0; font-size: .85rem; color: var(--muted); }
+.scen-note { margin: 2px 4px 0; font-size: .85rem; color: var(--muted); }
+.vs-table td { font-variant-numeric: tabular-nums; }

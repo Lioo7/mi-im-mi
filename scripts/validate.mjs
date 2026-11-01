@@ -1,15 +1,16 @@
 // Validates site/data before a deploy. Exit code 1 on any error.
 // Usage: node scripts/validate.mjs [--allow-stub]
-import { loadData, validateParties, validateTopics, validatePositions, validateResults } from './lib.mjs';
+import { loadData, validateParties, validateTopics, validatePositions, validateResults, validateScenarios } from './lib.mjs';
 
 const allowStub = process.argv.includes('--allow-stub');
-const { parties, topics, meta, positions, results } = loadData();
+const { parties, topics, meta, positions, results, scenarios } = loadData();
 
 const errors = [
   ...validateParties(parties),
   ...validateTopics(topics),
   ...validatePositions(positions, parties, topics),
   ...validateResults(meta, results, parties),
+  ...validateScenarios(meta, scenarios, parties, results),
 ];
 if (typeof meta.showSeats !== 'boolean') errors.push('meta: showSeats must be true/false');
 if (meta.stub && !allowStub) errors.push('meta: stub data is active (run the real import before deploying)');

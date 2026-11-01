@@ -12,6 +12,7 @@ export const readJson = (p) => JSON.parse(readFileSync(p, 'utf8'));
 export const writeJson = (p, v) => writeFileSync(p, JSON.stringify(v, null, 2) + '\n');
 export const exists = existsSync;
 export const RESULTS_FILE = 'results-26.json';
+export const SCENARIOS_FILE = 'scenarios.json';
 
 export function loadData() {
   return {
@@ -20,6 +21,7 @@ export function loadData() {
     meta: readJson(join(DATA, 'meta.json')),
     positions: exists(join(DATA, 'positions.json')) ? readJson(join(DATA, 'positions.json')) : [],
     results: exists(join(DATA, RESULTS_FILE)) ? readJson(join(DATA, RESULTS_FILE)) : null,
+    scenarios: exists(join(DATA, SCENARIOS_FILE)) ? readJson(join(DATA, SCENARIOS_FILE)) : null,
   };
 }
 
@@ -126,6 +128,32 @@ export function validateResults(meta, results, parties) {
   if (total !== results.totalSeats) errors.push(`results: seats sum to ${total}, expected ${results.totalSeats}`);
   for (const p of parties) if (seen.get(p.id) !== 1) errors.push(`results: party ${p.id} must appear in exactly one list`);
   for (const id of seen.keys()) if (!parties.some((p) => p.id === id)) errors.push(`results: unknown party ${id}`);
+  return errors;
+}
+
+// Media scenarios (results mode): at most 4; ids of lists that won seats; disjoint roles; every source dated and linked.
+export function validateScenarios(meta, data, parties, results) {
+  if (meta.mode !== 'results') return [];
+  if (!data) return [`scenarios: site/data/${SCENARIOS_FILE} is missing`];
+  const errors = [];
+  if (!isDate(data.asOf)) errors.push('scenarios: asOf must be YYYY-MM-DD');
+  const list = data.scenarios ?? [];
+  if (!list.length || list.length > 4) errors.push(`scenarios: expected 1–4, got ${list.length}`);
+  const seated = new Set((results?.lists ?? []).filter((l) => l.seats > 0).flatMap((l) => l.parties));
+  const ids = new Set();
+  for (const sc of list) {
+    const at = `scenario ${sc.id}`;
+    if (!sc.id || ids.has(sc.id)) errors.push(`${at}: missing or duplicate id`);
+    ids.add(sc.id);
+    const all = [...(sc.members ?? []), ...(sc.supporters ?? []), ...(sc.abstainers ?? [])];
+    if (!sc.members?.length) errors.push(`${at}: no members`);
+    if (new Set(all).size !== all.length) errors.push(`${at}: a party has two roles`);
+    for (const id of all) if (!parties.some((p) => p.id === id) || !seated.has(id)) errors.push(`${at}: ${id} is unknown or has no seats`);
+    if (!sc.sources?.length) errors.push(`${at}: no source`);
+    for (const src of sc.sources ?? []) {
+      if (!src.outlet || !isDate(src.date) || !/^https:\/\/\S+$/.test(src.url ?? '')) errors.push(`${at}: each source needs outlet, YYYY-MM-DD date and an https url`);
+    }
+  }
   return errors;
 }
 

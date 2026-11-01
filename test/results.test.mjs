@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { loadData, validateResults } from '../scripts/lib.mjs';
+import { loadData, validateResults, validateScenarios } from '../scripts/lib.mjs';
 
 const { parties, meta, results } = loadData();
 const seatsOf = (id) => {
@@ -91,17 +91,35 @@ test('completions on the CEC results: the 53-seat bloc needs one more list of 8+
   assert.ok(c.list.every((x) => !x.add.some((id) => ['kalkalit', 'amcha-yisrael'].includes(id))), 'lists under the threshold are never added');
 });
 
-test('investiture on the CEC results for the media scenarios (roles as reported)', async () => {
+test('media scenarios: valid, at most 4, and their investiture math on the CEC results', async () => {
   const { contextFor, investiture } = await import('../site/js/compat.js');
-  const { topics, positions } = loadData();
+  const { topics, positions, scenarios } = loadData();
+  assert.deepEqual(validateScenarios({ ...meta, mode: 'results' }, scenarios, parties, results), []);
   const ctx = contextFor({ meta: { ...meta, mode: 'results' }, parties, topics, positions, results });
-  const members = ['yashar', 'together', 'democrats', 'yisrael-beiteinu'];
-  const a = investiture(ctx, { members, supporters: ['raam'] });
-  assert.deepEqual([a.for, a.against, a.abstain, a.approved], [56, 64, 0, false]);
-  const b = investiture(ctx, { members, supporters: ['joint-list'], abstainers: ['raam', 'utj'] });
-  assert.deepEqual([b.for, b.against, b.abstain, b.approved], [59, 46, 15, true]);
-  const c = investiture(ctx, { members: ['likud', 'yashar', 'otzma-yehudit', 'religious-zionism', 'zehut'] });
-  assert.deepEqual([c.membersSeats, c.membersMajority, c.approved], [61, true, true]);
+  const vote = (id) => {
+    const v = investiture(ctx, scenarios.scenarios.find((x) => x.id === id));
+    return [v.for, v.against, v.abstain, v.approved, v.membersSeats];
+  };
+  // a (mako 29.10): 4 change parties + רע״ם supporting: 56 vs 64.
+  assert.deepEqual(vote('change-raam-support'), [56, 64, 0, false, 48]);
+  // b (ynet 1.11 + Tibi 31.10): הרשימה המשותפת supporting, רע״ם and יהדות התורה abstaining: 59 vs 46.
+  assert.deepEqual(vote('change-abstentions'), [59, 46, 15, true, 48]);
+  // c (jpost 29.10), as reported, without זהות: 60 vs 60, a tie, so not approved.
+  assert.deepEqual(vote('likud-yashar-right'), [60, 60, 0, false, 60]);
+  // d (Amit Segal, kipa 31.10): "33 + 33" = הליכוד 27 + the full ט list 6, ישר! 21 + ביחד 12.
+  assert.deepEqual(vote('segal-unity'), [66, 54, 0, true, 66]);
+});
+
+test('validateScenarios rejects a fifth scenario, double roles, seatless lists and undated sources', () => {
+  const { scenarios } = loadData();
+  const m = { ...meta, mode: 'results' };
+  const one = scenarios.scenarios[0];
+  const bad = (sc) => validateScenarios(m, { ...scenarios, scenarios: [sc] }, parties, results);
+  assert.ok(validateScenarios(m, { ...scenarios, scenarios: [...scenarios.scenarios, { ...one, id: 'x' }] }, parties, results).some((e) => e.includes('1–4')));
+  assert.ok(bad({ ...one, supporters: [one.members[0]] }).some((e) => e.includes('two roles')));
+  assert.ok(bad({ ...one, abstainers: ['kalkalit'] }).some((e) => e.includes('kalkalit')));
+  assert.ok(bad({ ...one, sources: [{ outlet: 'x', url: 'https://x.y' }] }).some((e) => e.includes('date')));
+  assert.deepEqual(validateScenarios({ ...meta, mode: 'polls' }, null, parties, results), [], 'polls mode needs no scenarios');
 });
 
 test('results mode: הציונות הדתית and זהות are chosen and counted independently; polls mode keeps the link', async () => {
