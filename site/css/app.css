@@ -411,10 +411,6 @@ body[data-view="build"] { padding-block-end: 100px; }
 .prow-end { flex: none; inline-size: 126px; display: flex; justify-content: flex-start; }
 .pills { display: grid; grid-template-columns: repeat(3, 40px); gap: 3px; }
 .pill { text-align: center; border-radius: 999px; font-weight: 800; font-size: .8rem; line-height: 1.5; font-variant-numeric: tabular-nums; }
-.in-coalition { font-size: .8rem; color: var(--muted); }
-.out-toggle { position: absolute; inset-inline-end: 10px; inset-block-start: 50%; transform: translateY(-50%); padding: 1px 10px; border: 1px solid #9aa3b5; border-radius: 999px; background: #fff; color: var(--fg); font-size: .78rem; cursor: pointer; }
-.out-toggle::after { content: ""; position: absolute; inset: -12px -6px; }
-.out-toggle[aria-pressed="true"] { background: #dbe5fa; border: 2px solid var(--accent); color: #0a2a7a; font-weight: 700; padding: 0 9px; }
 
 .row-btn.gap-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .gap-main { display: grid; gap: 4px; flex: 1; min-inline-size: 0; }
@@ -436,9 +432,6 @@ blockquote p { margin: 0; }
 
 /* round 8 */
 .prow-main:focus-visible { outline: 3px solid var(--focus); outline-offset: -3px; }
-.out-toggle { border: 0; background: none; border-radius: 4px; padding: 2px 4px; color: var(--muted); font-size: .8rem; text-decoration: underline dotted; text-underline-offset: 3px; }
-.out-toggle[aria-pressed="true"] { background: none; border: 0; padding: 2px 4px; color: var(--fg); font-weight: 700; text-decoration: none; }
-.out-toggle[aria-pressed="true"]::before { content: "✓ "; color: var(--accent); }
 .pair-list-head { margin: 8px 0 2px; font-weight: 700; font-size: .9rem; }
 .q-trans { margin-block-start: 6px; }
 
@@ -464,3 +457,17 @@ details.below summary { cursor: pointer; font-weight: 600; padding-block: 10px; 
 .below-btn { display: flex; align-items: center; gap: 10px; inline-size: 100%; min-block-size: 48px; text-align: start; }
 .below-btn .prow-name { flex: 1; }
 .below-list li + li { margin-block-start: 6px; }
+
+/* Party roles */
+.roles { display: flex; gap: 6px; padding: 0 12px 10px; padding-inline-start: 50px; }
+.role-btn { flex: 1; min-block-size: 44px; padding: 4px 6px; border: 1px solid #9aa3b5; border-radius: 999px; background: #fff; color: var(--fg); font-size: .85rem; cursor: pointer; white-space: nowrap; }
+.role-btn.is-on { background: #dbe5fa; border: 2px solid var(--accent); color: #0a2a7a; font-weight: 700; padding: 3px 5px; }
+.role-btn.is-on::before { content: "✓ "; color: var(--accent); }
+.role-btn:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+@media (max-width: 360px) { .roles { padding-inline-start: 12px; } }
+.verdict { margin: 2px 0 0; font-weight: 700; font-size: .95rem; }
+.verdict.is-yes span { color: #166534; }
+.verdict.is-no span { color: #b91c1c; }
+.members-line { margin: 2px 0 0; font-size: .9rem; color: var(--fg); }
+.periphery .per-party + .per-party { margin-block-start: 10px; }
+.periphery .pair-list { margin-block-start: 4px; }

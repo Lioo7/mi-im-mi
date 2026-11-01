@@ -2,8 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   level, makeContext, topicStatus, crises, glue, friction, overall, newClashTopics,
-  matrixCell, pairSummary, seats, analyze, without, presets, parseState, serializeState,
-  withLinked, lowCoverage, addImpact, breakdown, ballotOrder,
+  matrixCell, pairSummary, investiture, periphery, analyze, without, presets, parseState, serializeState,
+  withLinked, lowCoverage, addImpact, breakdown, ballotOrder, selected,
 } from '../site/js/compat.js';
 
 const P = (partyId, topicId, position, redLine = false) => ({ partyId, topicId, position, redLine });
@@ -146,17 +146,58 @@ test('pair summary counts only topics where both have positions', () => {
   assert.deepEqual(s.counts, { AGREE: 1, MINOR: 0, MAJOR: 0, CLASH: 1 });
 });
 
-test('seats: inside, outside, borderline, missing', () => {
+// Seats in the fixture: a 30, b 20, c 10, d 8, e 4 (all 72).
+test('investiture: for = members + supporters, against = everyone else except abstainers', () => {
   const ctx = fixture([]);
-  const s = seats(ctx, ['a', 'b', 'e'], ['b']);
-  assert.deepEqual(s, { inside: 34, outside: 20, total: 54, missing: 7, borderline: 4 });
+  assert.deepEqual(investiture(ctx, { members: ['a', 'e'], supporters: ['b'], abstainers: ['c'] }), {
+    for: 54, against: 8, abstain: 10, approved: true, membersSeats: 34, membersMajority: false, missing: 27, borderline: 4,
+  });
+  // Without the abstention, c votes against: 54 vs 18.
+  assert.equal(investiture(ctx, { members: ['a', 'e'], supporters: ['b'] }).against, 18);
+  // Members only, everyone else against: 30 vs 42.
+  const alone = investiture(ctx, { members: ['a'] });
+  assert.deepEqual([alone.for, alone.against, alone.abstain, alone.approved], [30, 42, 0, false]);
 });
 
-test('without() removes a party and its base/outside role', () => {
-  const ctx = fixture([P('a', 't1', -2), P('b', 't1', 2), P('c', 't1', -2)]);
-  const r = without(ctx, { members: ['a', 'b', 'c'], base: 'b', outside: [] }, 'b');
+test('investiture: a tie is not approved; abstainers count on neither side', () => {
+  const ctx = fixture([]);
+  // a alone (30) vs b + c (30), with d and e (12) abstaining.
+  const tie = investiture(ctx, { members: ['a'], abstainers: ['d', 'e'] });
+  assert.deepEqual([tie.for, tie.against, tie.abstain, tie.approved], [30, 30, 12, false]);
+  const nobody = investiture(ctx, { members: [] });
+  assert.deepEqual([nobody.for, nobody.against, nobody.approved], [0, 72, false]);
+});
+
+test('investiture: members alone reaching 61 is reported separately from the vote', () => {
+  const ctx = makeContext({ parties: [{ id: 'x', pollAvg: 61 }, { id: 'y', pollAvg: 59 }], topics: [], positions: [] });
+  const v = investiture(ctx, { members: ['x'] });
+  assert.equal(v.membersMajority, true);
+  assert.equal(v.missing, 0);
+  assert.equal(v.approved, true);
+  assert.equal(investiture(ctx, { members: ['y'] }).membersMajority, false);
+});
+
+test('analyze counts clashes among members only; supporters and abstainers go to periphery', () => {
+  const ctx = fixture([P('a', 't1', -2), P('b', 't1', -2), P('c', 't1', 2), P('d', 't1', 0), P('a', 't2', 0), P('c', 't2', 2)]);
+  const state = { members: ['a', 'b'], supporters: ['c'], abstainers: ['d'], base: null };
+  const r = analyze(ctx, state);
   assert.equal(r.clashTopics, 0);
-  assert.equal(r.seats.total, 40);
+  assert.ok(r.statuses.every((s) => s.pairs.every((p) => state.members.includes(p.a) && state.members.includes(p.b))));
+  const per = periphery(ctx, state);
+  assert.deepEqual(per.map((x) => [x.partyId, x.role]), [['c', 'supporter'], ['d', 'abstainer']]);
+  // c vs a and b on t1: both d=4; the tie goes to the pair with more seats (a). t2: c vs a d=2 MAJOR.
+  assert.deepEqual(per[0].items.map((i) => [i.topicId, i.b, i.level]), [['t1', 'a', 'CLASH'], ['t2', 'a', 'MAJOR']]);
+  // d (0) vs a/b (-2): MAJOR on t1.
+  assert.deepEqual(per[1].items.map((i) => [i.topicId, i.level]), [['t1', 'MAJOR']]);
+  assert.deepEqual(periphery(ctx, { members: ['a', 'b'] }), []);
+});
+
+test('without() removes a party from any role', () => {
+  const ctx = fixture([P('a', 't1', -2), P('b', 't1', 2), P('c', 't1', -2)]);
+  const r = without(ctx, { members: ['a', 'b', 'c'], base: 'b' }, 'b');
+  assert.equal(r.clashTopics, 0);
+  assert.equal(r.vote.membersSeats, 40);
+  assert.equal(without(ctx, { members: ['a'], supporters: ['c'] }, 'c').vote.for, 30);
 });
 
 test('presets use blocs only; unity = likud + largest opposition', () => {
@@ -173,23 +214,42 @@ test('presets use blocs only; unity = likud + largest opposition', () => {
   });
   const pr = presets(ctx);
   assert.deepEqual(pr.coalition.members, ['likud']);
-  assert.deepEqual(pr['opposition-arab'], { members: ['o1', 'o2', 'ar'], outside: ['ar'] });
+  assert.deepEqual(pr['opposition-arab'], { members: ['o1', 'o2'], supporters: ['ar'], abstainers: [] });
   assert.deepEqual(pr.unity.members, ['likud', 'o2']);
   assert.ok(!Object.values(pr).some((x) => x.members.includes('n')));
 });
 
-test('URL state round-trips and ignores unknown ids', () => {
+test('URL state round-trips roles and ignores unknown ids', () => {
   const ctx = fixture([]);
   const ids = ['a', 'b', 'c', 'd', 'e'];
-  const state = { base: 'c', members: ['c', 'a', 'd', 'e'], outside: ['e'] };
+  const state = { base: 'c', members: ['c', 'a'], supporters: ['e'], abstainers: ['d', 'b'] };
   const qs = serializeState(ctx, state);
-  assert.equal(qs, '?b=c&m=a,d&o=e');
+  assert.equal(qs, '?b=c&m=a&o=e&a=b,d');
   const back = parseState(qs, ids);
   assert.equal(back.base, 'c');
-  assert.deepEqual([...back.members].sort(), ['a', 'c', 'd', 'e']);
-  assert.deepEqual(back.outside, ['e']);
-  assert.deepEqual(parseState('?m=a,zzz,a&b=nope', ids), { base: null, members: ['a'], outside: [] });
-  assert.equal(serializeState(ctx, { base: null, members: [], outside: [] }), '');
+  assert.deepEqual([...back.members].sort(), ['a', 'c']);
+  assert.deepEqual(back.supporters, ['e']);
+  assert.deepEqual(back.abstainers, ['b', 'd']);
+  assert.deepEqual(parseState('?m=a,zzz,a&b=nope', ids), { base: null, members: ['a'], supporters: [], abstainers: [] });
+  assert.equal(serializeState(ctx, { base: null, members: [] }), '');
+});
+
+test('old links: m= only means all members; o= (outside support) means supporters', () => {
+  const ids = ['a', 'b', 'c', 'd', 'e'];
+  assert.deepEqual(parseState('?m=a,b,c', ids), { base: null, members: ['a', 'b', 'c'], supporters: [], abstainers: [] });
+  const old = parseState('?b=a&m=b&o=c', ids);
+  assert.deepEqual(old, { base: 'a', members: ['a', 'b'], supporters: ['c'], abstainers: [] });
+  // The supporter's clashes move from the coalition analysis to periphery().
+  const ctx = fixture([P('a', 't1', -2), P('b', 't1', -2), P('c', 't1', 2)]);
+  assert.equal(analyze(ctx, old).clashTopics, 0);
+  assert.equal(analyze(ctx, { members: ['a', 'b', 'c'] }).clashTopics, 1, 'before roles, the same link counted the clash');
+  assert.deepEqual(periphery(ctx, old)[0].items.map((i) => [i.a, i.level]), [['c', 'CLASH']]);
+});
+
+test('a party named under two roles keeps the first of b/m > o > a', () => {
+  const ids = ['a', 'b', 'c'];
+  assert.deepEqual(parseState('?b=a&o=a,b&a=b,c&m=c', ids), { base: 'a', members: ['a', 'c'], supporters: ['b'], abstainers: [] });
+  assert.deepEqual(selected(parseState('?m=a&o=b&a=c', ids)), ['a', 'b', 'c']);
 });
 
 test('withLinked adds the soft-linked partner once, and only on add', () => {

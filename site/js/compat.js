@@ -251,25 +251,55 @@ export function coverage(ctx, partyId) {
   return ctx.topics.filter((t) => hasPos(posOf(ctx.idx, partyId, t.id))).length;
 }
 
-export function seats(ctx, members, outside = []) {
-  const out = new Set(outside);
-  let inside = 0;
-  let outsideSum = 0;
-  let borderline = 0;
-  for (const id of members) {
-    const s = ctx.seatsOf(id);
-    if (out.has(id)) outsideSum += s;
-    else inside += s;
-    if (ctx.byId.get(id)?.threshold === 'borderline') borderline += s;
-  }
-  const total = Math.round(inside + outsideSum);
+const sumSeats = (ctx, ids) => ids.reduce((n, id) => n + ctx.seatsOf(id), 0);
+
+// Every party that is not a member, supporter or abstainer is an opponent (the default role).
+export const selected = ({ members, supporters = [], abstainers = [] }) => [...members, ...supporters, ...abstainers];
+
+// Investiture vote: for = members + supporters, abstain = abstainers, against = everyone else (all seats minus both).
+// Approved when for > against (a majority of those voting). Members alone reaching 61 is reported separately.
+// All seats = 120 with results; with polls it is the sum of the poll averages.
+export function investiture(ctx, { members, supporters = [], abstainers = [] }) {
+  const all = Math.round(sumSeats(ctx, ctx.parties.map((p) => p.id)));
+  const membersSeats = Math.round(sumSeats(ctx, members));
+  const forSeats = Math.round(sumSeats(ctx, [...members, ...supporters]));
+  const abstain = Math.round(sumSeats(ctx, abstainers));
+  const against = all - forSeats - abstain;
+  const borderline = Math.round(sumSeats(ctx, [...members, ...supporters].filter((id) => ctx.byId.get(id)?.threshold === 'borderline')));
   return {
-    inside: Math.round(inside),
-    outside: Math.round(outsideSum),
-    total,
-    missing: Math.max(0, 61 - total),
-    borderline: Math.round(borderline),
+    for: forSeats,
+    against,
+    abstain,
+    approved: forSeats > against,
+    membersSeats,
+    membersMajority: membersSeats >= 61,
+    missing: Math.max(0, 61 - membersSeats),
+    borderline,
   };
+}
+
+// Supporters and abstainers vs the coalition: per party and topic, the worst MAJOR/CLASH pair against any member.
+// Member-member pairs are covered by analyze(); these never are. Rows keep party order; items run worst first.
+export function periphery(ctx, { members, supporters = [], abstainers = [] }) {
+  const rows = [];
+  for (const [role, ids] of [['supporter', supporters], ['abstainer', abstainers]]) {
+    for (const id of sortByParty(ctx, ids)) {
+      const items = [];
+      for (const t of ctx.topics) {
+        let worst = null;
+        for (const m of sortByParty(ctx, members)) {
+          const l = pairLevel(ctx.idx, id, m, t.id);
+          if (l.level !== 'CLASH' && l.level !== 'MAJOR') continue;
+          const pair = { a: id, b: m, topicId: t.id, ...l };
+          if (!worst || compareRankDesc(pairRank(ctx, pair), pairRank(ctx, worst)) < 0) worst = pair;
+        }
+        if (worst) items.push(worst);
+      }
+      items.sort((x, y) => compareRankDesc(pairRank(ctx, x), pairRank(ctx, y)));
+      rows.push({ partyId: id, role, items });
+    }
+  }
+  return rows;
 }
 
 // Parties that ran on one list but announced a split are soft-linked: adding one adds the other.
@@ -286,7 +316,8 @@ export function lowCoverage(ctx, members, min = 3) {
     .filter((x) => x.missing >= min);
 }
 
-export function analyze(ctx, { members, base = null, outside = [] }) {
+// Clash analysis covers coalition members only; supporters and abstainers are in periphery().
+export function analyze(ctx, { members, base = null, supporters = [], abstainers = [] }) {
   const statuses = ctx.topics.map((t) => topicStatus(ctx, members, t.id));
   return {
     statuses,
@@ -295,16 +326,24 @@ export function analyze(ctx, { members, base = null, outside = [] }) {
     friction: friction(ctx, members, base),
     overall: overall(statuses),
     clashTopics: countClashTopics(statuses),
-    seats: seats(ctx, members, outside),
+    vote: investiture(ctx, { members, supporters, abstainers }),
+  };
+}
+
+// The state without one party, in any role.
+export function dropParty(state, partyId) {
+  const keep = (ids = []) => ids.filter((id) => id !== partyId);
+  return {
+    base: state.base === partyId ? null : state.base,
+    members: keep(state.members),
+    supporters: keep(state.supporters),
+    abstainers: keep(state.abstainers),
   };
 }
 
 // What the coalition looks like without one party (for the friction card preview).
 export function without(ctx, state, partyId) {
-  const members = state.members.filter((id) => id !== partyId);
-  const outside = (state.outside ?? []).filter((id) => id !== partyId);
-  const base = state.base === partyId ? null : state.base;
-  return analyze(ctx, { members, base, outside });
+  return analyze(ctx, dropParty(state, partyId));
 }
 
 export function presets(ctx) {
@@ -313,32 +352,33 @@ export function presets(ctx) {
   const largestOpposition = [...opposition].sort((a, b) => ctx.seatsOf(b) - ctx.seatsOf(a) || ctx.order.get(a) - ctx.order.get(b))[0];
   const arab = inBloc('arab');
   return {
-    coalition: { members: inBloc('coalition'), outside: [] },
-    opposition: { members: opposition, outside: [] },
-    'opposition-arab': { members: [...opposition, ...arab], outside: arab },
-    unity: { members: ['likud', largestOpposition].filter((id) => ctx.byId.has(id)), outside: [] },
+    coalition: { members: inBloc('coalition'), supporters: [], abstainers: [] },
+    opposition: { members: opposition, supporters: [], abstainers: [] },
+    'opposition-arab': { members: opposition, supporters: arab, abstainers: [] },
+    unity: { members: ['likud', largestOpposition].filter((id) => ctx.byId.has(id)), supporters: [], abstainers: [] },
   };
 }
 
-// URL state: ?b=base&m=inside,members&o=outside,members (base excluded from m).
+// URL state: ?b=base&m=members&o=supporters&a=abstainers (the base is a member and is not repeated in m).
+// o= has meant outside support since launch, so old links keep their meaning. A party named under two roles
+// takes the first of b/m > o > a.
 export function parseState(search, validIds) {
   const q = new URLSearchParams(search);
   const valid = new Set(validIds);
   const list = (k) => (q.get(k) ?? '').split(',').map((s) => s.trim()).filter((id) => valid.has(id));
   const b = list('b')[0] ?? null;
-  const outside = [...new Set(list('o'))].filter((id) => id !== b);
-  const members = [...new Set([...(b ? [b] : []), ...list('m'), ...outside])];
-  return { base: b, members, outside };
+  const members = [...new Set([...(b ? [b] : []), ...list('m')])];
+  const supporters = [...new Set(list('o'))].filter((id) => !members.includes(id));
+  const abstainers = [...new Set(list('a'))].filter((id) => !members.includes(id) && !supporters.includes(id));
+  return { base: b, members, supporters, abstainers };
 }
 
-export function serializeState(ctx, { base, members, outside = [] }) {
-  const out = new Set(outside);
+export function serializeState(ctx, { base, members, supporters = [], abstainers = [] }) {
   const q = new URLSearchParams();
   if (base) q.set('b', base);
-  const inside = sortByParty(ctx, members.filter((id) => id !== base && !out.has(id)));
-  if (inside.length) q.set('m', inside.join(','));
-  const o = sortByParty(ctx, members.filter((id) => out.has(id) && id !== base));
-  if (o.length) q.set('o', o.join(','));
+  for (const [k, ids] of [['m', members.filter((id) => id !== base)], ['o', supporters], ['a', abstainers]]) {
+    if (ids.length) q.set(k, sortByParty(ctx, ids).join(','));
+  }
   const s = q.toString().replace(/%2C/g, ',');
   return s ? `?${s}` : '';
 }

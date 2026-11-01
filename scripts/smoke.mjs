@@ -94,6 +94,10 @@ const cases = [
   ['results-single', '?m=likud', 'results'],
   ['results-base-likud', serializeState(ctx, { base: 'likud', members: pr.coalition.members, outside: [] }), 'results'],
   ['results-low-coverage', '?m=shas,utj,zehut,likud', 'results'],
+  // Roles: an old link with o= (outside support, now "תומכת"), and supporters plus abstainers.
+  ['results-old-outside', '?m=yashar,together,democrats,yisrael-beiteinu&o=raam', 'results'],
+  ['results-roles', '?m=yashar,together,democrats,yisrael-beiteinu&o=joint-list&a=raam,utj', 'results'],
+  ['build-roles', '?m=yashar,together,democrats,yisrael-beiteinu&o=joint-list&a=raam,utj#build', 'build'],
   ['method', '#method', 'method'],
   ['privacy', '#privacy', 'method'],
   ['accessibility', '#accessibility', 'method'],
@@ -101,7 +105,7 @@ const cases = [
 
 // Poll-derived text that must not appear anywhere when showSeats is off.
 const POLL_TEXT = /מנדטים|מנ׳|סקר|על הסף|מתוך 61|\(61\+\)|≈\d/;
-const leakIds = new RegExp(`[?&;]([bmoq])=|${parties.map((p) => p.id).join('|')}`, 'i');
+const leakIds = new RegExp(`[?&;]([bmoqa])=|${parties.map((p) => p.id).join('|')}`, 'i');
 const legal = `ממוצע סקרים שפורסמו עד ${meta.pollsAsOf.split('-').reverse().join('.')}. הסקרים אינם עדכניים, ואין ללמוד מהם על דפוסי הצבעה או עמדות הציבור כיום.`;
 // The line that must precede any seat number, and its element.
 const SRC_TEXT = RESULTS ? meta.resultsStatus : legal;
@@ -215,8 +219,18 @@ try {
           const voter = await evaluate("(() => { const e = document.querySelector('#voter-info'); const a = e?.querySelector('a'); return e && a ? e.innerText + ' | ' + a.href : ''; })()");
           if (!/27\.10/.test(voter) || !/7:00–22:00/.test(voter) || !voter.endsWith('| https://www.gov.il/apps/moin/bocharim/')) errors.push(`[${current}] voter-info line missing or wrong (${voter})`);
         }
-        const outHint = await evaluate("document.querySelector('#builder').innerText.includes('תמיכה מבחוץ: מפלגה שתומכת בממשלה בלי לשבת בה')");
-        if (!outHint) errors.push(`[${current}] outside-support explanation missing in the picker`);
+        const roleHint = await evaluate(`document.querySelector('#builder').innerText.includes(${JSON.stringify(S.builder.hint)})`);
+        if (!roleHint) errors.push(`[${current}] role explanation missing in the picker`);
+        // Each selected row has a 3-way role radiogroup with exactly one checked option, matching the URL.
+        const roles = await evaluate(`(() => { const out = {}; for (const g of document.querySelectorAll('#builder .roles[role="radiogroup"]')) {
+          if (!g.getAttribute('aria-label')) return 'unlabeled group'; const on = g.querySelectorAll('[role="radio"][aria-checked="true"]'); if (on.length !== 1) return 'checked ' + on.length;
+          if ([...g.querySelectorAll('[role="radio"]')].some((b) => b.getBoundingClientRect().height < 44)) return 'segment under 44px';
+          out[on[0].dataset.id] = on[0].dataset.role; } return JSON.stringify(out); })()`);
+        const q = new URLSearchParams(suffix.split('#')[0]);
+        const want = {};
+        for (const [k, role] of [['b', 'member'], ['m', 'member'], ['o', 'supporter'], ['a', 'abstainer']]) for (const id of (q.get(k) ?? '').split(',').filter((x) => passedIds.includes(x))) want[id] ??= role;
+        const got = roles.startsWith('{') ? JSON.parse(roles) : roles;
+        if (typeof got === 'string' || Object.keys(want).some((id) => got[id] !== want[id]) || Object.keys(got).length !== Object.keys(want).length) errors.push(`[${current}] role controls ${roles} do not match the link ${JSON.stringify(want)}`);
       }
       const overflow = await evaluate('document.documentElement.scrollWidth > window.innerWidth + 1');
       if (overflow) errors.push(`[${current}] horizontal page overflow`);
@@ -279,6 +293,29 @@ try {
         if (expectView === 'results' && members_in_url(suffix) && name !== 'results-single' && !(await evaluate("document.querySelector('#matrix .tap-hint')?.innerText.includes('לחצו על כל תא או נושא')"))) errors.push(`[${current}] matrix tap hint missing`);
         const line = await evaluate("document.querySelector('#results-coalition')?.innerText || ''");
         if (!line.trim()) errors.push(`[${current}] results are missing the coalition line`);
+        // Investiture: "בעד X · נגד Y · נמנעות Z", an icon+text verdict, and the members' own seats.
+        if (members_in_url(suffix) && name !== 'results-single') {
+          const vote = await evaluate(`(() => { const o = document.querySelector('#results .overall'); if (!o) return 'no summary'; const t = o.innerText.replace(/\\s+/g, ' ');
+            const m = t.match(/בעד ≈?(\\d+) · נגד ≈?(\\d+) · נמנעות ≈?(\\d+)/); if (!m) return 'vote line missing';
+            const v = o.querySelector('.verdict'); if (!v || !/^[✓✕] הממשלה (הייתה|לא הייתה) זוכה באמון/.test(v.innerText.trim())) return 'verdict missing';
+            if (!/חברות הקואליציה לבדן: ≈?\\d+/.test(t)) return 'members line missing'; return m.slice(1).join(','); })()`);
+          if (!/^\d+,\d+,\d+$/.test(vote)) errors.push(`[${current}] investiture: ${vote}`);
+          else if (RESULTS && vote.split(',').reduce((a, b) => a + Number(b), 0) !== 120) errors.push(`[${current}] investiture numbers must sum to 120 (${vote})`);
+          if (RESULTS && name === 'results-roles' && vote !== '59,46,15') errors.push(`[${current}] expected בעד 59 · נגד 46 · נמנעות 15, got ${vote}`);
+          if (RESULTS && name === 'results-old-outside' && vote !== '56,64,0') errors.push(`[${current}] expected בעד 56 · נגד 64 · נמנעות 0, got ${vote}`);
+        }
+        // Supporters and abstainers: own card, listed with their role; never inside the coalition cards.
+        const q = new URLSearchParams(suffix.split('#')[0]);
+        const side = [...(q.get('o') ?? '').split(','), ...(q.get('a') ?? '').split(',')].filter(Boolean);
+        if (side.length) {
+          const per = await evaluate(`(() => { const c = document.querySelector('#results .periphery'); if (!c) return 'missing';
+            const names = [...c.querySelectorAll('.per-party .row-title')].map((e) => e.innerText); return names.join('|'); })()`);
+          const wantNames = side.map((id) => parties.find((p) => p.id === id).name);
+          if (per === 'missing' || !wantNames.every((n) => per.includes(n))) errors.push(`[${current}] supporters/abstainers card missing or incomplete (${per})`);
+          const leak = await evaluate(`[...document.querySelectorAll('#results .gap-head, #results .card:not(.periphery) .pair-btn, #matrix .party-btn')].map((e) => e.innerText).join('|')`);
+          const leaked = wantNames.filter((n) => leak.includes(n));
+          if (leaked.length) errors.push(`[${current}] supporters/abstainers counted in the coalition analysis: ${leaked.join(', ')}`);
+        }
       }
       if (expectView === 'results') {
         const share = await evaluate("document.querySelectorAll('#results-bar [data-act=\"share\"]').length");
@@ -286,7 +323,7 @@ try {
         if (share !== want) errors.push(`[${current}] share button count ${share}, expected ${want}`);
       }
       if (expectView === 'method') {
-        const secs = await evaluate("(() => { const p = document.querySelector('#privacy'), a = document.querySelector('#accessibility'); const f = [...document.querySelectorAll('#footer a')].map((x) => x.getAttribute('href')); return [p?.innerText.includes('GoatCounter') && p.innerText.includes('lioz.akirav@gmail.com'), a?.innerText.includes('5568') && a.innerText.includes('26.10.2026'), f.includes('#privacy'), f.includes('#accessibility')].join(','); })()");
+        const secs = await evaluate("(() => { const p = document.querySelector('#privacy'), a = document.querySelector('#accessibility'); const f = [...document.querySelectorAll('#footer a')].map((x) => x.getAttribute('href')); return [p?.innerText.includes('GoatCounter') && p.innerText.includes('lioz.akirav@gmail.com'), a?.innerText.includes('5568') && a.innerText.includes('1.11.2026'), f.includes('#privacy'), f.includes('#accessibility')].join(','); })()");
         if (secs !== 'true,true,true,true') errors.push(`[${current}] privacy/accessibility sections or footer links missing (${secs})`);
         if (name !== 'method') {
           const top = await evaluate(`Math.round(document.querySelector('#${name}').getBoundingClientRect().top)`);
@@ -399,11 +436,21 @@ try {
   await sleep(300);
   const sel = await evaluate("[...document.querySelectorAll('#builder .prow-main[aria-checked=\"true\"]')].length");
   if (sel !== 3) errors.push(`[interaction] tapping rows should select 3 parties, got ${sel}`);
-  await evaluate("document.querySelector('[data-act=\"outside\"][data-id=\"shas\"]').click()");
+  await evaluate("document.querySelector('[data-act=\"role\"][data-id=\"shas\"][data-role=\"supporter\"]').click()");
   await sleep(200);
-  const outUrl = await evaluate('location.search');
-  if (!/o=shas/.test(outUrl)) errors.push(`[interaction] outside toggle did not set o= (${outUrl})`);
-  await evaluate("document.querySelector('[data-act=\"outside\"][data-id=\"shas\"]').click()");
+  if (!/o=shas/.test(await evaluate('location.search'))) errors.push(`[interaction] supporter role did not set o= (${await evaluate('location.search')})`);
+  await evaluate("(() => { const b = document.querySelector('[data-act=\"role\"][data-id=\"shas\"][data-role=\"abstainer\"]'); b.focus(); b.click(); })()");
+  await sleep(200);
+  const absUrl = await evaluate('location.search');
+  if (!/a=shas/.test(absUrl) || /o=shas/.test(absUrl)) errors.push(`[interaction] abstainer role did not move shas to a= (${absUrl})`);
+  if ((await evaluate("document.activeElement?.dataset.key")) !== 'role-shas-abstainer') errors.push('[interaction] focus lost after choosing a role');
+  await evaluate("document.querySelector('[data-act=\"role\"][data-id=\"shas\"][data-role=\"member\"]').click()");
+  await sleep(200);
+  // Unselecting a row clears its role (back to opponent).
+  await evaluate("document.querySelector('[data-act=\"role\"][data-id=\"shas\"][data-role=\"supporter\"]').click(); document.querySelector('[data-act=\"toggle\"][data-id=\"shas\"]').click()");
+  await sleep(200);
+  if (/shas/.test(await evaluate('location.search'))) errors.push('[interaction] unselecting a supporter did not clear its role');
+  await evaluate("document.querySelector('[data-act=\"toggle\"][data-id=\"shas\"]').click()");
   await sleep(200);
   await evaluate('window.scrollTo(0, document.querySelector("#builder .seats-box").getBoundingClientRect().top + scrollY - 10)');
   await sleep(200);

@@ -11,7 +11,7 @@ const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '
 let ctx;
 let meta;
 let electionResults = null;
-let state = { base: null, members: [], outside: [] };
+let state = { base: null, members: [], supporters: [], abstainers: [] };
 let lastPreset = null;
 let undoState = null;
 let toastTimer;
@@ -37,15 +37,35 @@ function levelBadge(level, extraClass = '') {
 
 // ---------- state ----------
 function setState(next, { announceParty } = {}) {
-  state = { base: next.base ?? null, members: ordered(next.members), outside: next.outside ?? [] };
+  // Roles are disjoint; a party in two lists keeps the first of members > supporters > abstainers.
+  const members = ordered([...new Set(next.members)]);
+  const supporters = ordered([...new Set(next.supporters ?? [])].filter((id) => !members.includes(id)));
+  const abstainers = ordered([...new Set(next.abstainers ?? [])].filter((id) => !members.includes(id) && !supporters.includes(id)));
+  state = { base: next.base ?? null, members, supporters, abstainers };
   if (state.base && !state.members.includes(state.base)) state.base = null;
-  state.outside = state.outside.filter((id) => state.members.includes(id));
   history.replaceState(null, '', location.pathname + C.serializeState(ctx, state) + location.hash);
   render();
   if (announceParty) {
     const r = C.analyze(ctx, state);
     announce(S.results.live(name(announceParty), r.clashTopics));
   }
+}
+
+const roleOf = (id) => (state.members.includes(id) ? 'member' : state.supporters.includes(id) ? 'supporter' : state.abstainers.includes(id) ? 'abstainer' : null);
+
+// The state with `id` in `role` (null = opponent, i.e. unselected). A new member brings its soft-linked partner,
+// unless the partner already has a role.
+function withRole(id, role) {
+  const next = C.dropParty(state, id);
+  if (role === 'member' && state.base === id) next.base = id; // the base must be a member
+  if (role === 'member') {
+    next.members = [...next.members, id];
+    const partner = party(id).linkedWith;
+    if (partner && !roleOf(partner) && ctx.passed(partner)) next.members.push(partner);
+  }
+  if (role === 'supporter') next.supporters = [...next.supporters, id];
+  if (role === 'abstainer') next.abstainers = [...next.abstainers, id];
+  return next;
 }
 
 function announce(text) {
@@ -137,7 +157,8 @@ function renderMethod() {
     <h1 class="page-title">${esc(M.title)}</h1>
     <p>${esc(M.intro(ctx.parties.length))}</p>
     <ol>${S.how.lines.map((l) => `<li>${esc(l)}</li>`).join('')}</ol>
-    <p>${esc(S.how.outside(showSeats()))}</p>
+    <h3>${esc(M.rolesTitle)}</h3>
+    <ul>${M.rolesRules(showSeats()).map((r) => `<li>${esc(r)}</li>`).join('')}</ul>
     <p class="disclaimer"><strong>${esc(M.disclaimer)}</strong> ${esc(M.independent)}</p>
 
     <h3>${esc(M.levelsTitle)}</h3>
@@ -236,12 +257,13 @@ function pillsHtml(a, c, u) {
 
 function renderBuilder() {
   const B = S.builder;
-  const { members, outside } = state;
+  const { members } = state;
+  const chosen = C.selected(state);
 
   const rows = ctx.parties.filter((p) => ctx.passed(p.id)).map((p) => {
     const id = p.id;
-    const on = members.includes(id);
-    const out = outside.includes(id);
+    const role = roleOf(id);
+    const on = role !== null;
     const im = !on && members.length ? C.addImpact(ctx, id, members) : null;
     const sub = [
       showSeats() && (isResults() || p.pollAvg != null) ? S.builder.seatsChip(Math.round(ctx.seatsOf(id))) : '',
@@ -253,9 +275,9 @@ function renderBuilder() {
         <span class="cb" aria-hidden="true">${on ? '✓' : ''}</span>
         <span class="slip-tag">${esc(p.ballotLetters)}</span>
         <span class="prow-text"><span class="prow-name">${esc(p.name)}</span>${sub ? `<span class="prow-sub">${esc(sub)}</span>` : ''}</span>
-        <span class="prow-end">${on ? `<span class="in-coalition">${esc(B.inCoalition)}</span>` : im ? pillsHtml(im.agree, im.clash, im.unknown) : ''}</span>
+        <span class="prow-end">${im ? pillsHtml(im.agree, im.clash, im.unknown) : ''}</span>
       </button>
-      ${on ? `<button type="button" class="out-toggle" data-act="outside" data-id="${id}" data-key="out-${id}" aria-pressed="${out}" aria-label="${esc(B.outsideLabel(p.name))}">${esc(B.outsideToggle)}</button>` : ''}
+      ${on ? roleControl(id, role) : ''}
     </li>`;
   }).join('');
 
@@ -263,7 +285,7 @@ function renderBuilder() {
   if (lastPreset === 'unity' && showSeats()) {
     const preset = C.presets(ctx).unity.members;
     if (preset.length === members.length && preset.every((id) => members.includes(id))) {
-      unityNote = `<p class="note">${esc(S.seats.unityMissing(C.seats(ctx, members, outside).missing))}</p>`;
+      unityNote = `<p class="note">${esc(S.seats.unityMissing(C.investiture(ctx, state).missing))}</p>`;
     }
   }
 
@@ -277,15 +299,23 @@ function renderBuilder() {
   $('#builder').innerHTML = `
     <div class="tray-head">
       <h2>${esc(B.pick)}</h2>
-      ${members.length ? `<button type="button" class="link-btn" data-act="clear" data-key="clear">${esc(B.clear)}</button>` : ''}
+      ${chosen.length ? `<button type="button" class="link-btn" data-act="clear" data-key="clear">${esc(B.clear)}</button>` : ''}
     </div>
     ${seatsBox()}
     ${members.length ? `<p class="muted small">${esc(B.impactHeading)}: <span class="impact-legend"><span class="im-ok" aria-hidden="true">✓</span> ${esc(B.impactAgree)} · <span class="im-clash" aria-hidden="true">✕</span> ${esc(B.impactClash)} · <span class="im-unk" aria-hidden="true">?</span> ${esc(B.impactUnknown)}</span></p>` : ''}
     <ul class="plist" role="group" aria-label="${esc(B.pick)}">${rows}</ul>
     ${belowThreshold()}
-    <p class="muted small">${esc(B.hint(showSeats()))}</p>
+    <p class="muted small">${esc(B.hint)}</p>
     ${linkedNotes.join('')}
     ${unityNote}`;
+}
+
+// Role of a selected party: a radiogroup under its row. Unselecting the row makes it an opponent (the default).
+function roleControl(id, role) {
+  const B = S.builder;
+  return `<div class="roles" role="radiogroup" aria-label="${esc(B.roleGroup(name(id)))}">${['member', 'supporter', 'abstainer'].map((r) => `
+    <button type="button" role="radio" aria-checked="${r === role}" class="role-btn${r === role ? ' is-on' : ''}" data-act="role" data-id="${id}" data-role="${r}" data-key="role-${id}-${r}">${esc(B.roles[r])}</button>`).join('')}
+  </div>`;
 }
 
 // Results mode: lists under the threshold. Positions stay viewable; the lists cannot be selected.
@@ -365,29 +395,34 @@ function profileHtml(pid) {
     </section>`).join('')}</div>`;
 }
 
-function seatsText() {
-  const { members, outside } = state;
-  const s = C.seats(ctx, members, outside);
+// Investiture vote, its outcome, and the members' own seats against 61.
+function voteHtml() {
+  const v = C.investiture(ctx, state);
   const S2 = S.seats;
-  const head = outside.length ? S2.totalWithOutside(s.total, s.inside, s.outside, isResults()) : S2.total2(s.inside, isResults());
-  return { s, html: `<strong><bdi dir="ltr">${esc(head)}</bdi></strong> · ${esc(s.missing ? S2.short(s.missing) : S2.majority)}` };
+  const n = (x) => S2.num(x, isResults());
+  return {
+    v,
+    html: `<p class="seats-line"><strong>${esc(S2.vote(n(v.for), n(v.against), n(v.abstain)))}</strong></p>
+      <p class="verdict ${v.approved ? 'is-yes' : 'is-no'}"><span aria-hidden="true">${v.approved ? '✓' : '✕'}</span> ${esc(v.approved ? S2.approved : S2.rejected)}</p>
+      <p class="members-line">${esc(S2.membersLine(n(v.membersSeats), v.missing))}</p>`,
+  };
 }
 
-// The legal sentence always comes before the seat numbers, so scrolling down reaches it first on any screen.
+// The source line (CEC status, or the legal poll sentence) always comes before the seat numbers, so scrolling down
+// reaches it first on any screen.
 function seatsLine() {
-  if (!showSeats() || !state.members.length) return '';
-  return `${seatSourceLine()}<p class="seats-line">${seatsText().html}</p>`;
+  if (!showSeats() || !C.selected(state).length) return '';
+  return `${seatSourceLine()}${voteHtml().html}`;
 }
 
 function seatsBox() {
   if (!showSeats()) return '';
-  const { members } = state;
   let body = `<p class="seats-line muted">${esc(S.seats.empty)}</p>`;
-  if (members.length) {
-    const { s, html } = seatsText();
-    const pct = Math.min(100, (s.total / 61) * 100);
-    body = `<p class="seats-line">${html}</p>
-      <div class="meter" role="img" aria-label="${esc(`${s.total} / 61`)}"><span style="inline-size:${pct}%"></span></div>`;
+  if (C.selected(state).length) {
+    const { v, html } = voteHtml();
+    const pct = Math.min(100, (v.membersSeats / 61) * 100);
+    body = `${html}
+      <div class="meter" role="img" aria-label="${esc(S.seats.meterLabel(v.membersSeats))}"><span style="inline-size:${pct}%"></span></div>`;
   }
   return `<section class="seats-box" aria-label="${esc(S.seats.boxTitle)}"><h3>${esc(S.seats.boxTitle)}</h3>${seatSourceLine()}${body}</section>`;
 }
@@ -406,7 +441,11 @@ function pollNoteBtn() {
   return `<p class="poll-legal">${esc(S.seats.pollLegal(fmtDate(meta.pollsAsOf)))} <button type="button" class="poll-btn" data-act="poll-info" data-key="poll-info" aria-label="${esc(S.seats.sourceInfo)}"><span aria-hidden="true">ⓘ</span></button></p>`;
 }
 
-function overallBar(r) {
+function overallBar(r, { statuses = true } = {}) {
+  if (!statuses) {
+    const line = seatsLine();
+    return line ? `<section class="card overall"><h2 class="card-title">${esc(S.results.summaryTitle)}</h2>${line}</section>` : '';
+  }
   const segs = r.statuses.map((s) => {
     const t = topic(s.topicId);
     const lv = s.status;
@@ -477,7 +516,7 @@ function frictionCard(r) {
   const R = S.results;
   const items = r.friction.map((f) => {
     const w = C.without(ctx, state, f.partyId);
-    const preview = R.withoutPreview(C.withoutDelta(r.statuses, w.statuses), showSeats() ? w.seats.total : null);
+    const preview = R.withoutPreview(C.withoutDelta(r.statuses, w.statuses), showSeats() ? w.vote.membersSeats : null, isResults());
     return `<li>
       <p class="row-title">${esc(name(f.partyId))}</p>
       ${preview ? `<p class="muted small">${esc(preview)}</p>` : ''}
@@ -497,30 +536,60 @@ function coverageFootnote() {
     <p>${esc(S.results.coverageTail)}</p></div>`;
 }
 
+// "★ base · member · supporter (תומכת) · abstainer (נמנעת)", used on the results line and in the share text.
+function coalitionTags() {
+  const tag = (id) => `${id === state.base ? '★ ' : ''}${name(id)}${roleOf(id) === 'member' ? '' : ` ${S.results.roleTag[roleOf(id)]}`}`;
+  return C.selected(state).map(tag);
+}
+
 function renderResults() {
   const { members } = state;
   const el = $('#results');
-  const tags = members.map((id) => `${id === state.base ? '★ ' : ''}${name(id)}${state.outside.includes(id) ? ` ${S.results.outsideTag}` : ''}`);
-  $('#results-coalition').innerHTML = members.length
-    ? `<p class="coalition-line"><span class="muted small">${esc(S.results.coalitionLabel)}:</span> ${esc(tags.join(' · '))}</p>` : '';
+  const chosen = C.selected(state);
+  $('#results-coalition').innerHTML = chosen.length
+    ? `<p class="coalition-line"><span class="muted small">${esc(S.results.coalitionLabel)}:</span> ${esc(coalitionTags().join(' · '))}</p>` : '';
   $('#results-bar').innerHTML = `
     <a class="back" href="#build">${esc(S.nav.back)}</a>
-    ${members.length >= 2 ? `<button type="button" class="btn btn-small" data-act="share" data-key="share">${esc(S.share.button)}</button>` : ''}`;
-  if (members.length === 0) {
+    ${chosen.length >= 2 ? `<button type="button" class="btn btn-small" data-act="share" data-key="share">${esc(S.share.button)}</button>` : ''}`;
+  if (chosen.length === 0) {
     el.innerHTML = `<p class="empty">${esc(S.results.resultsEmpty)} <a href="#build">${esc(S.results.resultsEmptyLink)}</a></p>`;
+    return;
+  }
+  if (members.length === 0) {
+    el.innerHTML = `<p class="empty">${esc(S.results.noMembers)} <a href="#build">${esc(S.results.resultsEmptyLink)}</a></p>`;
     return;
   }
   if (members.length === 1) {
     el.innerHTML = `<p class="empty">${esc(S.results.addPartner)} <a href="#build">${esc(S.results.resultsEmptyLink)}</a></p>
+      ${chosen.length > 1 ? overallBar(C.analyze(ctx, state), { statuses: false }) + peripheryCard() : ''}
       <h2>${esc(name(members[0]))}</h2>${profileHtml(members[0])}`;
     return;
   }
   const r = C.analyze(ctx, state);
   if (members.length === 2) {
-    el.innerHTML = overallBar(r) + `<section class="card">${pairHtml(members[0], members[1])}</section>` + coverageFootnote() + shareCard(r);
+    el.innerHTML = overallBar(r) + `<section class="card">${pairHtml(members[0], members[1])}</section>` + peripheryCard() + coverageFootnote() + shareCard(r);
     return;
   }
-  el.innerHTML = overallBar(r) + crisesCard(r) + glueCard(r) + frictionCard(r) + coverageFootnote() + shareCard(r);
+  el.innerHTML = overallBar(r) + crisesCard(r) + glueCard(r) + frictionCard(r) + peripheryCard() + coverageFootnote() + shareCard(r);
+}
+
+// Supporters and abstainers vs the coalition members (never counted in the cards above).
+function peripheryCard() {
+  const rows = C.periphery(ctx, state);
+  if (!rows.length) return '';
+  const R = S.results;
+  const items = rows.map((row) => `<li class="per-party">
+    <p class="row-title">${esc(name(row.partyId))} <span class="muted small">(${esc(R.roleName[row.role])})</span></p>
+    ${row.items.length ? `<ul class="pair-list">${row.items.map((i) => `
+      <li><button type="button" class="pair-btn" data-act="pair-sheet" data-a="${i.a}" data-b="${i.b}" data-key="per-${i.a}-${i.topicId}">
+        <span>${esc(topic(i.topicId).short)}: ${esc(R.versus(name(i.b)))}</span>${levelBadge(i.level)}${i.byRedLine ? ` <span class="tag tag-red"><span aria-hidden="true">🚩</span> ${esc(S.redLine)}</span>` : ''}</button></li>`).join('')}</ul>`
+    : `<p class="muted small">${esc(R.peripheryNone)}</p>`}
+  </li>`).join('');
+  return `<section class="card periphery">
+    <h3>${esc(R.peripheryTitle)}</h3>
+    <p class="muted small">${esc(R.peripheryIntro)}</p>
+    <ul class="list">${items}</ul>
+  </section>`;
 }
 
 // ---------- matrix ----------
@@ -579,23 +648,22 @@ function shareUrl() {
 }
 
 function shareCard(r) {
-  const names = state.members.map(name).join(' + ');
-  const text = S.share.text(names, r.clashTopics);
+  const text = S.share.text(coalitionTags().join(' + '), r.clashTopics);
   const wa = `https://wa.me/?text=${encodeURIComponent(`${text}\n${shareUrl()}`)}`;
   return `<p class="share-row"><a class="btn btn-ghost" href="${esc(wa)}" target="_blank" rel="noopener">${esc(S.share.whatsapp)}</a></p>`;
 }
 
 function renderBar() {
   const bar = $('#bar');
-  const { members } = state;
-  if (view !== 'build' || !members.length) { bar.hidden = true; return; }
+  const n = C.selected(state).length;
+  if (view !== 'build' || !n) { bar.hidden = true; return; }
   bar.hidden = false;
-  bar.innerHTML = `<span class="bar-count">${esc(S.nav.partyCount(members.length))}</span>
+  bar.innerHTML = `<span class="bar-count">${esc(S.nav.partyCount(n))}</span>
     <a class="btn" href="#results" data-key="to-results">${esc(S.nav.toResults)}</a>`;
 }
 
 function pollInfoSheet() {
-  const s = C.seats(ctx, state.members, state.outside);
+  const s = C.investiture(ctx, state);
   openSheet(`
     <h2>${esc(S.seats.infoTitle)}</h2>
     <p>${esc(S.seats.infoBody)}</p>
@@ -609,7 +677,7 @@ function pollInfoSheet() {
 
 async function share() {
   const r = C.analyze(ctx, state);
-  const text = S.share.text(state.members.map(name).join(' + '), r.clashTopics);
+  const text = S.share.text(coalitionTags().join(' + '), r.clashTopics);
   const url = shareUrl();
   if (navigator.share) {
     try { await navigator.share({ title: S.appName, text, url }); return; } catch (e) { if (e.name === 'AbortError') return; }
@@ -664,7 +732,7 @@ function cellSheet(pid, tid) {
 
 function topicSheet(tid) {
   const t = topic(tid);
-  const ids = state.members.length ? state.members : ctx.parties.map((p) => p.id);
+  const ids = C.selected(state).length ? C.selected(state) : ctx.parties.map((p) => p.id);
   const at = (k) => ids.filter((id) => posOf(id, tid)?.position === Number(k)).map(name);
   const nulls = ids.filter((id) => posOf(id, tid)?.position == null).map(name);
   openSheet(`
@@ -721,7 +789,7 @@ function route(initial = false) {
   let v = location.hash.slice(1);
   const anchor = METHOD_ANCHORS.includes(v) ? v : null;
   if (anchor) v = 'method';
-  if (!VIEWS.includes(v)) v = initial && state.members.length ? 'results' : 'build';
+  if (!VIEWS.includes(v)) v = initial && C.selected(state).length ? 'results' : 'build';
   const changed = v !== view;
   view = v;
   if (initial && !VIEWS.includes(location.hash.slice(1)) && v === 'results') {
@@ -746,32 +814,24 @@ function onClick(e) {
   const el = e.target.closest('[data-act]');
   if (!el || el.tagName === 'SELECT') return;
   const { act, id } = el.dataset;
-  const { members, base, outside } = state;
   switch (act) {
     case 'preset': {
       const p = C.presets(ctx)[id];
       lastPreset = id;
-      setState({ base: null, members: p.members, outside: p.outside });
+      setState({ base: null, ...p });
       break;
     }
-    case 'add':
-      lastPreset = null;
-      setState({ base, members: C.withLinked(ctx, members, id), outside }, { announceParty: id });
-      break;
-    case 'remove':
-      lastPreset = null;
-      setState({ base: base === id ? null : base, members: members.filter((m) => m !== id), outside: outside.filter((m) => m !== id) }, { announceParty: id });
-      break;
     case 'toggle':
       lastPreset = null;
-      if (members.includes(id)) setState({ base: base === id ? null : base, members: members.filter((m) => m !== id), outside: outside.filter((m) => m !== id) }, { announceParty: id });
-      else setState({ base, members: C.withLinked(ctx, members, id), outside }, { announceParty: id });
+      setState(withRole(id, roleOf(id) ? null : 'member'), { announceParty: id });
       break;
-    case 'outside':
-      setState({ base, members, outside: outside.includes(id) ? outside.filter((m) => m !== id) : [...outside, id] });
+    case 'role':
+      lastPreset = null;
+      setState(withRole(id, el.dataset.role));
+      announce(S.builder.roleAnnounce(name(id), S.builder.roles[el.dataset.role]));
       break;
     case 'colorby':
-      setState({ base: id || null, members, outside });
+      setState({ ...state, base: id || null });
       break;
     case 'expand':
       if (expandedTopics.has(id)) expandedTopics.delete(id); else expandedTopics.add(id);
@@ -779,11 +839,11 @@ function onClick(e) {
       break;
     case 'clear':
       lastPreset = null;
-      setState({ base: null, members: [], outside: [] });
+      setState({ base: null, members: [], supporters: [], abstainers: [] });
       break;
     case 'remove-friction':
       undoState = { ...state };
-      setState({ base: base === id ? null : base, members: members.filter((m) => m !== id), outside: outside.filter((m) => m !== id) }, { announceParty: id });
+      setState(C.dropParty(state, id), { announceParty: id });
       toast(`${esc(S.results.removed(name(id)))} <button type="button" class="link-btn" data-act="undo">${esc(S.results.undo)}</button>`, 8000);
       break;
     case 'undo':
@@ -843,7 +903,7 @@ async function main() {
   ctx = C.contextFor({ meta, parties, topics, positions, results });
   // Lists under the threshold (results mode) cannot be selected, so a link naming them drops them like unknown ids.
   const parsed = C.parseState(location.search, passedIds());
-  state = { ...parsed, members: ordered(parsed.members) };
+  state = { ...parsed, members: ordered(parsed.members), supporters: ordered(parsed.supporters), abstainers: ordered(parsed.abstainers) };
   // Rewrite the link without the dropped ids, so sharing it again does not carry them.
   if (location.search) history.replaceState(null, '', location.pathname + C.serializeState(ctx, state) + location.hash);
   renderHeader();
