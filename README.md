@@ -84,7 +84,7 @@
 | HTML, CSS ו-JavaScript (ES modules), בלי framework ובלי build | עמוד אחד עם כמה תצוגות. פחות מ-60KB דחוס, כולל כל הנתונים, נטען מהר בטלפון, ואין שלב בנייה שיכול להישבר ביום הבחירות |
 | נתונים ב-JSON סטטי | אין שרת ואין מסד נתונים שיכולים ליפול. תיקון הוא עריכת קובץ ופריסה |
 | Netlify | פריסה בפקודה אחת, CDN, וכתובות טיוטה לבדיקה לפני פרודקשן |
-| `node --test` | 63 בדיקות לאלגוריתם ולנתונים, כולל בדיקת סימטריה (היפוך כיוון הציר חייב לתת תוצאה זהה), בדיקה שהמנדטים מסתכמים ב-120, ובדיקה מול חיפוש ממצה של הצירופים ל-61 |
+| `node --test` | 62 בדיקות לאלגוריתם ולנתונים, כולל בדיקת סימטריה (היפוך כיוון הציר חייב לתת תוצאה זהה), בדיקה שהמנדטים מסתכמים ב-120, ובדיקה מול חיפוש ממצה של הצירופים ל-61 |
 | בדיקת smoke עם Chrome headless | צילומי מסך ב-390 וב-1280 פיקסלים, בדיקת שגיאות, בדיקה שההסתייגות על הסקרים גלויה ולא מוסתרת, ובדיקה שמונה הכניסות לא מקבל נתוני קואליציה |
 
 ### הרצה מקומית
@@ -161,7 +161,7 @@ node scripts/smoke.mjs [baseUrl]      # בדיקת smoke עם צילומי מס�
 - human checkpoints throughout
 - about 40 commits
 
-**Stack.** Static vanilla JS with no build step (<60KB gzipped including all data), JSON data, Netlify, `node --test` (63 tests, including mirror-symmetry tests, a 120-seat check and a brute-force check of the completions to 61), and a headless-Chrome smoke test that also checks that the page-view beacon carries no coalition data and that the poll disclaimer is visible.
+**Stack.** Static vanilla JS with no build step (<60KB gzipped including all data), JSON data, Netlify, `node --test` (62 tests, including mirror-symmetry tests, a 120-seat check and a brute-force check of the completions to 61), and a headless-Chrome smoke test that also checks that the page-view beacon carries no coalition data and that the poll disclaimer is visible.
 
 **Corrections.** Every cell has a "found an error?" link. You can also email lioz.akirav@gmail.com or open an issue.
 
