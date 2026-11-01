@@ -56,7 +56,7 @@ Do not change anything under `site/`, and do not deploy, without the user's expl
 ## Data and polls
 - Change positions **only** via `node scripts/import-csv.mjs review/positions_review.csv`. Never hand-edit `site/data/positions.json`.
 - `meta.json → showSeats` (boolean): `false` hides every seat number and all poll-derived info: the threshold badge, the joint-list seat split, the poll ordering and the seat tie-breaks.
-- The election-day flip is prepared as a one-line commit on the local branch `election-day-flip`. It needs the user's OK, then `git cherry-pick election-day-flip` onto `main`, validate, smoke, and a prod deploy.
+- Seat numbers stay visible on election day (the user's decision, 26.10; see `docs/research/decisions.md`): the site shows only an average of polls published up to 23.10. The `election-day-flip` branch was deleted unmerged. Do not set `showSeats` to `false` without the user's OK.
 - Wherever seat numbers or poll-derived figures show, the full legal sentence (`S.seats.pollLegal`, ממוצע סקרים שפורסמו עד … הסקרים אינם עדכניים …) must be visible with them, placed before the numbers. Smoke enforces this with a simulated host badge at 390×844 and 375×667, on first load and while scrolling.
 
 ## Conventions
