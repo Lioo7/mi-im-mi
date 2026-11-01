@@ -48,7 +48,7 @@ export const S = {
     blocNote: 'חלוקת הגושים לפי בקלפי וחדשות 12.',
     // Results mode: media scenarios, named by composition only.
     scenariosTitle: (d) => `תרחישים שעלו בתקשורת · נכון ל-${d}`,
-    scenariosNote: 'שם כל תרחיש הוא ההרכב שלו. מפלגה שלא מופיעה בו נחשבת מתנגדת. לחיצה ממלאת את הבחירה, ואפשר לשנות אותה.',
+    scenariosNote: 'לחיצה על תרחיש ממלאת את הבחירה, ואפשר לשנות אותה. מפלגה שלא מופיעה בו נחשבת מתנגדת.',
     scenarioLabel: (members, supporters, abstainers) => [
       members.join(' + '),
       supporters.length ? `${supporters.length === 1 ? 'תומכת' : 'תומכות'}: ${supporters.join(', ')}` : '',
