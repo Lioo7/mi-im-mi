@@ -100,7 +100,9 @@ test('media scenarios: valid, at most 4, and their investiture math on the CEC r
     const v = investiture(ctx, scenarios.scenarios.find((x) => x.id === id));
     return [v.for, v.against, v.abstain, v.approved, v.membersSeats];
   };
-  assert.equal(scenarios.scenarios.length, 3);
+  assert.equal(scenarios.scenarios.length, 4);
+  // mako 28.10 + Tibi 31.10: הרשימה המשותפת supporting, רע״ם abstaining: 59 vs 53. Unlike ynet, יהדות התורה votes against.
+  assert.deepEqual(vote('change-arab-not-opposing'), [59, 53, 8, true, 48]);
   // b (ynet 1.11 + Tibi 31.10): הרשימה המשותפת supporting, רע״ם and יהדות התורה abstaining: 59 vs 46.
   assert.deepEqual(vote('change-abstentions'), [59, 46, 15, true, 48]);
   // c (jpost 29.10), as reported, without זהות: 60 vs 60, a tie, so not approved.

@@ -13,6 +13,17 @@
       "note": "לפי ynet, ח״כ אחד מרע״ם (סגלוביץ׳) יתמוך בממשלה באופן פעיל. ישר!: ״הפרסומים השונים אינם על דעתנו ולאו דווקא מתארים את המציאות כפי שהיא״."
     },
     {
+      "id": "change-arab-not-opposing",
+      "members": ["yashar", "together", "democrats", "yisrael-beiteinu"],
+      "supporters": ["joint-list"],
+      "abstainers": ["raam"],
+      "sources": [
+        { "outlet": "mako", "date": "2026-10-28", "url": "https://www.mako.co.il/news-israel-elections/2026/Article-9b8beb9041f71a1027.htm" },
+        { "outlet": "זמן ישראל", "date": "2026-10-31", "url": "https://www.zman.co.il/live/738237/", "by": "אחמד טיבי" }
+      ],
+      "note": "לפי mako, ליברמן הצהיר כי לא יתמוך בממשלה שנשענת על קולות הערבים או על ההימנעות."
+    },
+    {
       "id": "likud-yashar-right",
       "members": ["likud", "yashar", "otzma-yehudit", "religious-zionism"],
       "supporters": [],

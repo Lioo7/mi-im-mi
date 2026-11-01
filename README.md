@@ -4,7 +4,7 @@
 
 כלי ניטרלי לבחירות לכנסת ה-26 (27.10.2026): בוחרים מפלגות שעשויות לשבת יחד בקואליציה, ורואים באילו נושאים העמדות שלהן קרובות ובאילו הן רחוקות. כל עמדה מגובה במקור.
 
-**מאז 1.11: לפי תוצאות הבחירות.** מספרי המנדטים הם התוצאות שפרסמה ועדת הבחירות המרכזית (נכון ל-30.10, לפני הגשה לנשיא). לכל מפלגה אפשר לסמן תפקיד (בקואליציה, תומכת מבחוץ, נמנעת; מי שלא נבחרה מתנגדת), ולראות אם הממשלה הייתה זוכה באמון ומה חסר לחברות הקואליציה כדי להגיע ל-61. במקום התרחישים לפי גושים יש שלושה תרחישים שעלו בתקשורת, כל אחד עם מקור ותאריך. העמדות עצמן מתועדות לפי ערב הבחירות.
+**מאז 1.11: לפי תוצאות הבחירות.** מספרי המנדטים הם התוצאות שפרסמה ועדת הבחירות המרכזית (נכון ל-30.10, לפני הגשה לנשיא). לכל מפלגה אפשר לסמן תפקיד (בקואליציה, תומכת מבחוץ, נמנעת; מי שלא נבחרה מתנגדת), ולראות אם הממשלה הייתה זוכה באמון ומה חסר לחברות הקואליציה כדי להגיע ל-61. במקום התרחישים לפי גושים יש ארבעה תרחישים שעלו בתקשורת, כל אחד עם מקור ותאריך. העמדות עצמן מתועדות לפי ערב הבחירות.
 
 🔗 **האתר:** https://mi-im-mi-2026.netlify.app
 
@@ -124,7 +124,7 @@ node scripts/smoke.mjs [baseUrl]      # בדיקת smoke עם צילומי מס�
 
 **Mi Im Mi ("Who With Whom")** is a neutral, Hebrew, mobile-first web app for Israel's Knesset election of 27 October 2026. Pick parties that might form a coalition, and see where their positions agree and where they clash.
 
-**Since 1 November it runs on the results:** seats as published by the Central Elections Committee (as of 30.10, before submission to the President). Each party can be marked as a member, an outside supporter or an abstainer (everyone else votes against). The app shows whether the government would win the investiture vote (for > against), the smallest sets of extra parties that would give the members alone 61 seats (fewest parties first, with the new head-on clashes and newly crossed red lines of each), and how far supporters and abstainers are from the coalition. Three scenarios raised in the media (each with its source and date, named by composition only) replace the bloc presets. Positions are as documented on election eve.
+**Since 1 November it runs on the results:** seats as published by the Central Elections Committee (as of 30.10, before submission to the President). Each party can be marked as a member, an outside supporter or an abstainer (everyone else votes against). The app shows whether the government would win the investiture vote (for > against), the smallest sets of extra parties that would give the members alone 61 seats (fewest parties first, with the new head-on clashes and newly crossed red lines of each), and how far supporters and abstainers are from the coalition. Four scenarios raised in the media (each with its source and date, named by composition only) replace the bloc presets. Positions are as documented on election eve.
 
 🔗 https://mi-im-mi-2026.netlify.app
 
