@@ -446,8 +446,6 @@ blockquote p { margin: 0; }
 .overall .seats-line { margin-block-start: 0; }
 
 /* Results mode */
-.results-notice { max-inline-size: 720px; margin: 8px auto 0; padding: 8px 12px; background: #fff7e0; border: 1px solid #e5c76b; border-radius: 8px; font-size: .95rem; font-weight: 600; line-height: 1.5; }
-@media (max-width: 752px) { .results-notice { margin-inline: var(--gutter); } }
 .seat-src { margin: 0 0 8px; font-size: 1.05rem; line-height: 1.4; color: var(--fg); }
 .seat-src a { white-space: nowrap; }
 .overall .seat-src { margin-block: 10px 6px; }
@@ -476,3 +474,6 @@ details.below summary { cursor: pointer; font-weight: 600; padding-block: 10px; 
 .completions .list li + li { margin-block-start: 6px; }
 .row-btn.completion { display: grid; gap: 2px; }
 .completions .poll-legal { margin-block: 6px; }
+.positions-asof { margin: -4px 0 8px; font-size: .85rem; color: var(--muted); }
+.periphery-link { margin: 8px 0 0; }
+.periphery-link .link-btn { font-size: .95rem; text-align: start; }

@@ -44,6 +44,8 @@ export function makeContext({ parties, topics, positions, rankBySeats = true, se
     listOf: (id) => lists?.get(id) ?? null,
     // In results mode a list under the threshold has no seats and cannot take part in a government.
     passed: (id) => mode !== 'results' || (seats?.get(id) ?? 0) > 0,
+    // Soft link between parties that ran on one list (polls mode). After the election each is chosen on its own.
+    linkedOf: (id) => (mode === 'results' ? null : byId.get(id)?.linkedWith ?? null),
     rankBySeats,
     mode,
   };
@@ -304,7 +306,7 @@ export function periphery(ctx, { members, supporters = [], abstainers = [] }) {
 
 // Parties that ran on one list but announced a split are soft-linked: adding one adds the other.
 export function withLinked(ctx, members, added) {
-  const partner = ctx.byId.get(added)?.linkedWith;
+  const partner = ctx.linkedOf(added);
   const next = members.includes(added) ? [...members] : [...members, added];
   return partner && ctx.byId.has(partner) && !next.includes(partner) ? [...next, partner] : next;
 }
@@ -332,8 +334,8 @@ export function redLinesCrossed(ctx, members) {
 
 // "What is missing for 61?": the smallest sets of additional parties that give the members alone 61 seats
 // (supporters and abstainers do not count; any non-member may be added). Units: each non-member list with seats; a
-// soft-linked pair that ran as one list is one unit. A set is minimal when dropping any of its units leaves the
-// members short of 61. Sorted by unit count, then added seats, then party order. Informational, never a ranking
+// soft-linked pair that ran as one list is one unit in polls mode (with results, each party is its own unit).
+// A set is minimal when dropping any of its units leaves the members short of 61. Sorted by unit count, then added seats, then party order. Informational, never a ranking
 // of partners. Each entry carries what the addition changes: head-on clash topics in the resulting coalition and how
 // many of them are new, and only the red lines it newly crosses (those already crossed are in `currentRedLines`).
 export function completions(ctx, members, { limit = Infinity } = {}) {
@@ -344,7 +346,7 @@ export function completions(ctx, members, { limit = Infinity } = {}) {
   const units = [];
   for (const p of ctx.parties) {
     if (taken.has(p.id) || !ctx.passed(p.id) || ctx.seatsOf(p.id) <= 0) continue;
-    const partner = p.linkedWith;
+    const partner = ctx.linkedOf(p.id);
     const ids = partner && ctx.byId.has(partner) && !taken.has(partner) && ctx.seatsOf(partner) > 0 ? [p.id, partner] : [p.id];
     for (const id of ids) taken.add(id);
     units.push({ ids, seats: sumSeats(ctx, ids) });

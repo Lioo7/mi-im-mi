@@ -57,14 +57,14 @@ function setState(next, { announceParty } = {}) {
 
 const roleOf = (id) => (state.members.includes(id) ? 'member' : state.supporters.includes(id) ? 'supporter' : state.abstainers.includes(id) ? 'abstainer' : null);
 
-// The state with `id` in `role` (null = opponent, i.e. unselected). A new member brings its soft-linked partner,
-// unless the partner already has a role.
+// The state with `id` in `role` (null = opponent, i.e. unselected). In polls mode a new member brings its
+// soft-linked partner, unless the partner already has a role; with results each is chosen on its own.
 function withRole(id, role) {
   const next = C.dropParty(state, id);
   if (role === 'member' && state.base === id) next.base = id; // the base must be a member
   if (role === 'member') {
     next.members = [...next.members, id];
-    const partner = party(id).linkedWith;
+    const partner = ctx.linkedOf(id);
     if (partner && !roleOf(partner) && ctx.passed(partner)) next.members.push(partner);
   }
   if (role === 'supporter') next.supporters = [...next.supporters, id];
@@ -94,9 +94,6 @@ function renderHeader() {
   $('#purpose').textContent = S.buildPurpose;
   if (isResults()) {
     $('#voter-info').remove();
-    const n = $('#results-notice');
-    n.textContent = S.elected.notice;
-    n.hidden = false;
   } else {
     $('#voter-info').innerHTML = `${esc(S.voterInfo)} <a href="${esc(S.voterInfoUrl)}" rel="noopener" target="_blank">${esc(S.voterInfoLink)}</a>`;
   }
@@ -162,7 +159,7 @@ function renderMethod() {
     <p>${esc(M.intro(ctx.parties.length))}</p>
     <ol>${S.how.lines.map((l) => `<li>${esc(l)}</li>`).join('')}</ol>
     <h3>${esc(M.rolesTitle)}</h3>
-    <ul>${M.rolesRules(showSeats()).map((r) => `<li>${esc(r)}</li>`).join('')}</ul>
+    <ul>${M.rolesRules(showSeats(), !isResults()).map((r) => `<li>${esc(r)}</li>`).join('')}</ul>
     <p class="disclaimer"><strong>${esc(M.disclaimer)}</strong> ${esc(M.independent)}</p>
 
     <h3>${esc(M.levelsTitle)}</h3>
@@ -191,7 +188,7 @@ function renderMethod() {
 
     <h3>${esc(M.jointTitle)}</h3>
     ${isResults() ? seatSourceLine() : ''}
-    <ul>${(showSeats() ? [M.jointRules[0], isResults() ? ctx.listOf('zehut').splitNote : M.jointSeats, ...M.jointRules.slice(1)] : M.jointRules).map((r) => `<li>${esc(r)}</li>`).join('')}</ul>
+    <ul>${(showSeats() ? [isResults() ? M.jointResults : M.jointRules[0], isResults() ? ctx.listOf('zehut').splitNote : M.jointSeats, ...M.jointRules.slice(1)] : M.jointRules).map((r) => `<li>${esc(r)}</li>`).join('')}</ul>
     ${showSeats() && !isResults() ? pollLegalLine() : ''}
     <p class="small"><a href="https://www.ynet.co.il/news/elections2026/article/rjuhrwvdfl" rel="noopener">${esc(M.jointSource)}</a></p>
 
@@ -272,6 +269,7 @@ function renderBuilder() {
     const sub = [
       showSeats() && (isResults() || p.pollAvg != null) ? S.builder.seatsChip(Math.round(ctx.seatsOf(id))) : '',
       showSeats() && !isResults() && p.threshold === 'borderline' ? B.borderline : '',
+      isResults() && p.linkedWith ? B.jointListNote(p.ballotLetters) : '',
     ].filter(Boolean).join(' · ');
     const label = `${p.name}${im ? `. ${B.impactLabel(im.agree, im.clash, im.unknown)}` : ''}`;
     return `<li class="prow${on ? ' is-on' : ''}">
@@ -293,8 +291,8 @@ function renderBuilder() {
     }
   }
 
-  // One note per soft-linked pair, shown even when only one of the two is selected.
-  const linkedPairs = new Set(members.filter((id) => party(id).linkedWith).map((id) => ordered([id, party(id).linkedWith]).join('|')));
+  // One note per soft-linked pair (polls mode), shown even when only one of the two is selected.
+  const linkedPairs = new Set(members.filter((id) => ctx.linkedOf(id)).map((id) => ordered([id, ctx.linkedOf(id)]).join('|')));
   const linkedNotes = [...linkedPairs].map((pair) => {
     const [a, b] = pair.split('|');
     return `<p class="note note-soft">${esc(B.linkedNote(name(a), name(b)))}</p>`;
@@ -416,7 +414,12 @@ function voteHtml() {
 // reaches it first on any screen.
 function seatsLine() {
   if (!showSeats() || !C.selected(state).length) return '';
-  return `${seatSourceLine()}${voteHtml().html}`;
+  return `${seatSourceLine()}${positionsAsOfLine()}${voteHtml().html}`;
+}
+
+// Results mode: the positions are as documented on election eve, while the seats are the results.
+function positionsAsOfLine() {
+  return isResults() ? `<p class="positions-asof">${esc(S.elected.positionsAsOf)}</p>` : '';
 }
 
 function seatsBox() {
@@ -428,7 +431,7 @@ function seatsBox() {
     body = `${html}
       <div class="meter" role="img" aria-label="${esc(S.seats.meterLabel(v.membersSeats))}"><span style="inline-size:${pct}%"></span></div>`;
   }
-  return `<section class="seats-box" aria-label="${esc(S.seats.boxTitle)}"><h3>${esc(S.seats.boxTitle)}</h3>${seatSourceLine()}${body}</section>`;
+  return `<section class="seats-box" aria-label="${esc(S.seats.boxTitle)}"><h3>${esc(S.seats.boxTitle)}</h3>${seatSourceLine()}${positionsAsOfLine()}${body}</section>`;
 }
 
 function pollLegalLine() {
@@ -463,6 +466,7 @@ function overallBar(r, { statuses = true } = {}) {
     <h2 class="card-title">${esc(S.results.summaryTitle)}</h2>
     <ol class="segs">${segs}</ol>
     <ul class="breakdown">${parts.map(([text, cls]) => `<li class="${cls}">${esc(text)}</li>`).join('')}</ul>
+    ${peripheryLink()}
     ${seatsLine()}
   </section>`;
 }
@@ -612,6 +616,14 @@ function completionsCard() {
   </section>`;
 }
 
+// Under the snapshot: a pointer to the supporters/abstainers card, whose clashes the snapshot does not count.
+function peripheryLink() {
+  const rows = C.periphery(ctx, state);
+  if (!rows.length) return '';
+  const n = rows.reduce((k, row) => k + row.items.filter((i) => i.level === 'CLASH').length, 0);
+  return `<p class="periphery-link"><button type="button" class="link-btn" data-act="to-periphery" data-key="to-periphery">${esc(S.results.peripheryLink(n))}</button></p>`;
+}
+
 // Supporters and abstainers vs the coalition members (never counted in the cards above).
 function peripheryCard() {
   const rows = C.periphery(ctx, state);
@@ -624,8 +636,8 @@ function peripheryCard() {
         <span>${esc(topic(i.topicId).short)}: ${esc(R.versus(name(i.b)))}</span>${levelBadge(i.level)}${i.byRedLine ? ` <span class="tag tag-red"><span aria-hidden="true">🚩</span> ${esc(S.redLine)}</span>` : ''}</button></li>`).join('')}</ul>`
     : `<p class="muted small">${esc(R.peripheryNone)}</p>`}
   </li>`).join('');
-  return `<section class="card periphery">
-    <h3>${esc(R.peripheryTitle)}</h3>
+  return `<section class="card periphery" id="periphery-card">
+    <h3 tabindex="-1">${esc(R.peripheryTitle)}</h3>
     <p class="muted small">${esc(R.peripheryIntro)}</p>
     <ul class="list">${items}</ul>
   </section>`;
@@ -891,6 +903,12 @@ function onClick(e) {
       setState({ ...add.reduce((st, pid) => C.dropParty(st, pid), state), base: state.base, members: [...state.members, ...add] });
       announce(S.completions.applied(add.map(name).join(', ')));
       toast(`${esc(S.completions.applied(add.map(name).join(', ')))} <button type="button" class="link-btn" data-act="undo">${esc(S.results.undo)}</button>`, 8000);
+      break;
+    }
+    case 'to-periphery': {
+      const h = $('#periphery-card h3');
+      h?.scrollIntoView({ block: 'start' });
+      h?.focus({ preventScroll: true });
       break;
     }
     case 'completions-all':

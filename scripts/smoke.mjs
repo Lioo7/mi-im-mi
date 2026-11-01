@@ -236,9 +236,11 @@ try {
       }
       const overflow = await evaluate('document.documentElement.scrollWidth > window.innerWidth + 1');
       if (overflow) errors.push(`[${current}] horizontal page overflow`);
-      if (RESULTS && (expectView === 'build' || expectView === 'results')) {
-        const notice = await evaluate("(() => { const n = document.querySelector('#results-notice'); return n && n.getClientRects().length ? n.innerText.trim() : ''; })()");
-        if (notice !== S.elected.notice) errors.push(`[${current}] results-mode notice missing (${notice})`);
+      // Results mode: a grey "positions as of election eve" line right after the source line in every seats box.
+      if (RESULTS && (expectView === 'build' || (expectView === 'results' && members_in_url(suffix) && name !== 'results-single'))) {
+        const asOf = await evaluate(`(() => { const box = document.querySelector('${expectView === 'build' ? '#builder .seats-box' : '#results .overall'}'); const src = box?.querySelector('.seat-src');
+          const l = src?.nextElementSibling; return l?.classList.contains('positions-asof') ? l.innerText.trim() : 'missing'; })()`);
+        if (asOf !== S.elected.positionsAsOf) errors.push(`[${current}] positions-as-of line missing after the source line (${asOf})`);
       }
       if (RESULTS && /הסקרים אינם עדכניים|ממוצע סקרים/.test(await evaluate('document.body.innerText'))) errors.push(`[${current}] poll disclaimer shown in results mode`);
       if (SEATS_HIDDEN) {
@@ -315,6 +317,8 @@ try {
           const wantNames = side.map((id) => parties.find((p) => p.id === id).name);
           if (per === 'missing' || !wantNames.every((n) => per.includes(n))) errors.push(`[${current}] supporters/abstainers card missing or incomplete (${per})`);
           const leak = await evaluate(`[...document.querySelectorAll('#results .gap-head, #results .card:not(.periphery) .pair-btn, #matrix .party-btn')].map((e) => e.innerText).join('|')`);
+          const pointer = await evaluate("document.querySelector('#results .overall [data-act=\"to-periphery\"]')?.innerText || ''");
+          if (!/^↓ (ועוד \d+ סתירות חזיתיות|ועוד סתירה חזיתית אחת|אין סתירות חזיתיות) מול התומכות והנמנעות$/.test(pointer)) errors.push(`[${current}] snapshot lacks the pointer to the supporters/abstainers card (${pointer})`);
           const leaked = wantNames.filter((n) => leak.includes(n));
           if (leaked.length) errors.push(`[${current}] supporters/abstainers counted in the coalition analysis: ${leaked.join(', ')}`);
         }
@@ -514,6 +518,25 @@ try {
     } else if (/\(7\)/.test(text) && !text.includes(legal)) errors.push(`[interaction] ${pid} party sheet shows seat figures without the legal sentence`);
     if (pid === 'religious-zionism') await shoot(z, 'interaction-party-sheet-m.png', false);
     await evaluate("document.querySelector('#sheet').close()");
+  }
+  // Results mode: הציונות הדתית and זהות are chosen independently, each row noting the joint list.
+  if (RESULTS) {
+    await c.send('Page.navigate', { url: baseUrl });
+    await ready();
+    await evaluate("document.querySelector('[data-act=\"toggle\"][data-id=\"religious-zionism\"]').click()");
+    await sleep(200);
+    const m = new URLSearchParams(await evaluate('location.search')).get('m') ?? '';
+    if (m !== 'religious-zionism') errors.push(`[interaction] results mode: selecting הציונות הדתית should not add זהות (m=${m})`);
+    const notes = await evaluate("['religious-zionism', 'zehut'].map((id) => document.querySelector(`[data-act=\"toggle\"][data-id=\"${id}\"] .prow-sub`)?.innerText || '').join('|')");
+    if (!notes.split('|').every((t) => t.includes('רצו ברשימה משותפת (ט)'))) errors.push(`[interaction] joint-list note missing on the ט rows (${notes})`);
+    // The snapshot's pointer scrolls to the supporters/abstainers card.
+    await c.send('Page.navigate', { url: `${baseUrl}?m=yashar,together,democrats,yisrael-beiteinu&o=joint-list&a=raam,utj#results` });
+    await waitFor(() => evaluate("document.body.dataset.view === 'results' && document.querySelector('[data-act=\"to-periphery\"]') !== null"));
+    await evaluate("document.querySelector('[data-act=\"to-periphery\"]').click()");
+    await sleep(300);
+    const top = await evaluate("Math.round(document.querySelector('#periphery-card h3').getBoundingClientRect().top)");
+    if (top < 0 || top > 200 || (await evaluate('document.activeElement?.closest("#periphery-card") === null'))) errors.push(`[interaction] pointer did not move to the supporters/abstainers card (top ${top})`);
+    if ((await evaluate('document.body.dataset.view')) !== 'results') errors.push('[interaction] pointer must not change the view');
   }
   // "מה חסר לרוב של 61": the coalition bloc is short; each row is minimal, tapping one adds it, undo restores.
   if (!SEATS_HIDDEN) {

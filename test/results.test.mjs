@@ -103,3 +103,18 @@ test('investiture on the CEC results for the media scenarios (roles as reported)
   const c = investiture(ctx, { members: ['likud', 'yashar', 'otzma-yehudit', 'religious-zionism', 'zehut'] });
   assert.deepEqual([c.membersSeats, c.membersMajority, c.approved], [61, true, true]);
 });
+
+test('results mode: הציונות הדתית and זהות are chosen and counted independently; polls mode keeps the link', async () => {
+  const { contextFor, completions, withLinked } = await import('../site/js/compat.js');
+  const { topics, positions } = loadData();
+  const change = ['yashar', 'together', 'democrats', 'yisrael-beiteinu'];
+  const res = contextFor({ meta: { ...meta, mode: 'results' }, parties, topics, positions, results });
+  assert.equal(res.linkedOf('religious-zionism'), null);
+  assert.deepEqual(withLinked(res, ['likud'], 'religious-zionism'), ['likud', 'religious-zionism']);
+  const r = completions(res, change).list.map((x) => x.add);
+  assert.ok(r.some((add) => add.includes('religious-zionism') && !add.includes('zehut')), 'religious-zionism (5) on its own');
+  assert.ok(r.every((add) => !add.includes('zehut') || add.length > 1), 'zehut (1) never completes alone');
+  const polls = contextFor({ meta: { ...meta, mode: 'polls' }, parties, topics, positions, results });
+  assert.equal(polls.linkedOf('religious-zionism'), 'zehut');
+  assert.ok(completions(polls, change).list.every((x) => x.add.includes('zehut') === x.add.includes('religious-zionism')));
+});
