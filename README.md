@@ -4,6 +4,8 @@
 
 כלי ניטרלי לבחירות לכנסת ה-26 (27.10.2026): בוחרים מפלגות שעשויות לשבת יחד בקואליציה, ורואים באילו נושאים העמדות שלהן קרובות ובאילו הן רחוקות. כל עמדה מגובה במקור.
 
+**מאז 1.11: לפי תוצאות הבחירות.** מספרי המנדטים הם התוצאות שפרסמה ועדת הבחירות המרכזית (נכון ל-30.10, לפני הגשה לנשיא). לכל מפלגה אפשר לסמן תפקיד (בקואליציה, תומכת מבחוץ, נמנעת; מי שלא נבחרה מתנגדת), ולראות אם הממשלה הייתה זוכה באמון ומה חסר לחברות הקואליציה כדי להגיע ל-61. העמדות עצמן מתועדות לפי ערב הבחירות.
+
 🔗 **האתר:** https://mi-im-mi-2026.netlify.app
 
 > לא המלצת הצבעה. האתר עצמאי ואין לי קשר לאף מפלגה.
@@ -42,19 +44,21 @@
 
 - **קו אדום** מסומן רק כשמפלגה אמרה במילים שלה שבלי הנושא היא לא תיכנס לממשלה (5 מקרים).
 - **אין ציון כולל.** האתר מציג את הנושאים עם הפערים הגדולים ביותר, מה מאחד את הקואליציה, ואיזו מפלגה מייצרת הכי הרבה חיכוך.
+- **תפקידים והצבעת אמון:** ההתנגשויות נבדקות רק בין חברות הקואליציה, והפערים של תומכות ונמנעות מוצגים בנפרד. בעד = חברות הקואליציה והתומכות, נגד = כל השאר חוץ מהנמנעות, והממשלה זוכה באמון כשבעד > נגד. מעבר של חברי כנסת בודדים לא מחושב.
+- **מה חסר לרוב של 61:** הצירופים הקטנים ביותר של מפלגות נוספות שמביאים את חברות הקואליציה לבדן ל-61, לפי מספר המנדטים שנוספים, עם מספר הסתירות החזיתיות והקווים האדומים בכל אחד. מידע, לא המלצה.
 
 המתודולוגיה המלאה, כולל כל התוויות של הצירים, כללי המקורות וטבלאות הכיסוי, נמצאת [באתר](https://mi-im-mi-2026.netlify.app/#method). נימוקי המיקום של כל עמדה וכל החלטות הבדיקה נמצאים ב-[`docs/research/`](docs/research/).
 
 ## ניטרליות ובדיקה
 
-- **כללים מכניים במקום שיפוט:** סדר המפלגות לפי ממוצע הסקרים, חלוקה לגושים לפי מקור חיצוני (בקלפי וחדשות 12), שמות הרשימות לפי ועדת הבחירות המרכזית, וצבע אחד לכל המפלגות.
+- **כללים מכניים במקום שיפוט:** סדר המפלגות לפי מספר המנדטים בתוצאות (לפני הבחירות: לפי ממוצע הסקרים), חלוקה לגושים לפי מקור חיצוני (בקלפי וחדשות 12), שמות הרשימות לפי ועדת הבחירות המרכזית, וצבע אחד לכל המפלגות.
 - **מילון מונחים ניטרלי לטקסט שלנו,** למשל "השינויים המוצעים במערכת המשפט" ו"החלת ריבונות / סיפוח". מונחים טעונים מופיעים רק בציטוט, עם ייחוס.
 - **כל עמדה נבדקה על ידי סוכן בודק נפרד** מזה שכתב אותה, ואחר כך ידנית, בשתי נקודות בדיקה.
 - **טעויות אמיתיות שנתפסו בדרך:**
   - ציטוט שיוחס בטעות למנהיג מפלגה. הוא תוקן לפי המקור.
   - סקריפט האנליטיקס המקורי שלח את הקואליציה של המשתמש, והוחלף בגרסה שלא שולחת אותה.
   - תג שהאחסון הוסיף בתחתית המסך הסתיר את ההסתייגות החוקית על הסקרים.
-- **מספרי המנדטים** הם ממוצע סקרים שפורסמו עד 23.10.2026, לפני המועד שבו נאסר פרסום סקרים, ומוצגים עם ההסתייגות שנדרשת בחוק. הם נשארים גלויים גם ביום הבחירות. הדגל `showSeats` ב-`meta.json` מסתיר אותם יחד עם כל מידע אחר שנגזר מהסקרים (ואז המפלגות מסודרות לפי אותיות הפתק), אבל הוא לא מופעל.
+- **מספרי המנדטים** הם התוצאות של ועדת הבחירות המרכזית, כפי שפורסמו (בלי חישוב מחדש, כי הסכמי עודפים משנים את החלוקה), והמפלגות מסודרות לפי מספר המנדטים. ממוצע הסקרים מלפני הבחירות נשמר בנתונים: אם יהיו בחירות חוזרות, החזרה למצב סקרים היא שינוי של שורה אחת (`mode` ב-`meta.json`), ואז הסקרים מוצגים עם ההסתייגות שנדרשת בחוק.
 
 ## פרטיות
 
@@ -80,7 +84,7 @@
 | HTML, CSS ו-JavaScript (ES modules), בלי framework ובלי build | עמוד אחד עם כמה תצוגות. פחות מ-60KB דחוס, כולל כל הנתונים, נטען מהר בטלפון, ואין שלב בנייה שיכול להישבר ביום הבחירות |
 | נתונים ב-JSON סטטי | אין שרת ואין מסד נתונים שיכולים ליפול. תיקון הוא עריכת קובץ ופריסה |
 | Netlify | פריסה בפקודה אחת, CDN, וכתובות טיוטה לבדיקה לפני פרודקשן |
-| `node --test` | 43 בדיקות לאלגוריתם ולנתונים, כולל בדיקת סימטריה: היפוך כיוון הציר חייב לתת תוצאה זהה |
+| `node --test` | 61 בדיקות לאלגוריתם ולנתונים, כולל בדיקת סימטריה (היפוך כיוון הציר חייב לתת תוצאה זהה), בדיקה שהמנדטים מסתכמים ב-120, ובדיקה מול חיפוש ממצה של הצירופים ל-61 |
 | בדיקת smoke עם Chrome headless | צילומי מסך ב-390 וב-1280 פיקסלים, בדיקת שגיאות, בדיקה שההסתייגות על הסקרים גלויה ולא מוסתרת, ובדיקה שמונה הכניסות לא מקבל נתוני קואליציה |
 
 ### הרצה מקומית
@@ -101,7 +105,8 @@ node scripts/smoke.mjs [baseUrl]      # בדיקת smoke עם צילומי מס�
 | [`site/data/parties.json`](site/data/parties.json) | 14 מפלגות: שם רשמי ושם מקוצר לפי ועדת הבחירות, אותיות הפתק, ממוצע סקרים, גוש, סטטוס מצע |
 | [`site/data/topics.json`](site/data/topics.json) | 8 נושאים, ולכל אחד תוויות ל-5 הדרגות בציר |
 | [`site/data/positions.json`](site/data/positions.json) | 112 עמדות: מיקום, קו אדום, סיכום, ציטוט וייחוס, מקור, סוג מקור, תאריך ועותק בארכיון |
-| [`site/data/meta.json`](site/data/meta.json) | תאריכי עדכון, משפט ההסתייגות על הסקרים, קישורי המקורות ו-`showSeats` |
+| [`site/data/meta.json`](site/data/meta.json) | תאריכי עדכון, `mode` (תוצאות או סקרים), סטטוס התוצאות, משפט ההסתייגות על הסקרים, קישורי המקורות ו-`showSeats` |
+| [`site/data/results-26.json`](site/data/results-26.json) | תוצאות ועדת הבחירות לכל רשימה: קולות, אחוזים ומנדטים, כפי שפורסמו (30.10.2026, לפני הגשה לנשיא) |
 | [`docs/research/`](docs/research/) | יומן ההחלטות, הערות הראיות לכל עמדה, ותוצאות הבדיקות |
 
 ## רישיון
@@ -117,6 +122,8 @@ node scripts/smoke.mjs [baseUrl]      # בדיקת smoke עם צילומי מס�
 **Build a coalition and see where the parties agree and where they clash.**
 
 **Mi Im Mi ("Who With Whom")** is a neutral, Hebrew, mobile-first web app for Israel's Knesset election of 27 October 2026. Pick parties that might form a coalition, and see where their positions agree and where they clash.
+
+**Since 1 November it runs on the results:** seats as published by the Central Elections Committee (as of 30.10, before submission to the President). Each party can be marked as a member, an outside supporter or an abstainer (everyone else votes against). The app shows whether the government would win the investiture vote (for > against), the smallest sets of extra parties that would give the members alone 61 seats, and how far supporters and abstainers are from the coalition. Positions are as documented on election eve.
 
 🔗 https://mi-im-mi-2026.netlify.app
 
@@ -138,7 +145,7 @@ node scripts/smoke.mjs [baseUrl]      # בדיקת smoke עם צילומי מס�
 - **No overall score:** there are no per-pair judgment calls and no single number.
 
 **Neutrality and verification.**
-- **Mechanical rules:** party order by poll average, blocs from an external source, and official list names.
+- **Mechanical rules:** party order by seats won (before the election: by poll average), blocs from an external source, and official list names.
 - **Neutral wording:** a glossary for our own text. Loaded terms appear only in attributed quotes.
 - **Verification:** every position was checked by a separate verifier agent and then reviewed by hand.
 - **Real errors caught:**
@@ -154,7 +161,7 @@ node scripts/smoke.mjs [baseUrl]      # בדיקת smoke עם צילומי מס�
 - human checkpoints throughout
 - about 40 commits
 
-**Stack.** Static vanilla JS with no build step (<60KB gzipped including all data), JSON data, Netlify, `node --test` (43 tests, including mirror-symmetry tests: flipping the axis direction must give identical results), and a headless-Chrome smoke test that also checks that the page-view beacon carries no coalition data and that the poll disclaimer is visible.
+**Stack.** Static vanilla JS with no build step (<60KB gzipped including all data), JSON data, Netlify, `node --test` (61 tests, including mirror-symmetry tests, a 120-seat check and a brute-force check of the completions to 61), and a headless-Chrome smoke test that also checks that the page-view beacon carries no coalition data and that the poll disclaimer is visible.
 
 **Corrections.** Every cell has a "found an error?" link. You can also email lioz.akirav@gmail.com or open an issue.
 

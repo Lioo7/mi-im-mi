@@ -1,18 +1,21 @@
 # מי עם מי: project rules
-Static, Hebrew, RTL web app showing where possible coalition partners clash or agree across 8 topics, for the Knesset 26 elections (27.10.2026). Vanilla JS, no build, no dependencies; deployed from `site/` to Netlify (`mi-im-mi-2026`, https://mi-im-mi-2026.netlify.app). Current state: README.md, this file, `docs/research/decisions.md`. PLAN.md is the historical plan (24–25.10).
+Static, Hebrew, RTL web app showing where possible coalition partners clash or agree across 8 topics, for the Knesset 26 elections (27.10.2026). Since 1.11 it runs in results mode (CEC seats, party roles, investiture vote). Vanilla JS, no build, no dependencies; deployed from `site/` to Netlify (`mi-im-mi-2026`, https://mi-im-mi-2026.netlify.app). Current state: README.md, this file, `docs/research/decisions.md`. PLAN.md is the historical plan (24–25.10).
 
-## ⚠️ The site is live and frozen
-Do not change anything under `site/`, and do not deploy, without the user's explicit OK. If you find a critical bug (wrong data shown, a broken core flow, a privacy leak, a missing legal disclaimer), report it first and wait. Open findings: `docs/review-2026-10-26.md`.
+## ⚠️ The site is live
+The site is no longer frozen (1.11): changes under `site/` are allowed as part of agreed work. **A production deploy still needs the user's explicit OK**, always after a draft deploy, smoke against the draft URL and the user's phone check. If you find a critical bug (wrong data shown, a broken core flow, a privacy leak, a missing legal disclaimer), report it first and wait. Open findings: `docs/review-2026-10-26.md`.
+
+### Follow-up on 4.11: CEC submits the results to the President
+Update `meta.json → resultsStatus` to the official wording, and update `results-26.json` seats **only if the CEC corrected them** (keep the as-published values otherwise). Then validate, test, smoke, draft deploy, get the user's OK, and only then deploy to production. Note the change in `docs/research/decisions.md`.
 
 ## Layout
 - `site/`: everything that is deployed.
   - `index.html`, `css/app.css`
   - `js/app.js`: DOM, routing (`#build`, `#results`, `#method`, `#why`), rendering
-  - `js/compat.js`: pure compatibility logic and URL state (`?b=&m=&o=`), unit-tested
+  - `js/compat.js`: pure compatibility logic, seat source per mode, roles and investiture, completions to 61, and URL state (`?b=&m=&o=&a=`), unit-tested
   - `js/strings.js`: all UI strings
   - `js/links.js`: correction mailto and quote attribution
   - `js/stats.js`: cookieless GoatCounter beacon, sent only from `https://mi-im-mi-2026.netlify.app` (path, title, screen width, referrer origin; never the query)
-  - `data/`: `parties.json`, `topics.json`, `positions.json`, `meta.json`
+  - `data/`: `parties.json`, `topics.json`, `positions.json`, `meta.json`, `results-26.json` (CEC results per list, as published)
 - `scripts/`: Node built-ins only. `lib.mjs` holds shared IO, CSV and validation.
 - `test/*.test.mjs`: unit tests for `node --test`.
 - `docs/`:
@@ -24,7 +27,7 @@ Do not change anything under `site/`, and do not deploy, without the user's expl
 ## Commands
 - **Test:** `node --test`
 - **Validate:** `node scripts/validate.mjs`
-- **Smoke:** `node scripts/smoke.mjs [baseUrl]`, then look at `smoke/*.png`. Against production every beacon is inspected (never sent); on any other host, no beacon may be sent at all. To test seat-hidden mode, copy `site/` and `scripts/` to a scratch dir, set `showSeats` to `false` there, and run smoke in the copy.
+- **Smoke:** `node scripts/smoke.mjs [baseUrl]`, then look at `smoke/*.png`. Against production every beacon is inspected (never sent); on any other host, no beacon may be sent at all. Smoke follows `meta.mode`. To test polls mode, and polls mode with seats hidden, copy `site/` and `scripts/` to a scratch dir, set `mode` to `"polls"` (and `showSeats` to `false`) there, and run smoke in the copy. Run all three before a deploy.
 - **Local:** `python3 -m http.server -d site 8080`
 - **Export CSV:** `node scripts/export-csv.mjs` (`research/merged.json` → `review/positions_review.csv`)
 - **Import CSV:** `node scripts/import-csv.mjs review/positions_review.csv [--dry-run]`. This validates the file, prints the diff and writes `site/data/positions.json`.
@@ -55,9 +58,11 @@ Do not change anything under `site/`, and do not deploy, without the user's expl
 
 ## Data and polls
 - Change positions **only** via `node scripts/import-csv.mjs review/positions_review.csv`. Never hand-edit `site/data/positions.json`.
-- `meta.json → showSeats` (boolean): `false` hides every seat number and all poll-derived info: the threshold badge, the joint-list seat split, the poll ordering and the seat tie-breaks.
-- Seat numbers stay visible on election day (the user's decision, 26.10; see `docs/research/decisions.md`): the site shows only an average of polls published up to 23.10. The `election-day-flip` branch was deleted unmerged. Do not set `showSeats` to `false` without the user's OK.
-- Wherever seat numbers or poll-derived figures show, the full legal sentence (`S.seats.pollLegal`, ממוצע סקרים שפורסמו עד … הסקרים אינם עדכניים …) must be visible with them, placed before the numbers. Smoke enforces this with a simulated host badge at 390×844 and 375×667, on first load and while scrolling.
+- `meta.json → mode`: `"results"` (current) or `"polls"`. Switching back to polls (e.g. a repeat election) is this one line; `pollAvg` in `parties.json` is never touched, and a test covers the switch.
+- **Results mode:** seats come from `results-26.json`, entered **as published by the CEC, never computed** (surplus agreements change the split). The ט list's 6 seats are split 5/1 by Zehut's list slots (2, 8, 10, 11). Parties are ordered by seats, then votes. Lists under the threshold are not selectable (positions stay viewable). Every seat number is preceded by the results status line (`meta.resultsStatus` + CEC link). The poll disclaimer is not shown. `showSeats` does not apply.
+- **Polls mode:** `meta.json → showSeats` (boolean): `false` hides every seat number and all poll-derived info: the threshold badge, the joint-list seat split, the poll ordering and the seat tie-breaks. Wherever seat numbers or poll-derived figures show, the full legal sentence (`S.seats.pollLegal`, ממוצע סקרים שפורסמו עד … הסקרים אינם עדכניים …) must be visible with them, placed before the numbers.
+- Smoke enforces the source line before the numbers (results line or legal sentence) with a simulated host badge at 390×844 and 375×667, on first load and while scrolling.
+- **Roles:** member / supporter (`o=`) / abstainer (`a=`); unselected = opponent. Clash analysis is members only; supporters' and abstainers' gaps have their own card. Investiture: for = members + supporters, against = all others except abstainers, approved when for > against. Old `o=` links mean supporters.
 
 ## Conventions
 - `<html lang="he" dir="rtl">`, CSS logical properties only, Latin/URLs wrapped in `<bdi>`, gershayim `״` in names.
