@@ -1,7 +1,8 @@
 // Cookieless page-view counting for GoatCounter (https://miimmi.goatcounter.com).
 // We send our own beacon instead of GoatCounter's count.js, because count.js always attaches the full
-// query string (q=location.search), which here holds the coalition a person built. Only the pathname,
-// page title, screen width and the referrer's origin are sent. No events, no cookies, no per-user data.
+// query string (q=location.search), and old-format links hold the coalition a person built there (it now lives in
+// the fragment, which is never sent). Only the pathname, page title, screen width and the referrer's origin are
+// sent. No events, no cookies, no per-user data.
 export const ENDPOINT = 'https://miimmi.goatcounter.com/count';
 
 export const PROD_HOST = 'mi-im-mi-2026.netlify.app';

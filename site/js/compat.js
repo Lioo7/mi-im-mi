@@ -444,3 +444,42 @@ export function serializeState(ctx, { base, members, supporters = [], abstainers
   const s = q.toString().replace(/%2C/g, ',');
   return s ? `?${s}` : '';
 }
+
+// The state lives in the fragment, `#<route>?b=…&m=…&o=…&a=…`, which browsers never send to the server.
+// Links from before the move carry it in the query (`?m=…#results`); they are read once and rewritten.
+export const STATE_KEYS = ['b', 'm', 'o', 'a'];
+
+export const stateKeysIn = (params) => STATE_KEYS.some((k) => new URLSearchParams(params).has(k));
+
+// Splits a location into its route, its state (fragment first, then a legacy query) and the query without the
+// state keys, which keeps any other param (e.g. ?s=wa) as it was.
+export function parseLocation({ search, hash }, validIds) {
+  const h = hash.replace(/^#/, '');
+  const i = h.indexOf('?');
+  const route = i < 0 ? h : h.slice(0, i);
+  const fragment = i < 0 ? '' : h.slice(i + 1);
+  const legacy = !stateKeysIn(fragment) && stateKeysIn(search);
+  const q = new URLSearchParams(search);
+  for (const k of STATE_KEYS) q.delete(k);
+  const rest = q.toString();
+  return {
+    route, state: parseState(legacy ? search : fragment, validIds), legacy, fromFragment: stateKeysIn(fragment), search: rest ? `?${rest}` : '',
+  };
+}
+
+// The first step on load, before any request: moves a legacy query's state params verbatim into the fragment
+// (unless the fragment already has state, which wins) and returns the new `search + hash`, or null if there is none.
+export function moveLegacyState({ search, hash }) {
+  if (!stateKeysIn(search)) return null;
+  const pairs = search.replace(/^\?/, '').split('&').filter(Boolean);
+  const rest = pairs.filter((p) => !stateKeysIn(p)).join('&');
+  const h = hash.replace(/^#/, '');
+  const i = h.indexOf('?');
+  const route = i < 0 ? h : h.slice(0, i);
+  const fragment = i >= 0 && stateKeysIn(h.slice(i + 1)) ? h.slice(i + 1) : pairs.filter(stateKeysIn).join('&');
+  return `${rest ? `?${rest}` : ''}#${route}?${fragment}`;
+}
+
+export function locationFor(ctx, state, route, search = '') {
+  return `${search}#${route}${serializeState(ctx, state)}`;
+}

@@ -40,7 +40,7 @@ function levelBadge(level, extraClass = '') {
 }
 
 // ---------- state ----------
-function setState(next, { announceParty } = {}) {
+function applyState(next) {
   // Roles are disjoint; a party in two lists keeps the first of members > supporters > abstainers.
   const members = ordered([...new Set(next.members)]);
   const supporters = ordered([...new Set(next.supporters ?? [])].filter((id) => !members.includes(id)));
@@ -48,7 +48,18 @@ function setState(next, { announceParty } = {}) {
   if (members.join() !== state.members.join()) showAllCompletions = false;
   state = { base: next.base ?? null, members, supporters, abstainers };
   if (state.base && !state.members.includes(state.base)) state.base = null;
-  history.replaceState(null, '', location.pathname + C.serializeState(ctx, state) + location.hash);
+}
+
+// The URL is `<query>#<route>?<state>`; the state stays in the fragment, so it never reaches the server.
+// A bare address with no coalition stays bare.
+function writeUrl() {
+  const rest = C.selected(state).length || location.hash ? C.locationFor(ctx, state, routeToken, location.search) : location.search;
+  history.replaceState(null, '', location.pathname + rest);
+}
+
+function setState(next, { announceParty } = {}) {
+  applyState(next);
+  writeUrl();
   render();
   if (announceParty) {
     const r = C.analyze(ctx, state);
@@ -738,7 +749,7 @@ function renderMatrix() {
 
 // ---------- share & bar ----------
 function shareUrl() {
-  return location.origin + location.pathname + C.serializeState(ctx, state);
+  return location.origin + location.pathname + C.locationFor(ctx, state, 'results');
 }
 
 function shareCard(r) {
@@ -875,20 +886,27 @@ function partySheet(pid, compareWith = '') {
 // ---------- views & routing ----------
 const VIEWS = ['build', 'results', 'method'];
 let view = 'build';
+// The fragment's route: the view, or a method anchor.
+let routeToken = 'build';
 
 // In-page sections of the method view that the footer links to.
 const METHOD_ANCHORS = ['why', 'privacy', 'accessibility'];
 
 function route(initial = false) {
-  let v = location.hash.slice(1);
+  const loc = C.parseLocation(location, passedIds());
+  // A fragment with state (a pasted link, back/forward) brings its coalition; one without (a nav link) keeps the current one.
+  if (!initial && loc.fromFragment) {
+    if (C.serializeState(ctx, loc.state) !== C.serializeState(ctx, state)) lastPreset = null;
+    applyState(loc.state);
+  }
+  let v = loc.route;
   const anchor = METHOD_ANCHORS.includes(v) ? v : null;
   if (anchor) v = 'method';
   if (!VIEWS.includes(v)) v = initial && C.selected(state).length ? 'results' : 'build';
   const changed = v !== view;
   view = v;
-  if (initial && !VIEWS.includes(location.hash.slice(1)) && v === 'results') {
-    history.replaceState(null, '', location.pathname + location.search + '#results');
-  }
+  routeToken = anchor ?? v;
+  writeUrl();
   for (const id of VIEWS) $(`#view-${id}`).hidden = id !== view;
   document.body.dataset.view = view;
   render();
@@ -1006,6 +1024,10 @@ function bind() {
 }
 
 async function main() {
+  // An old link carries the coalition in the query. Move it to the fragment before any request, so no fetch carries it
+  // (a fetch's Referer is this URL). The ids are checked once the data has loaded.
+  const moved = C.moveLegacyState(location);
+  if (moved) history.replaceState(null, '', location.pathname + moved);
   const get = (f) => fetch(`data/${f}.json`).then((r) => {
     if (!r.ok) throw new Error(`${f}: ${r.status}`);
     return r.json();
@@ -1023,10 +1045,8 @@ async function main() {
   // Results: seat order. Polls: poll order, or ballot letters with seats hidden (the poll order would reveal standings).
   ctx = C.contextFor({ meta, parties, topics, positions, results });
   // Lists under the threshold (results mode) cannot be selected, so a link naming them drops them like unknown ids.
-  const parsed = C.parseState(location.search, passedIds());
-  state = { ...parsed, members: ordered(parsed.members), supporters: ordered(parsed.supporters), abstainers: ordered(parsed.abstainers) };
-  // Rewrite the link without the dropped ids, so sharing it again does not carry them.
-  if (location.search) history.replaceState(null, '', location.pathname + C.serializeState(ctx, state) + location.hash);
+  // route(true) then rewrites the link without the dropped ids, so sharing it again does not carry them.
+  applyState(C.parseLocation(location, passedIds()).state);
   renderHeader();
   renderPresets();
   renderMethod();

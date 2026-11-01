@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   level, makeContext, topicStatus, crises, glue, friction, overall, newClashTopics,
   matrixCell, pairSummary, investiture, periphery, analyze, without, presets, parseState, serializeState,
+  parseLocation, locationFor, moveLegacyState,
   withLinked, lowCoverage, addImpact, breakdown, ballotOrder, selected, completions, redLinesCrossed,
 } from '../site/js/compat.js';
 
@@ -250,6 +251,38 @@ test('a party named under two roles keeps the first of b/m > o > a', () => {
   const ids = ['a', 'b', 'c'];
   assert.deepEqual(parseState('?b=a&o=a,b&a=b,c&m=c', ids), { base: 'a', members: ['a', 'c'], supporters: ['b'], abstainers: [] });
   assert.deepEqual(selected(parseState('?m=a&o=b&a=c', ids)), ['a', 'b', 'c']);
+});
+
+test('the state lives in the fragment; a legacy query is read when the fragment has none', () => {
+  const ids = ['a', 'b', 'c'];
+  const st = (members, supporters = [], abstainers = []) => ({ base: null, members, supporters, abstainers });
+  const loc = (search, hash) => parseLocation({ search, hash }, ids);
+  assert.deepEqual(loc('', '#results?m=a,b&o=c'), { route: 'results', state: st(['a', 'b'], ['c']), legacy: false, fromFragment: true, search: '' });
+  assert.deepEqual(loc('?m=a,b', ''), { route: '', state: st(['a', 'b']), legacy: true, fromFragment: false, search: '' });
+  assert.deepEqual(loc('?m=a&a=c', '#build'), { route: 'build', state: st(['a'], [], ['c']), legacy: true, fromFragment: false, search: '' });
+  // The fragment wins over a legacy query; other query params stay.
+  assert.deepEqual(loc('?s=wa&m=c', '#results?m=a'), { route: 'results', state: st(['a']), legacy: false, fromFragment: true, search: '?s=wa' });
+  assert.deepEqual(loc('?s=wa&m=a', ''), { route: '', state: st(['a']), legacy: true, fromFragment: false, search: '?s=wa' });
+  assert.deepEqual(loc('?s=wa', '#method'), { route: 'method', state: st([]), legacy: false, fromFragment: false, search: '?s=wa' });
+  assert.equal(loc('', '#privacy?m=a').route, 'privacy');
+  assert.deepEqual(loc('', '#?m=a').state, st(['a']));
+  const ctx = fixture([]);
+  const state = { base: 'c', members: ['c', 'a'], supporters: ['e'], abstainers: ['b'] };
+  const url = locationFor(ctx, state, 'results', '?s=wa');
+  assert.equal(url, '?s=wa#results?b=c&m=a&o=e&a=b');
+  const [search, hash] = [url.slice(0, url.indexOf('#')), url.slice(url.indexOf('#'))];
+  const back = parseLocation({ search, hash }, ['a', 'b', 'c', 'd', 'e']);
+  assert.deepEqual([back.route, back.search, serializeState(ctx, back.state)], ['results', '?s=wa', '?b=c&m=a&o=e&a=b']);
+});
+
+test('moveLegacyState moves query state into the fragment verbatim, before any id check', () => {
+  assert.equal(moveLegacyState({ search: '', hash: '#results?m=a' }), null);
+  assert.equal(moveLegacyState({ search: '?s=wa', hash: '' }), null);
+  assert.equal(moveLegacyState({ search: '?m=a,zzz&o=b', hash: '' }), '#?m=a,zzz&o=b');
+  assert.equal(moveLegacyState({ search: '?b=a&m=b', hash: '#build' }), '#build?b=a&m=b');
+  assert.equal(moveLegacyState({ search: '?s=wa&m=a&utm_source=x', hash: '#results' }), '?s=wa&utm_source=x#results?m=a');
+  // A fragment that already has state wins; the query's copy is dropped.
+  assert.equal(moveLegacyState({ search: '?m=c', hash: '#results?m=a' }), '#results?m=a');
 });
 
 test('withLinked adds the soft-linked partner once, and only on add', () => {

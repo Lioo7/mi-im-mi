@@ -9,7 +9,7 @@ import { mkdirSync, mkdtempSync, writeFileSync, rmSync, readFileSync, existsSync
 import { tmpdir } from 'node:os';
 import { join, extname, normalize } from 'node:path';
 import { ROOT, loadData } from './lib.mjs';
-import { contextFor, presets, serializeState, ballotOrder, completions } from '../site/js/compat.js';
+import { contextFor, presets, serializeState, ballotOrder, completions, parseLocation, stateKeysIn, selected } from '../site/js/compat.js';
 import { PROD_HOST } from '../site/js/stats.js';
 import { S } from '../site/js/strings.js';
 
@@ -17,6 +17,11 @@ const CHROME = process.env.CHROME_PATH ?? '/Applications/Google Chrome.app/Conte
 const OUT = join(ROOT, 'smoke');
 const SIZES = [{ tag: 'm', width: 390, height: 844, mobile: true, dpr: 2 }, { tag: 'd', width: 1280, height: 900, mobile: false, dpr: 1 }];
 const members_in_url = (qs) => /[?&]m=/.test(qs);
+// A URL suffix split like a location; legacy links carry the state in the query, current ones in the fragment.
+const splitSuffix = (suffix) => { const i = suffix.indexOf('#'); return i < 0 ? { search: suffix, hash: '' } : { search: suffix.slice(0, i), hash: suffix.slice(i) }; };
+const isLegacy = (suffix) => stateKeysIn(splitSuffix(suffix).search);
+// The state params a suffix carries: the fragment's, or a legacy query's when the fragment has none.
+const stateParams = (suffix) => { const { search, hash } = splitSuffix(suffix); const f = hash.split('?')[1] ?? ''; return new URLSearchParams(stateKeysIn(f) ? f : search); };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function waitFor(fn, ms = 10000) {
@@ -81,26 +86,33 @@ const pr = presets(ctx);
 const coalitionQs = serializeState(ctx, { base: null, ...pr.coalition });
 const oppositionQs = serializeState(ctx, { base: null, ...pr.opposition });
 
-// name, url suffix, expected view after load
+// name, url suffix, expected view after load. The coalition lives in the fragment: `#<view>?m=…`.
+const at = (route, qs) => `#${route}${qs}`;
 const cases = [
   ['build-empty', '', 'build'],
-  ['build-coalition', `${coalitionQs}#build`, 'build'],
-  ['build-linked', '?m=zehut#build', 'build'],
-  ['results-coalition', coalitionQs, 'results'], // a shared link without a hash opens #results
-  ['results-opposition', oppositionQs, 'results'],
-  ['results-unity', serializeState(ctx, { base: null, ...pr.unity }), 'results'],
-  ['results-opposition-arab', serializeState(ctx, { base: null, ...pr['opposition-arab'] }), 'results'],
-  ['results-pair', '?m=together,democrats', 'results'],
-  ['results-single', '?m=likud', 'results'],
-  ['results-base-likud', serializeState(ctx, { base: 'likud', members: pr.coalition.members, outside: [] }), 'results'],
-  ['results-low-coverage', '?m=shas,utj,zehut,likud', 'results'],
-  // Roles: an old link with o= (outside support, now "תומכת"), and supporters plus abstainers.
+  ['build-coalition', at('build', coalitionQs), 'build'],
+  ['build-linked', '#build?m=zehut', 'build'],
+  ['results-coalition', at('results', coalitionQs), 'results'],
+  ['results-opposition', at('results', oppositionQs), 'results'],
+  ['results-unity', at('results', serializeState(ctx, { base: null, ...pr.unity })), 'results'],
+  ['results-opposition-arab', at('results', serializeState(ctx, { base: null, ...pr['opposition-arab'] })), 'results'],
+  ['results-pair', '#results?m=together,democrats', 'results'],
+  ['results-single', '#results?m=likud', 'results'],
+  ['results-base-likud', at('results', serializeState(ctx, { base: 'likud', members: pr.coalition.members, outside: [] })), 'results'],
+  ['results-low-coverage', '#results?m=shas,utj,zehut,likud', 'results'],
+  // Roles: an old link with o= (outside support, now "תומכת", still in the query), and supporters plus abstainers.
   ['results-old-outside', '?m=yashar,together,democrats,yisrael-beiteinu&o=raam', 'results'],
-  ['results-roles', '?m=yashar,together,democrats,yisrael-beiteinu&o=joint-list&a=raam,utj', 'results'],
-  ['build-roles', '?m=yashar,together,democrats,yisrael-beiteinu&o=joint-list&a=raam,utj#build', 'build'],
+  ['results-roles', '#results?m=yashar,together,democrats,yisrael-beiteinu&o=joint-list&a=raam,utj', 'results'],
+  ['build-roles', '#build?m=yashar,together,democrats,yisrael-beiteinu&o=joint-list&a=raam,utj', 'build'],
   ['method', '#method', 'method'],
   ['privacy', '#privacy', 'method'],
   ['accessibility', '#accessibility', 'method'],
+  ['privacy-with-state', '#privacy?m=likud,yashar', 'method'],
+  // Links from before the move: the query is read, then moved to the fragment; other params (?s=wa) stay.
+  ['legacy-results', coalitionQs, 'results'], // a shared link without a hash opens #results
+  ['legacy-build', `${coalitionQs}#build`, 'build'],
+  ['legacy-s-wa', `?s=wa&${coalitionQs.slice(1)}`, 'results'],
+  ['legacy-below-threshold', '?m=likud,yashar,kalkalit#results', 'results'],
 ];
 
 // Poll-derived text that must not appear anywhere when showSeats is off.
@@ -122,6 +134,10 @@ const chrome = spawn(CHROME, [
 
 const errors = [];
 const beacons = [];
+const siteHost = new URL(baseUrl).host;
+const partyIds = new RegExp(parties.map((p) => p.id).join('|'), 'i');
+// Set by go() while an old-format link (state in the query) loads.
+let legacyNav = false;
 let exitCode = 0;
 try {
   rmSync(OUT, { recursive: true, force: true });
@@ -137,6 +153,15 @@ try {
     if (m.method === 'Log.entryAdded' && m.params.entry.level === 'error') errors.push(`[${current}] ${m.params.entry.text} ${m.params.entry.url ?? ''}`);
     if (m.method === 'Network.loadingFailed' && !m.params.canceled) errors.push(`[${current}] request failed: ${m.params.errorText}`);
     if (m.method === 'Network.responseReceived' && m.params.response.status >= 400) errors.push(`[${current}] HTTP ${m.params.response.status} ${m.params.response.url}`);
+    // The coalition never reaches the site's server: no request URL or Referer to it may carry state. Only an old-format
+    // link's own load (the document and what the parser starts before the app runs) may, and never a data fetch.
+    if (m.method === 'Network.requestWillBeSent' && new URL(m.params.request.url).host === siteHost) {
+      const { url, headers } = m.params.request;
+      const carries = (u) => { try { const q = new URL(u).search; return stateKeysIn(q) || partyIds.test(q); } catch { return false; } };
+      const leaked = [url, headers.Referer ?? headers.referer].filter((u) => u && carries(u));
+      const parserLoad = ['Document', 'Stylesheet', 'Script', 'Image'].includes(m.params.type);
+      if (leaked.length && !(legacyNav && parserLoad)) errors.push(`[${current}] a ${m.params.type} request to the site carries coalition state: ${leaked.join(' | ')}`);
+    }
     if (m.method === 'Fetch.requestPaused') {
       // GoatCounter beacons are recorded for the privacy check but never sent (no test traffic in the stats).
       const url = m.params.request.url;
@@ -167,6 +192,14 @@ try {
 
   const evaluate = async (expr) => (await c.send('Runtime.evaluate', { expression: expr, returnByValue: true })).result.value;
   const ready = () => waitFor(() => evaluate("document.querySelector('#builder')?.children.length > 0"));
+  // A fresh load (a URL that differs only in its fragment would otherwise be a same-document navigation).
+  const go = async (url) => {
+    await c.send('Page.navigate', { url: 'about:blank' });
+    legacyNav = isLegacy(url.slice(baseUrl.length));
+    await c.send('Page.navigate', { url });
+  };
+  // The fragment's state params, as a string.
+  const frag = () => evaluate("location.hash.split('?')[1] ?? ''");
   const setSize = (z, height = z.height) => c.send('Emulation.setDeviceMetricsOverride', { width: z.width, height, deviceScaleFactor: z.dpr, mobile: z.mobile });
 
   const shoot = async (z, file, full = true) => {
@@ -195,16 +228,18 @@ try {
     await setSize(z);
     for (const [name, suffix, expectView] of cases) {
       current = `${name}@${z.width}`;
-      await c.send('Page.navigate', { url: 'about:blank' });
-      await c.send('Page.navigate', { url: baseUrl + suffix });
+      await go(baseUrl + suffix);
       await waitFor(() => evaluate("document.body.dataset.view !== undefined && document.querySelector('#footer')?.children.length > 0"));
       await sleep(250);
       const view = await evaluate('document.body.dataset.view');
       if (view !== expectView) errors.push(`[${current}] expected view "${expectView}", got "${view}"`);
-      if (expectView === 'results') {
-        const hash = await evaluate('location.hash');
-        if (hash !== '#results') errors.push(`[${current}] shared link did not settle on #results (hash "${hash}")`);
-      }
+      // The URL settles as <other query params>#<route>?<normalized state>: an old link's state has moved to the
+      // fragment, ids that can't be selected are gone, and a link without a view opens #results.
+      const exp = parseLocation(splitSuffix(suffix), passedIds);
+      const token = exp.route && ['build', 'results', 'method', 'why', 'privacy', 'accessibility'].includes(exp.route) ? exp.route : expectView;
+      const wantUrl = exp.search + (selected(exp.state).length || exp.route ? `#${token}${serializeState(ctx, exp.state)}` : '');
+      const gotUrl = await evaluate('location.search + location.hash');
+      if (gotUrl !== wantUrl) errors.push(`[${current}] URL should settle on "${wantUrl}", got "${gotUrl}"`);
       if (expectView === 'build') {
         const title = await evaluate('document.title');
         if (title !== `${S.appName} · ${S.tagline}`) errors.push(`[${current}] <title> must be "${S.appName} · ${S.tagline}", got "${title}"`);
@@ -228,7 +263,7 @@ try {
           for (const b of g.querySelectorAll('[role="radio"]')) { b.scrollIntoView({ block: 'center' }); const r = b.getBoundingClientRect(); const x = r.left + r.width / 2;
             if (r.height < 36 || ![r.top - 4, r.bottom + 4].every((y) => y < 0 || y >= innerHeight || b.contains(document.elementFromPoint(x, y)))) return 'segment tap target under 44px (' + b.dataset.key + ': h' + Math.round(r.height) + ', above ' + (document.elementFromPoint(x, r.top - 4)?.className || '-') + ', below ' + (document.elementFromPoint(x, r.bottom + 4)?.className || '-') + ')'; }
           out[on[0].dataset.id] = on[0].dataset.role; } window.scrollTo(0, 0); return JSON.stringify(out); })()`);
-        const q = new URLSearchParams(suffix.split('#')[0]);
+        const q = stateParams(suffix);
         const want = {};
         for (const [k, role] of [['b', 'member'], ['m', 'member'], ['o', 'supporter'], ['a', 'abstainer']]) for (const id of (q.get(k) ?? '').split(',').filter((x) => passedIds.includes(x))) want[id] ??= role;
         const got = roles.startsWith('{') ? JSON.parse(roles) : roles;
@@ -316,7 +351,7 @@ try {
           if (RESULTS && name === 'results-old-outside' && vote !== '56,64,0') errors.push(`[${current}] expected בעד 56 · נגד 64 · נמנעות 0, got ${vote}`);
         }
         // Supporters and abstainers: own card, listed with their role; never inside the coalition cards.
-        const q = new URLSearchParams(suffix.split('#')[0]);
+        const q = stateParams(suffix);
         const side = [...(q.get('o') ?? '').split(','), ...(q.get('a') ?? '').split(',')].filter(Boolean);
         if (side.length) {
           const per = await evaluate(`(() => { const c = document.querySelector('#results .periphery'); if (!c) return 'missing';
@@ -334,6 +369,10 @@ try {
         const share = await evaluate("document.querySelectorAll('#results-bar [data-act=\"share\"]').length");
         const want = name === 'results-single' ? 0 : 1;
         if (share !== want) errors.push(`[${current}] share button count ${share}, expected ${want}`);
+        // Shared links carry the coalition in the fragment only, with no other query params.
+        const wa = await evaluate("document.querySelector('#results a[href^=\"https://wa.me/\"]')?.href || ''");
+        const wantShare = `${baseUrl}#results${serializeState(ctx, parseLocation(splitSuffix(suffix), passedIds).state)}`;
+        if (wa && !new URL(wa).searchParams.get('text').endsWith(`\n${wantShare}`)) errors.push(`[${current}] WhatsApp link should end with ${wantShare} (${new URL(wa).searchParams.get('text')})`);
       }
       if (expectView === 'method') {
         const secs = await evaluate("(() => { const p = document.querySelector('#privacy'), a = document.querySelector('#accessibility'); const f = [...document.querySelectorAll('#footer a')].map((x) => x.getAttribute('href')); return [p?.innerText.includes('GoatCounter') && p.innerText.includes('lioz.akirav@gmail.com'), a?.innerText.includes('5568') && a.innerText.includes('1.11.2026'), f.includes('#privacy'), f.includes('#accessibility')].join(','); })()");
@@ -381,8 +420,7 @@ try {
       await setSize(z);
       for (const [name, suffix] of legalCases) {
         current = `legal-${name}@${z.width}x${z.height}`;
-        await c.send('Page.navigate', { url: 'about:blank' });
-        await c.send('Page.navigate', { url: baseUrl + suffix });
+        await go(baseUrl + suffix);
         await waitFor(() => evaluate("document.body.dataset.view !== undefined && document.querySelector('#footer')?.children.length > 0 && (document.querySelector('script[data-nf-variant]') !== null)"));
         await sleep(400);
         const first = await evaluate(LEGAL_CHECK);
@@ -401,7 +439,7 @@ try {
   const z = SIZES[0];
   await setSize(z);
   current = 'interaction@390';
-  await c.send('Page.navigate', { url: baseUrl });
+  await go(baseUrl);
   await ready();
   if (RESULTS) {
     // Media scenarios replace the bloc presets: up to 4, named by composition, sorted alphabetically, each with a
@@ -433,7 +471,7 @@ try {
     const b = scenarios.scenarios.find((x) => x.supporters.length && x.abstainers.length) ?? scenarios.scenarios[0];
     await evaluate(`document.querySelector('[data-act="scenario"][data-id="${b.id}"]').click()`);
     await sleep(300);
-    const q = new URLSearchParams(await evaluate('location.search'));
+    const q = new URLSearchParams(await frag());
     const ids = (k) => (q.get(k) ?? '').split(',').filter(Boolean).sort().join(',');
     if (ids('m') !== [...b.members].sort().join(',') || ids('o') !== [...b.supporters].sort().join(',') || ids('a') !== [...b.abstainers].sort().join(',')) errors.push(`[interaction] scenario tap did not set its roles (${q})`);
   } else {
@@ -469,7 +507,7 @@ try {
   // A position with a verified archive snapshot shows the "עותק בארכיון" link in its cell sheet.
   const withArchive = JSON.parse(readFileSync(join(ROOT, 'site', 'data', 'positions.json'), 'utf8')).find((p) => p.archiveUrl);
   if (withArchive) {
-    await c.send('Page.navigate', { url: `${baseUrl}?m=${withArchive.partyId},together#results` });
+    await go(`${baseUrl}#results?m=${withArchive.partyId},together`);
     await waitFor(() => evaluate("document.body.dataset.view === 'results' && document.querySelectorAll('.cell').length > 0"));
     await evaluate(`document.querySelector('.cell[data-party="${withArchive.partyId}"][data-topic="${withArchive.topicId}"]').click()`);
     await sleep(300);
@@ -478,7 +516,7 @@ try {
     await shoot(z, 'interaction-archive-link-m.png', false);
   }
   // Picker: tap a row to toggle, outside toggle, three-party build screenshot.
-  await c.send('Page.navigate', { url: baseUrl });
+  await go(baseUrl);
   await ready();
   for (const id of ['likud', 'shas', 'otzma-yehudit']) await evaluate(`document.querySelector('[data-act="toggle"][data-id="${id}"]').click()`);
   await sleep(300);
@@ -486,10 +524,10 @@ try {
   if (sel !== 3) errors.push(`[interaction] tapping rows should select 3 parties, got ${sel}`);
   await evaluate("document.querySelector('[data-act=\"role\"][data-id=\"shas\"][data-role=\"supporter\"]').click()");
   await sleep(200);
-  if (!/o=shas/.test(await evaluate('location.search'))) errors.push(`[interaction] supporter role did not set o= (${await evaluate('location.search')})`);
+  if (!/o=shas/.test(await frag())) errors.push(`[interaction] supporter role did not set o= (${await frag()})`);
   await evaluate("(() => { const b = document.querySelector('[data-act=\"role\"][data-id=\"shas\"][data-role=\"abstainer\"]'); b.focus(); b.click(); })()");
   await sleep(200);
-  const absUrl = await evaluate('location.search');
+  const absUrl = await frag();
   if (!/a=shas/.test(absUrl) || /o=shas/.test(absUrl)) errors.push(`[interaction] abstainer role did not move shas to a= (${absUrl})`);
   if ((await evaluate("document.activeElement?.dataset.key")) !== 'role-shas-abstainer') errors.push('[interaction] focus lost after choosing a role');
   await evaluate("document.querySelector('[data-act=\"role\"][data-id=\"shas\"][data-role=\"member\"]').click()");
@@ -497,7 +535,7 @@ try {
   // Unselecting a row clears its role (back to opponent).
   await evaluate("document.querySelector('[data-act=\"role\"][data-id=\"shas\"][data-role=\"supporter\"]').click(); document.querySelector('[data-act=\"toggle\"][data-id=\"shas\"]').click()");
   await sleep(200);
-  if (/shas/.test(await evaluate('location.search'))) errors.push('[interaction] unselecting a supporter did not clear its role');
+  if (/shas/.test(await frag())) errors.push('[interaction] unselecting a supporter did not clear its role');
   await evaluate("document.querySelector('[data-act=\"toggle\"][data-id=\"shas\"]').click()");
   await sleep(200);
   await evaluate('window.scrollTo(0, document.querySelector("#builder .seats-box").getBoundingClientRect().top + scrollY - 10)');
@@ -507,13 +545,13 @@ try {
   await evaluate("document.querySelector('#bar a.btn').click()");
   await sleep(400);
   if ((await evaluate('document.body.dataset.view')) !== 'results') errors.push('[interaction] "לתוצאות" from the picker did not open results');
-  await c.send('Page.navigate', { url: `${baseUrl}?m=likud,democrats,yashar,shas#results` });
+  await go(`${baseUrl}#results?m=likud,democrats,yashar,shas`);
   await waitFor(() => evaluate("document.body.dataset.view === 'results' && document.querySelectorAll('.colorby').length > 0"));
   const baseBtns = await evaluate("document.querySelectorAll('.colorby [role=\"radio\"]').length");
   if (baseBtns !== 5) errors.push(`[interaction] base control should list הכל + 4 parties, got ${baseBtns}`);
   await evaluate("document.querySelector('.colorby [data-id=\"shas\"]').click()");
   await sleep(300);
-  const bq = await evaluate('location.search');
+  const bq = await frag();
   if (!/b=shas/.test(bq)) errors.push(`[interaction] base control did not set b= (${bq})`);
   const starLine = await evaluate("document.querySelector('#results-coalition').innerText.includes('★')");
   if (!starLine) errors.push('[interaction] coalition line should mark the base with ★');
@@ -539,13 +577,13 @@ try {
   // In results mode a list under the threshold is opened from its section on the build view.
   for (const pid of ['religious-zionism', 'zehut', 'kalkalit']) {
     if (ctx.passed(pid)) {
-      await c.send('Page.navigate', { url: `${baseUrl}?m=likud,${pid}#results` });
+      await go(`${baseUrl}#results?m=likud,${pid}`);
       await waitFor(() => evaluate("document.body.dataset.view === 'results' && document.querySelectorAll('.party-btn').length > 0"));
       await evaluate(`document.querySelector('.party-btn[data-id="${pid}"]').click()`);
     } else {
-      await c.send('Page.navigate', { url: `${baseUrl}?m=likud,${pid}#build` });
+      await go(`${baseUrl}#build?m=likud,${pid}`);
       await ready();
-      if (await evaluate(`location.search.includes('${pid}') || document.querySelector('[data-act="toggle"][data-id="${pid}"]') !== null`)) errors.push(`[interaction] ${pid} is under the threshold but still selectable or kept in the URL`);
+      if (await evaluate(`location.href.includes('${pid}') || document.querySelector('[data-act="toggle"][data-id="${pid}"]') !== null`)) errors.push(`[interaction] ${pid} is under the threshold but still selectable or kept in the URL`);
       await evaluate(`document.querySelector('details.below').open = true; document.querySelector('details.below [data-id="${pid}"]').click()`);
     }
     await sleep(300);
@@ -563,18 +601,18 @@ try {
   }
   // Results mode: הציונות הדתית and זהות are chosen independently, each row noting the joint list.
   if (RESULTS) {
-    await c.send('Page.navigate', { url: baseUrl });
+    await go(baseUrl);
     await ready();
     await evaluate("document.querySelector('[data-act=\"toggle\"][data-id=\"religious-zionism\"]').click()");
     await sleep(200);
-    const m = new URLSearchParams(await evaluate('location.search')).get('m') ?? '';
+    const m = new URLSearchParams(await frag()).get('m') ?? '';
     if (m !== 'religious-zionism') errors.push(`[interaction] results mode: selecting הציונות הדתית should not add זהות (m=${m})`);
     const notes = await evaluate("['religious-zionism', 'zehut'].map((id) => document.querySelector(`[data-act=\"toggle\"][data-id=\"${id}\"] .prow-sub`)?.innerText || '').join('|')");
     if (!notes.split('|').every((t) => t.includes('רצו ברשימה משותפת (ט)'))) errors.push(`[interaction] joint-list note missing on the ט rows (${notes})`);
     // The snapshot's pointer scrolls to the supporters/abstainers card, with its title below the sticky header.
     for (const size of SIZES) {
       await setSize(size);
-      await c.send('Page.navigate', { url: `${baseUrl}?m=yashar,together,democrats,yisrael-beiteinu&o=joint-list&a=raam,utj#results` });
+      await go(`${baseUrl}#results?m=yashar,together,democrats,yisrael-beiteinu&o=joint-list&a=raam,utj`);
       await waitFor(() => evaluate("document.body.dataset.view === 'results' && document.querySelector('[data-act=\"to-periphery\"]') !== null"));
       await sleep(200);
       await evaluate("document.querySelector('[data-act=\"to-periphery\"]').click()");
@@ -590,7 +628,7 @@ try {
   // "מה חסר לרוב של 61": the coalition bloc is short; each row is minimal, tapping one adds it, undo restores.
   if (!SEATS_HIDDEN) {
     const blocQs = serializeState(ctx, { base: null, ...pr.coalition });
-    await c.send('Page.navigate', { url: `${baseUrl}${blocQs}#results` });
+    await go(`${baseUrl}#results${blocQs}`);
     await waitFor(() => evaluate("document.body.dataset.view === 'results' && document.querySelector('#footer')?.children.length > 0"));
     await sleep(300);
     const card = await evaluate(`(() => { const c = document.querySelector('#results .completions'); if (!c) return null;
@@ -603,21 +641,21 @@ try {
       await evaluate('window.scrollTo(0, document.querySelector("#results .completions").getBoundingClientRect().top + scrollY - 70)');
       await sleep(200);
       await shoot(z, 'interaction-completions-m.png', false);
-      const before = await evaluate('location.search');
+      const before = await frag();
       await evaluate("document.querySelector('#results [data-act=\"complete\"]').click()");
       await sleep(300);
-      const after = new URLSearchParams(await evaluate('location.search')).get('m') ?? '';
+      const after = new URLSearchParams(await frag()).get('m') ?? '';
       if (!wantRows[0].split(',').every((id) => after.split(',').includes(id))) errors.push(`[interaction] tapping a completion did not add it (${after})`);
       if (await evaluate("document.querySelector('#results .completions') !== null")) errors.push('[interaction] completions card should disappear once members reach 61');
       await evaluate("document.querySelector('#toast [data-act=\"undo\"]').click()");
       await sleep(300);
-      if ((await evaluate('location.search')) !== before) errors.push('[interaction] undo after a completion did not restore the coalition');
+      if ((await frag()) !== before) errors.push('[interaction] undo after a completion did not restore the coalition');
     }
     // The change bloc (48): fewest lists first, so "+ הליכוד" alone leads; 6 rows, then "הציגו את כל N" shows all.
     // With רע״ם supporting, a completion that adds it is tagged "(כיום תומכת)".
     const change = { members: ['yashar', 'together', 'democrats', 'yisrael-beiteinu'], supporters: ['raam'] };
     const all = completions(ctx, change.members);
-    await c.send('Page.navigate', { url: `${baseUrl}${serializeState(ctx, { base: null, ...change })}#results` });
+    await go(`${baseUrl}#results${serializeState(ctx, { base: null, ...change })}`);
     await waitFor(() => evaluate("document.body.dataset.view === 'results' && document.querySelector('#footer')?.children.length > 0"));
     await sleep(300);
     const rowsOf = () => evaluate("[...document.querySelectorAll('#results .completions [data-act=\"complete\"]')].map((b) => b.dataset.ids + '|' + b.querySelector('.row-title').innerText)");
@@ -644,7 +682,7 @@ try {
   }
   // A cell sheet with a quote renders it in quotation marks with an attribution line underneath.
   const withQuote = JSON.parse(readFileSync(join(ROOT, 'site', 'data', 'positions.json'), 'utf8')).find((p) => p.quote && p.quoteBy && p.sourceDate);
-  await c.send('Page.navigate', { url: `${baseUrl}?m=${withQuote.partyId},together#results` });
+  await go(`${baseUrl}#results?m=${withQuote.partyId},together`);
   await waitFor(() => evaluate("document.body.dataset.view === 'results' && document.querySelectorAll('.cell').length > 0"));
   await evaluate(`document.querySelector('.cell[data-party="${withQuote.partyId}"][data-topic="${withQuote.topicId}"]').click()`);
   await sleep(300);
@@ -653,12 +691,30 @@ try {
   if (!q || !q.by.startsWith(withQuote.quoteBy) || !/\d{2}\.\d{2}\.\d{4}$/.test(q.by)) errors.push(`[interaction] quote attribution should read "<speaker>, <channel>, <date>" (${q?.by})`);
   await shoot(z, 'interaction-cell-quote-m.png', false);
   // Arabic quotes keep the original and add a marked Hebrew translation under it.
-  await c.send('Page.navigate', { url: `${baseUrl}?m=raam,together#results` });
+  await go(`${baseUrl}#results?m=raam,together`);
   await waitFor(() => evaluate("document.body.dataset.view === 'results' && document.querySelectorAll('.cell').length > 0"));
   await evaluate('document.querySelector(\'.cell[data-party="raam"][data-topic="palestinian"]\').click()');
   await sleep(300);
   const ar = await evaluate("(() => { const q = [...document.querySelectorAll('#sheet blockquote .q-text')]; return q.map((e) => e.textContent).join(' | '); })()");
   if (!/[\u0600-\u06FF]/.test(ar) || !ar.includes('(תרגום חופשי של האתר)')) errors.push(`[interaction] Arabic quote must show the original plus a marked translation (${ar})`);
+  // The fragment keeps the coalition through nav links and history; a link pasted into the same tab (a fragment-only
+  // change, no reload) brings its own coalition.
+  const qsOf = (members) => serializeState(ctx, { base: null, members });
+  await go(`${baseUrl}#results?m=likud,yashar`);
+  await waitFor(() => evaluate("document.body.dataset.view === 'results' && document.querySelector('#footer')?.children.length > 0"));
+  await evaluate("window.smokeNoReload = true; document.querySelector('#nav-method').click()");
+  await sleep(300);
+  if ((await evaluate('location.hash')) !== `#method${qsOf(['likud', 'yashar'])}`) errors.push(`[interaction] the method link should keep the coalition in the fragment (${await evaluate('location.hash')})`);
+  await evaluate('history.back()');
+  await sleep(400);
+  if ((await evaluate('location.hash + "|" + document.body.dataset.view')) !== `#results${qsOf(['likud', 'yashar'])}|results`) errors.push(`[interaction] back should return to the same coalition's results (${await evaluate('location.hash')})`);
+  await evaluate("location.hash = '#results?m=together,democrats'");
+  await sleep(400);
+  const pasted = await evaluate("({ hash: location.hash, line: document.querySelector('#results-coalition').innerText, same: window.smokeNoReload === true })");
+  const pastedNames = ['together', 'democrats'].map((id) => ctx.byId.get(id).name);
+  if (pasted.hash !== `#results${qsOf(['together', 'democrats'])}` || !pasted.same || !pastedNames.every((n) => pasted.line.includes(n)) || pasted.line.includes(ctx.byId.get('likud').name)) {
+    errors.push(`[interaction] a pasted fragment should replace the coalition without a reload (${JSON.stringify(pasted)})`);
+  }
   console.log('  ✓ interactions');
   c.close();
 } catch (e) {
