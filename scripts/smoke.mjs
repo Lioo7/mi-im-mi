@@ -487,6 +487,9 @@ try {
       if (!hashes) errors.push(`[${current}] Netlify's badge iframe did not mount`);
       else if (hashes.some((x) => !csp.includes(x))) errors.push(`[${current}] the badge's inline script changed; its script hash is now ${hashes.join(' ')} (update netlify.toml)`);
       if (!ran) errors.push(`[${current}] Netlify's badge script did not run under the CSP`);
+      // The badge can report back before the app has rendered (slower data fetches on production).
+      await waitFor(() => evaluate("document.body.dataset.view === 'results' && document.querySelector('#footer')?.children.length > 0"));
+      await sleep(250);
       await shoot(z, `badge-csp-${z.tag}${dark ? '-dark' : ''}.png`, false);
     }
     await c.send('Emulation.setEmulatedMedia', { features: [] });
