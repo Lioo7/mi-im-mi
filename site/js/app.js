@@ -14,6 +14,9 @@ let electionResults = null;
 let state = { base: null, members: [], supporters: [], abstainers: [] };
 let lastPreset = null;
 let undoState = null;
+// "מה חסר לרוב": rows shown before "הציגו את כל N"; the toggle resets whenever the coalition changes.
+const COMPLETIONS_SHOWN = 6;
+let showAllCompletions = false;
 let toastTimer;
 
 // ---------- data helpers ----------
@@ -41,6 +44,7 @@ function setState(next, { announceParty } = {}) {
   const members = ordered([...new Set(next.members)]);
   const supporters = ordered([...new Set(next.supporters ?? [])].filter((id) => !members.includes(id)));
   const abstainers = ordered([...new Set(next.abstainers ?? [])].filter((id) => !members.includes(id) && !supporters.includes(id)));
+  if (members.join() !== state.members.join()) showAllCompletions = false;
   state = { base: next.base ?? null, members, supporters, abstainers };
   if (state.base && !state.members.includes(state.base)) state.base = null;
   history.replaceState(null, '', location.pathname + C.serializeState(ctx, state) + location.hash);
@@ -577,28 +581,34 @@ function renderResults() {
 // "What is missing for 61": minimal sets of parties that would give the members alone a majority. Tap = add them.
 function completionsCard() {
   if (!showSeats()) return '';
-  const { list, total } = C.completions(ctx, state.members);
   const v = C.investiture(ctx, state);
   if (v.membersMajority) return '';
+  const { list, total, currentRedLines } = C.completions(ctx, state.members);
   const K = S.completions;
   const n = (x) => S.seats.num(x, isResults());
-  const items = list.map((c) => {
-    const names = c.add.map(name);
-    const red = c.redLines.map((x) => `${name(x.partyId)} · ${topic(x.topicId).short}`);
-    const meta = [K.seats(n(c.seats), n(c.total)), K.clashes(c.clashTopics)];
+  const redList = (lines) => lines.map((x) => `${name(x.partyId)} · ${topic(x.topicId).short}`).join(', ');
+  const shown = showAllCompletions ? list : list.slice(0, COMPLETIONS_SHOWN);
+  const items = shown.map((c) => {
+    // A party that is now a supporter or abstainer would become a member.
+    const names = c.add.map((id) => (roleOf(id) ? `${name(id)} ${K.nowRole[roleOf(id)]}` : name(id)));
+    const meta = [K.seats(n(c.seats), n(c.total)), K.clashes(c.clashTopics, c.newClashTopics)];
+    const red = c.newRedLines.length ? K.newRedLines(c.newRedLines.length, redList(c.newRedLines)) : K.noNewRedLines;
     return `<li><button type="button" class="row-btn completion" data-act="complete" data-ids="${c.add.join(',')}" data-key="complete-${c.add.join('-')}"
-      aria-label="${esc(K.aria(names.join(', '), meta.join(', '), red.length ? K.redLines(red.length, red.join(', ')) : ''))}">
+      aria-label="${esc(K.aria(names.join(', '), meta.join(', '), red))}">
       <span class="row-title">+ ${esc(names.join(' + '))}</span>
       <span class="row-meta muted small">${esc(meta.join(' · '))}</span>
-      ${red.length ? `<span class="row-meta small"><span class="tag tag-red"><span aria-hidden="true">🚩</span> ${esc(K.redLines(red.length, red.join(', ')))}</span></span>` : ''}
+      <span class="row-meta small">${c.newRedLines.length ? `<span class="tag tag-red"><span aria-hidden="true">🚩</span> ${esc(red)}</span>` : `<span class="muted">${esc(red)}</span>`}</span>
     </button></li>`;
   }).join('');
+  const toggle = total > COMPLETIONS_SHOWN
+    ? `<button type="button" class="link-btn" data-act="completions-all" data-key="completions-all" aria-expanded="${showAllCompletions}">${esc(showAllCompletions ? K.showFewer : K.showAll(total))}</button>` : '';
   return `<section class="card completions">
     <h3>${esc(K.title)}</h3>
     <p class="note note-soft">${esc(K.note)}</p>
     ${isResults() ? '' : pollLegalLine()}
     <p class="muted small">${esc(K.intro(n(v.membersSeats)))}</p>
-    ${list.length ? `<ul class="list">${items}</ul>${total > list.length ? `<p class="muted small">${esc(K.more(list.length, total))}</p>` : ''}` : `<p>${esc(K.none)}</p>`}
+    ${currentRedLines.length ? `<p class="small"><span class="tag tag-red"><span aria-hidden="true">🚩</span> ${esc(K.currentRedLines(currentRedLines.length, redList(currentRedLines)))}</span></p>` : ''}
+    ${list.length ? `<ul class="list">${items}</ul>${toggle}` : `<p>${esc(K.none)}</p>`}
   </section>`;
 }
 
@@ -883,6 +893,10 @@ function onClick(e) {
       toast(`${esc(S.completions.applied(add.map(name).join(', ')))} <button type="button" class="link-btn" data-act="undo">${esc(S.results.undo)}</button>`, 8000);
       break;
     }
+    case 'completions-all':
+      showAllCompletions = !showAllCompletions;
+      render();
+      break;
     case 'undo':
       if (undoState) setState(undoState);
       undoState = null;

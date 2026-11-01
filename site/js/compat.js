@@ -333,12 +333,13 @@ export function redLinesCrossed(ctx, members) {
 // "What is missing for 61?": the smallest sets of additional parties that give the members alone 61 seats
 // (supporters and abstainers do not count; any non-member may be added). Units: each non-member list with seats; a
 // soft-linked pair that ran as one list is one unit. A set is minimal when dropping any of its units leaves the
-// members short of 61. Sorted by added seats, then unit count, then party order. Informational, never a ranking
-// of partners: each entry carries the head-on clash topics and red lines of the coalition it would create.
-export function completions(ctx, members, { limit = 6 } = {}) {
+// members short of 61. Sorted by unit count, then added seats, then party order. Informational, never a ranking
+// of partners. Each entry carries what the addition changes: head-on clash topics in the resulting coalition and how
+// many of them are new, and only the red lines it newly crosses (those already crossed are in `currentRedLines`).
+export function completions(ctx, members, { limit = Infinity } = {}) {
   const reach = (seats) => Math.round(seats) >= 61;
   const have = sumSeats(ctx, members);
-  if (!members.length || reach(have)) return { list: [], total: 0 };
+  if (!members.length || reach(have)) return { list: [], total: 0, currentRedLines: [] };
   const taken = new Set(members);
   const units = [];
   for (const p of ctx.parties) {
@@ -357,16 +358,22 @@ export function completions(ctx, members, { limit = 6 } = {}) {
     found.push({ add, units: picked.length, seats: Math.round(added), total: Math.round(have + added) });
   }
   const orderKey = (c) => c.add.map((id) => ctx.order.get(id));
-  found.sort((x, y) => x.seats - y.seats || x.units - y.units || compareRankDesc(orderKey(y), orderKey(x)));
+  found.sort((x, y) => x.units - y.units || x.seats - y.seats || compareRankDesc(orderKey(y), orderKey(x)));
+  const clashSet = (ids) => new Set(ctx.topics.filter((t) => topicStatus(ctx, ids, t.id).status === 'CLASH').map((t) => t.id));
+  const nowClash = clashSet(members);
+  const currentRedLines = redLinesCrossed(ctx, members);
+  const crossed = new Set(currentRedLines.map((r) => `${r.partyId}|${r.topicId}`));
   const list = found.slice(0, limit).map((c) => {
     const next = [...members, ...c.add];
+    const clash = clashSet(next);
     return {
       ...c,
-      clashTopics: countClashTopics(ctx.topics.map((t) => topicStatus(ctx, next, t.id))),
-      redLines: redLinesCrossed(ctx, next),
+      clashTopics: clash.size,
+      newClashTopics: [...clash].filter((t) => !nowClash.has(t)).length,
+      newRedLines: redLinesCrossed(ctx, next).filter((r) => !crossed.has(`${r.partyId}|${r.topicId}`)),
     };
   });
-  return { list, total: found.length };
+  return { list, total: found.length, currentRedLines };
 }
 
 // Clash analysis covers coalition members only; supporters and abstainers are in periphery().

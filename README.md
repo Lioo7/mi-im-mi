@@ -45,7 +45,7 @@
 - **קו אדום** מסומן רק כשמפלגה אמרה במילים שלה שבלי הנושא היא לא תיכנס לממשלה (5 מקרים).
 - **אין ציון כולל.** האתר מציג את הנושאים עם הפערים הגדולים ביותר, מה מאחד את הקואליציה, ואיזו מפלגה מייצרת הכי הרבה חיכוך.
 - **תפקידים והצבעת אמון:** ההתנגשויות נבדקות רק בין חברות הקואליציה, והפערים של תומכות ונמנעות מוצגים בנפרד. בעד = חברות הקואליציה והתומכות, נגד = כל השאר חוץ מהנמנעות, והממשלה זוכה באמון כשבעד > נגד. מעבר של חברי כנסת בודדים לא מחושב.
-- **מה חסר לרוב של 61:** הצירופים הקטנים ביותר של מפלגות נוספות שמביאים את חברות הקואליציה לבדן ל-61, לפי מספר המנדטים שנוספים, עם מספר הסתירות החזיתיות והקווים האדומים בכל אחד. מידע, לא המלצה.
+- **מה חסר לרוב של 61:** הצירופים הקטנים ביותר של מפלגות נוספות שמביאים את חברות הקואליציה לבדן ל-61. קודם צירופים עם הכי מעט מפלגות, ואז לפי מספר המנדטים שנוספים. לכל צירוף: כמה נושאים בסתירה חזיתית וכמה מהם חדשים, ואילו קווים אדומים הוא חוצה לראשונה. מידע, לא המלצה.
 
 המתודולוגיה המלאה, כולל כל התוויות של הצירים, כללי המקורות וטבלאות הכיסוי, נמצאת [באתר](https://mi-im-mi-2026.netlify.app/#method). נימוקי המיקום של כל עמדה וכל החלטות הבדיקה נמצאים ב-[`docs/research/`](docs/research/).
 
@@ -84,7 +84,7 @@
 | HTML, CSS ו-JavaScript (ES modules), בלי framework ובלי build | עמוד אחד עם כמה תצוגות. פחות מ-60KB דחוס, כולל כל הנתונים, נטען מהר בטלפון, ואין שלב בנייה שיכול להישבר ביום הבחירות |
 | נתונים ב-JSON סטטי | אין שרת ואין מסד נתונים שיכולים ליפול. תיקון הוא עריכת קובץ ופריסה |
 | Netlify | פריסה בפקודה אחת, CDN, וכתובות טיוטה לבדיקה לפני פרודקשן |
-| `node --test` | 61 בדיקות לאלגוריתם ולנתונים, כולל בדיקת סימטריה (היפוך כיוון הציר חייב לתת תוצאה זהה), בדיקה שהמנדטים מסתכמים ב-120, ובדיקה מול חיפוש ממצה של הצירופים ל-61 |
+| `node --test` | 63 בדיקות לאלגוריתם ולנתונים, כולל בדיקת סימטריה (היפוך כיוון הציר חייב לתת תוצאה זהה), בדיקה שהמנדטים מסתכמים ב-120, ובדיקה מול חיפוש ממצה של הצירופים ל-61 |
 | בדיקת smoke עם Chrome headless | צילומי מסך ב-390 וב-1280 פיקסלים, בדיקת שגיאות, בדיקה שההסתייגות על הסקרים גלויה ולא מוסתרת, ובדיקה שמונה הכניסות לא מקבל נתוני קואליציה |
 
 ### הרצה מקומית
@@ -123,7 +123,7 @@ node scripts/smoke.mjs [baseUrl]      # בדיקת smoke עם צילומי מס�
 
 **Mi Im Mi ("Who With Whom")** is a neutral, Hebrew, mobile-first web app for Israel's Knesset election of 27 October 2026. Pick parties that might form a coalition, and see where their positions agree and where they clash.
 
-**Since 1 November it runs on the results:** seats as published by the Central Elections Committee (as of 30.10, before submission to the President). Each party can be marked as a member, an outside supporter or an abstainer (everyone else votes against). The app shows whether the government would win the investiture vote (for > against), the smallest sets of extra parties that would give the members alone 61 seats, and how far supporters and abstainers are from the coalition. Positions are as documented on election eve.
+**Since 1 November it runs on the results:** seats as published by the Central Elections Committee (as of 30.10, before submission to the President). Each party can be marked as a member, an outside supporter or an abstainer (everyone else votes against). The app shows whether the government would win the investiture vote (for > against), the smallest sets of extra parties that would give the members alone 61 seats (fewest parties first, with the new head-on clashes and newly crossed red lines of each), and how far supporters and abstainers are from the coalition. Positions are as documented on election eve.
 
 🔗 https://mi-im-mi-2026.netlify.app
 
@@ -161,7 +161,7 @@ node scripts/smoke.mjs [baseUrl]      # בדיקת smoke עם צילומי מס�
 - human checkpoints throughout
 - about 40 commits
 
-**Stack.** Static vanilla JS with no build step (<60KB gzipped including all data), JSON data, Netlify, `node --test` (61 tests, including mirror-symmetry tests, a 120-seat check and a brute-force check of the completions to 61), and a headless-Chrome smoke test that also checks that the page-view beacon carries no coalition data and that the poll disclaimer is visible.
+**Stack.** Static vanilla JS with no build step (<60KB gzipped including all data), JSON data, Netlify, `node --test` (63 tests, including mirror-symmetry tests, a 120-seat check and a brute-force check of the completions to 61), and a headless-Chrome smoke test that also checks that the page-view beacon carries no coalition data and that the poll disclaimer is visible.
 
 **Corrections.** Every cell has a "found an error?" link. You can also email lioz.akirav@gmail.com or open an issue.
 

@@ -377,14 +377,20 @@ test('completions: exactly the minimal sets, found by brute force; the linked pa
   assert.ok(completions(ctx, ['rz', 'p30', 'p20'], { limit: Infinity }).list.some((x) => x.add.join() === 'z'));
 });
 
-test('completions: sorted by added seats, then unit count, then party order; capped at 6 with the full count', () => {
+test('completions: sorted by unit count, then added seats, then party order; a limit keeps the full count', () => {
   const ctx = seatFixture();
-  const all = completions(ctx, ['p6'], { limit: Infinity }).list;
+  const all = completions(ctx, ['p6']).list;
   for (let i = 1; i < all.length; i++) {
     const a = all[i - 1], b = all[i];
-    assert.ok(a.seats < b.seats || (a.seats === b.seats && a.units <= b.units), `${a.add} before ${b.add}`);
+    const key = (x) => x.add.map((id) => ctx.order.get(id)).join(',');
+    assert.ok(a.units < b.units || (a.units === b.units && (a.seats < b.seats || (a.seats === b.seats && key(a) < key(b)))), `${a.add} before ${b.add}`);
   }
-  const capped = completions(ctx, ['p6']);
+  // p30 + p14 = 44: the single p20 (+20) comes before the pair p12 + p6 (+18).
+  const one = completions(ctx, ['p30', 'p14']).list;
+  assert.equal(one[0].add.join(), 'p20');
+  assert.equal(one[0].units, 1);
+  assert.ok(one.some((x) => x.units === 2 && x.seats < one[0].seats), 'fixture has a cheaper two-list completion');
+  const capped = completions(ctx, ['p6'], { limit: 6 });
   assert.equal(capped.list.length, 6);
   assert.equal(capped.total, all.length);
   assert.deepEqual(capped.list.map((x) => x.add), all.slice(0, 6).map((x) => x.add));
@@ -392,17 +398,34 @@ test('completions: sorted by added seats, then unit count, then party order; cap
 
 test('completions: none with no members, none once members reach 61, supporters never count', () => {
   const ctx = seatFixture();
-  assert.deepEqual(completions(ctx, []), { list: [], total: 0 });
-  assert.deepEqual(completions(ctx, ['p30', 'p20', 'p12']), { list: [], total: 0 });
+  assert.deepEqual(completions(ctx, []), { list: [], total: 0, currentRedLines: [] });
+  assert.deepEqual(completions(ctx, ['p30', 'p20', 'p12']), { list: [], total: 0, currentRedLines: [] });
   // p30 + p20 = 50: p12 alone completes it, even if p12 is "supporting" (supporters are not members).
   assert.ok(completions(ctx, ['p30', 'p20']).list.some((x) => x.add.join() === 'p12'));
 });
 
-test('completions report head-on clash topics and red lines of the resulting coalition', () => {
+test('completions report deltas: new clash topics and only newly crossed red lines', () => {
   const ctx = seatFixture();
-  const c = completions(ctx, ['p30', 'p20'], { limit: Infinity }).list;
-  const withP14 = c.find((x) => x.add.join() === 'p14');
-  assert.equal(withP14.clashTopics, 1); // p30 (-2) vs p14 (2)
-  assert.deepEqual(withP14.redLines, [{ partyId: 'p30', topicId: 't1' }]); // p30's red line, p20 and p14 are 2+ away
+  // p30 (-2, red line) + p20 (0): the red line is already crossed at distance 2, which makes t1 a head-on clash.
+  const already = completions(ctx, ['p30', 'p20']);
+  assert.deepEqual(already.currentRedLines, [{ partyId: 'p30', topicId: 't1' }]);
+  const p14 = already.list.find((x) => x.add.join() === 'p14');
+  assert.equal(p14.clashTopics, 1);
+  assert.equal(p14.newClashTopics, 0, 't1 was already a head-on clash (red line at distance 2)');
+  assert.deepEqual(p14.newRedLines, [], 'the red line was already crossed');
   assert.deepEqual(redLinesCrossed(ctx, ['p30', 'p6']), []); // p6 has no position
+});
+
+test('completions: a new clash and a newly crossed red line are reported as new', () => {
+  const ctx = makeContext({
+    parties: [{ id: 'a', pollAvg: 40 }, { id: 'b', pollAvg: 15 }, { id: 'c', pollAvg: 10 }],
+    topics: [{ id: 't1' }, { id: 't2' }],
+    positions: [P('a', 't1', -1, true), P('b', 't1', -1), P('c', 't1', 1), P('a', 't2', -2), P('b', 't2', 2), P('c', 't2', 2)],
+  });
+  // a + b = 55: t2 is already a clash (d = 4); adding c (10) adds t1 (red line of a, d = 2).
+  const r = completions(ctx, ['a', 'b']);
+  assert.deepEqual(r.currentRedLines, []);
+  assert.deepEqual(r.list.map((x) => [x.add.join(), x.clashTopics, x.newClashTopics, x.newRedLines]), [
+    ['c', 2, 1, [{ partyId: 'a', topicId: 't1' }]],
+  ]);
 });

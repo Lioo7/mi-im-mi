@@ -523,7 +523,7 @@ try {
     await sleep(300);
     const card = await evaluate(`(() => { const c = document.querySelector('#results .completions'); if (!c) return null;
       return { title: c.querySelector('h3').innerText, note: c.innerText.includes(${JSON.stringify(S.completions.note)}), rows: [...c.querySelectorAll('[data-act="complete"]')].map((b) => b.dataset.ids) }; })()`);
-    const wantRows = completions(ctx, pr.coalition.members).list.map((x) => x.add.join(','));
+    const wantRows = completions(ctx, pr.coalition.members).list.slice(0, 6).map((x) => x.add.join(','));
     if (!card) errors.push('[interaction] completions card missing for a coalition short of 61');
     else {
       if (card.title !== S.completions.title || !card.note) errors.push(`[interaction] completions card title/note wrong (${card.title})`);
@@ -540,6 +540,34 @@ try {
       await evaluate("document.querySelector('#toast [data-act=\"undo\"]').click()");
       await sleep(300);
       if ((await evaluate('location.search')) !== before) errors.push('[interaction] undo after a completion did not restore the coalition');
+    }
+    // The change bloc (48): fewest lists first, so "+ הליכוד" alone leads; 6 rows, then "הציגו את כל N" shows all.
+    // With רע״ם supporting, a completion that adds it is tagged "(כיום תומכת)".
+    const change = { members: ['yashar', 'together', 'democrats', 'yisrael-beiteinu'], supporters: ['raam'] };
+    const all = completions(ctx, change.members);
+    await c.send('Page.navigate', { url: `${baseUrl}${serializeState(ctx, { base: null, ...change })}#results` });
+    await waitFor(() => evaluate("document.body.dataset.view === 'results' && document.querySelector('#footer')?.children.length > 0"));
+    await sleep(300);
+    const rowsOf = () => evaluate("[...document.querySelectorAll('#results .completions [data-act=\"complete\"]')].map((b) => b.dataset.ids + '|' + b.querySelector('.row-title').innerText)");
+    const first = await rowsOf();
+    if (first.length !== Math.min(6, all.total)) errors.push(`[interaction] completions should show 6 rows before "show all", got ${first.length}`);
+    if (RESULTS && !first[0]?.startsWith('likud|')) errors.push(`[interaction] change bloc: "+ הליכוד" should come first (${first[0]})`);
+    const toggle = await evaluate("(() => { const t = document.querySelector('#results [data-act=\"completions-all\"]'); return t ? t.innerText + '|' + t.getAttribute('aria-expanded') : ''; })()");
+    if (all.total > 6 && toggle !== `${S.completions.showAll(all.total)}|false`) errors.push(`[interaction] completions toggle missing or wrong (${toggle})`);
+    if (all.total > 6) {
+      await evaluate("document.querySelector('#results [data-act=\"completions-all\"]').click()");
+      await sleep(300);
+      const expanded = await rowsOf();
+      if (expanded.length !== all.total) errors.push(`[interaction] "show all" should list ${all.total} completions, got ${expanded.length}`);
+      if (expanded.map((r) => r.split('|')[0]).join(';') !== all.list.map((x) => x.add.join(',')).join(';')) errors.push('[interaction] expanded completions are not in the expected order');
+      const tagged = expanded.filter((r) => r.split('|')[0].split(',').includes('raam'));
+      if (!tagged.length || !tagged.every((r) => r.includes('רע״ם (כיום תומכת)'))) errors.push(`[interaction] completions adding a supporter must tag it "(כיום תומכת)" (${tagged[0]})`);
+      if (expanded.some((r) => !r.split('|')[0].split(',').includes('raam') && r.includes('(כיום'))) errors.push('[interaction] only current supporters/abstainers get a "(כיום …)" tag');
+      const deltas = await evaluate("[...document.querySelectorAll('#results .completions [data-act=\"complete\"]')].every((b) => /\\((אין חדשים|אחד חדש|\\d+ חדשים)\\)|אין נושא בסתירה חזיתית/.test(b.innerText) && /קווים אדומים חדשים|קו אדום חדש|אין קווים אדומים חדשים/.test(b.innerText))");
+      if (!deltas) errors.push('[interaction] each completion must show new clash topics and new red lines');
+      await evaluate('window.scrollTo(0, document.querySelector("#results .completions").getBoundingClientRect().top + scrollY - 70)');
+      await sleep(200);
+      await shoot(z, 'interaction-completions-change-m.png', false);
     }
   }
   // A cell sheet with a quote renders it in quotation marks with an attribution line underneath.
