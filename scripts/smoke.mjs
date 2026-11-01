@@ -422,7 +422,12 @@ try {
       if (it.links.join() !== sc.sources.map((x) => x.url).join() && it.links.join() !== sc.sources.map((x) => new URL(x.url).href).join()) errors.push(`[interaction] scenario ${it.id} source links wrong`);
       if (!/\d{1,2}\.\d{1,2}/.test(it.src)) errors.push(`[interaction] scenario ${it.id} source line lacks a date`);
     }
-    if (!scen.items.find((x) => x.id === 'segal-unity')?.src.startsWith('הצעת הפרשן עמית סגל')) errors.push('[interaction] the commentator scenario must say it is a commentator\'s proposal');
+    // One source-line format: "מקור: <outlet>, <d.m>" / "מקורות: <a> · <b>", a person's statement as "<person> ב<outlet>".
+    for (const it of scen.items) {
+      const sc = scenarios.scenarios.find((x) => x.id === it.id);
+      const want = `${S.presets.sourcesLabel(sc.sources.length)} ${sc.sources.map((x) => `${x.by ? S.presets.personIn(x.by) : ''}${x.outlet}, ${S.presets.shortDate(x.date)}`).join(' · ')}`;
+      if (it.src.replace(/\s+/g, ' ').trim() !== want) errors.push(`[interaction] scenario ${it.id} source line "${it.src}" should read "${want}"`);
+    }
     await shoot(z, 'interaction-scenarios-m.png', false);
     if (await evaluate("document.querySelector('#presets .scen-note') !== null")) errors.push('[interaction] scenario notes must not be rendered (they live in decisions.md)');
     const b = scenarios.scenarios.find((x) => x.supporters.length && x.abstainers.length) ?? scenarios.scenarios[0];

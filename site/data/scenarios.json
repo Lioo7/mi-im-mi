@@ -13,11 +13,11 @@
     },
     {
       "id": "likud-yashar-right",
-      "members": ["likud", "yashar", "otzma-yehudit", "religious-zionism"],
+      "members": ["likud", "yashar", "otzma-yehudit", "religious-zionism", "zehut"],
       "supporters": [],
       "abstainers": [],
       "sources": [
-        { "outlet": "The Jerusalem Post", "date": "2026-10-29", "url": "https://www.jpost.com/israel-election-2026/article-913185" }
+        { "outlet": "ג׳רוזלם פוסט", "date": "2026-10-29", "url": "https://www.jpost.com/israel-election-2026/article-913185" }
       ]
     },
     {
@@ -26,8 +26,8 @@
       "supporters": [],
       "abstainers": [],
       "sources": [
-        { "outlet": "כיפה", "date": "2026-10-31", "url": "https://www.kipa.co.il/%D7%97%D7%93%D7%A9%D7%95%D7%AA/1235161-0/", "by": "הצעת הפרשן עמית סגל" },
-        { "outlet": "mako", "date": "2026-10-28", "url": "https://www.mako.co.il/news-israel-elections/2026/Article-9b8beb9041f71a1027.htm" }
+        { "outlet": "mako", "date": "2026-10-28", "url": "https://www.mako.co.il/news-israel-elections/2026/Article-9b8beb9041f71a1027.htm" },
+        { "outlet": "כיפה", "date": "2026-10-31", "url": "https://www.kipa.co.il/%D7%97%D7%93%D7%A9%D7%95%D7%AA/1235161-0/", "by": "עמית סגל" }
       ]
     }
   ]
