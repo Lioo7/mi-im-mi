@@ -2,7 +2,9 @@
 Static, Hebrew, RTL web app showing where possible coalition partners clash or agree across 8 topics, for the Knesset 26 elections (27.10.2026). Since 1.11 it runs in results mode (CEC seats, party roles, investiture vote). Vanilla JS, no build, no dependencies; deployed from `site/` to Netlify (`mi-im-mi-2026`, https://mi-im-mi-2026.netlify.app). Current state: README.md, this file, `docs/research/decisions.md`. PLAN.md is the historical plan (24–25.10).
 
 ## ⚠️ The site is live
-The site is no longer frozen (1.11): changes under `site/` are allowed as part of agreed work. **A production deploy still needs the user's explicit OK**, always after a draft deploy, smoke against the draft URL and the user's phone check. If you find a critical bug (wrong data shown, a broken core flow, a privacy leak, a missing legal disclaimer), report it first and wait. Open findings: `docs/review-2026-10-26.md`.
+The site is no longer frozen (1.11): changes under `site/` are allowed as part of agreed work. **A production deploy still needs the user's explicit OK**, always after a draft deploy, smoke against the draft URL and the user's phone check. If you find a critical bug (wrong data shown, a broken core flow, a privacy leak, a missing legal disclaimer), report it first and wait. Open findings: GitHub Issues (`tech-debt`); the original review is `docs/review-2026-10-26.md`.
+
+Backlog: GitHub Issues. Run `gh issue list` before starting new work. Reference issues in commits (closes #N).
 
 ### Follow-up on 4.11: CEC submits the results to the President
 Update `meta.json → resultsStatus` to the official wording, and update `results-26.json` seats **only if the CEC corrected them** (keep the as-published values otherwise). Then validate, test, smoke, draft deploy, get the user's OK, and only then deploy to production. Note the change in `docs/research/decisions.md`.
