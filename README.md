@@ -62,7 +62,7 @@
 
 ## פרטיות
 
-אין עוגיות ואין משתמשים. הקואליציה נשמרת בכתובת. אם משתפים קישור, הבחירה מופיעה בו, ושרת האחסון רואה אותה כמו כל כתובת. אנחנו לא שומרים ולא מנתחים אותה. פירוט מלא נמצא בסעיף [פרטיות](https://mi-im-mi-2026.netlify.app/#privacy) באתר, ולידו [הצהרת הנגישות](https://mi-im-mi-2026.netlify.app/#accessibility) (ת״י 5568, ברמה AA), כולל מגבלות ידועות. מונה הכניסות ([GoatCounter](https://www.goatcounter.com)) פועל רק באתר עצמו, ומקבל רק את נתיב העמוד, הכותרת, רוחב המסך והדומיין שממנו הגיעו, בלי פרמטרי הקואליציה. בדיקת ה-smoke מוודאת את זה מול האתר, ומוודאת שמכל כתובת אחרת לא נשלח כלום.
+אין עוגיות ואין משתמשים. הקואליציה נשמרת רק בכתובת שבדפדפן, אחרי הסימן #, ולכן לא נשלחת לשרת. כשמשתפים קישור, הבחירה מופיעה בו. קישור בפורמט הישן, שבו הקואליציה מופיעה אחרי סימן שאלה, מגיע לשרת פעם אחת כשפותחים אותו, ומיד מומר לפורמט החדש, לפני שהדף טוען נתונים. אנחנו לא שומרים ולא מנתחים את הבחירה. פירוט מלא נמצא בסעיף [פרטיות](https://mi-im-mi-2026.netlify.app/#privacy) באתר, ולידו [הצהרת הנגישות](https://mi-im-mi-2026.netlify.app/#accessibility) (ת״י 5568, ברמה AA), כולל מגבלות ידועות. מונה הכניסות ([GoatCounter](https://www.goatcounter.com)) פועל רק באתר עצמו, ומקבל רק את נתיב העמוד, הכותרת, רוחב המסך והדומיין שממנו הגיעו, בלי פרמטרי הקואליציה. בדיקת ה-smoke מוודאת את זה מול האתר, ומוודאת שמכל כתובת אחרת לא נשלח כלום.
 
 ## מצאתם טעות?
 
@@ -84,8 +84,8 @@
 | HTML, CSS ו-JavaScript (ES modules), בלי framework ובלי build | עמוד אחד עם כמה תצוגות. פחות מ-60KB דחוס, כולל כל הנתונים, נטען מהר בטלפון, ואין שלב בנייה שיכול להישבר ביום הבחירות |
 | נתונים ב-JSON סטטי | אין שרת ואין מסד נתונים שיכולים ליפול. תיקון הוא עריכת קובץ ופריסה |
 | Netlify | פריסה בפקודה אחת, CDN, וכתובות טיוטה לבדיקה לפני פרודקשן |
-| `node --test` | 64 בדיקות לאלגוריתם ולנתונים, כולל בדיקת סימטריה (היפוך כיוון הציר חייב לתת תוצאה זהה), בדיקה שהמנדטים מסתכמים ב-120, ובדיקה מול חיפוש ממצה של הצירופים ל-61 |
-| בדיקת smoke עם Chrome headless | צילומי מסך ב-390 וב-1280 פיקסלים, בדיקת שגיאות, בדיקה ששורת המקור של המנדטים גלויה לפני המספרים (בתצוגת התוצאות: שורת ועדת הבחירות; בתצוגת סקרים: ההסתייגות שנדרשת בחוק), ובדיקה שמונה הכניסות לא מקבל נתוני קואליציה |
+| `node --test` | 66 בדיקות לאלגוריתם ולנתונים, כולל בדיקת סימטריה (היפוך כיוון הציר חייב לתת תוצאה זהה), בדיקה שהמנדטים מסתכמים ב-120, ובדיקה מול חיפוש ממצה של הצירופים ל-61 |
+| בדיקת smoke עם Chrome headless | צילומי מסך ב-390 וב-1280 פיקסלים, בדיקת שגיאות, בדיקה ששורת המקור של המנדטים גלויה לפני המספרים (בתצוגת התוצאות: שורת ועדת הבחירות; בתצוגת סקרים: ההסתייגות שנדרשת בחוק), בדיקה שמונה הכניסות לא מקבל נתוני קואליציה ושאף בקשה לשרת לא נושאת אותה, ובדיקה שמדיניות האבטחה (CSP) לא חוסמת כלום, כולל התג ש-Netlify מוסיף לאתר |
 
 ### הרצה מקומית
 
@@ -154,7 +154,7 @@ node scripts/smoke.mjs [baseUrl]      # בדיקת smoke עם צילומי מס�
   - an analytics script that leaked users' coalitions
   - a host badge covering the legally required poll disclaimer
 
-**Privacy.** No cookies. The coalition is kept in the URL. A shared link contains it, and the host sees it like any URL; we don't store or analyze it. The page-view beacon runs only on the production site and sends only the path, page title, screen width and referrer origin. The smoke test checks this against the live site, and checks that nothing is sent from any other host. The site has a full [privacy section](https://mi-im-mi-2026.netlify.app/#privacy) and an [accessibility statement](https://mi-im-mi-2026.netlify.app/#accessibility) (Israeli standard IS 5568, WCAG 2.0 AA), including known limitations.
+**Privacy.** No cookies. The coalition is kept only in the URL fragment (after `#`), which browsers never send to the server. A shared link contains it. An old-format link, with the coalition after `?`, reaches the server once when opened and is rewritten to the new format right away, before the page loads any data. We don't store or analyze the coalition. The page-view beacon runs only on the production site and sends only the path, page title, screen width and referrer origin. The smoke test checks this against the live site, and checks that nothing is sent from any other host. The site has a full [privacy section](https://mi-im-mi-2026.netlify.app/#privacy) and an [accessibility statement](https://mi-im-mi-2026.netlify.app/#accessibility) (Israeli standard IS 5568, WCAG 2.0 AA), including known limitations.
 
 **How it was built.** In under two days, against a hard deadline (election day):
 - planning with Claude
@@ -162,7 +162,7 @@ node scripts/smoke.mjs [baseUrl]      # בדיקת smoke עם צילומי מס�
 - human checkpoints throughout
 - about 40 commits
 
-**Stack.** Static vanilla JS with no build step (<60KB gzipped including all data), JSON data, Netlify, `node --test` (64 tests, including mirror-symmetry tests, a 120-seat check and a brute-force check of the completions to 61), and a headless-Chrome smoke test that also checks that the page-view beacon carries no coalition data and that the line explaining the seat numbers comes before them: the results source line in results mode, the legally required poll disclaimer in polls mode.
+**Stack.** Static vanilla JS with no build step (<60KB gzipped including all data), JSON data, Netlify, `node --test` (66 tests, including mirror-symmetry tests, a 120-seat check and a brute-force check of the completions to 61), a full Content-Security-Policy, and a headless-Chrome smoke test that also checks that the page-view beacon and every request to the site carry no coalition data, that the CSP blocks nothing (including Netlify's injected badge), and that the line explaining the seat numbers comes before them: the results source line in results mode, the legally required poll disclaimer in polls mode.
 
 **Corrections.** Every cell has a "found an error?" link. You can also email lioz.akirav@gmail.com or open an issue.
 

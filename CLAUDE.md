@@ -11,7 +11,7 @@ Update `meta.json → resultsStatus` to the official wording, and update `result
 - `site/`: everything that is deployed.
   - `index.html`, `css/app.css`
   - `js/app.js`: DOM, routing (`#build`, `#results`, `#method`, `#why`), rendering
-  - `js/compat.js`: pure compatibility logic, seat source per mode, roles and investiture, completions to 61, and URL state (`?b=&m=&o=&a=`), unit-tested
+  - `js/compat.js`: pure compatibility logic, seat source per mode, roles and investiture, completions to 61, and URL state (`#<view>?b=&m=&o=&a=`), unit-tested
   - `js/strings.js`: all UI strings
   - `js/links.js`: correction mailto and quote attribution
   - `js/stats.js`: cookieless GoatCounter beacon, sent only from `https://mi-im-mi-2026.netlify.app` (path, title, screen width, referrer origin; never the query)
@@ -27,7 +27,7 @@ Update `meta.json → resultsStatus` to the official wording, and update `result
 ## Commands
 - **Test:** `node --test`
 - **Validate:** `node scripts/validate.mjs`
-- **Smoke:** `node scripts/smoke.mjs [baseUrl]`, then look at `smoke/*.png`. Against production every beacon is inspected (never sent); on any other host, no beacon may be sent at all. Smoke follows `meta.mode`. To test polls mode, and polls mode with seats hidden, copy `site/` and `scripts/` to a scratch dir, set `mode` to `"polls"` (and `showSeats` to `false`) there, and run smoke in the copy. Run all three before a deploy.
+- **Smoke:** `node scripts/smoke.mjs [baseUrl]`, then look at `smoke/*.png`. Against production every beacon is inspected (never sent); on any other host, no beacon may be sent at all. Smoke follows `meta.mode`. To test polls mode, and polls mode with seats hidden, copy `site/`, `scripts/` and `netlify.toml` to a scratch dir, set `mode` to `"polls"` (and `showSeats` to `false`) there, and run smoke in the copy. Run all three before a deploy. Local runs send `netlify.toml`'s headers (so the CSP is enforced; any violation fails the run) and run Netlify's live badge script, fetched from production (`--no-hud` offline). Remote runs check the served CSP matches `netlify.toml`. Smoke also fails if any request to the site carries coalition state, except the first load of an old-format link.
 - **Local:** `python3 -m http.server -d site 8080`
 - **Export CSV:** `node scripts/export-csv.mjs` (`research/merged.json` → `review/positions_review.csv`)
 - **Import CSV:** `node scripts/import-csv.mjs review/positions_review.csv [--dry-run]`. This validates the file, prints the diff and writes `site/data/positions.json`.
@@ -65,6 +65,10 @@ Update `meta.json → resultsStatus` to the official wording, and update `result
 - **Scenarios (results mode):** at most 4, replacing the bloc presets. Named by composition only (generated from the roles, never hand-labeled), sorted alphabetically. Each source is opened and checked against the members and roles before it is added; a role the source doesn't clearly support is raised with the user, never guessed. Source line, one format: "מקור: <outlet>, <d.m>" or "מקורות: <a> · <b>" (main report first); a person's statement reads "<person> ב<outlet>, <d.m>" (`by`); outlet names in Hebrew where that is the common name (ג׳רוזלם פוסט); the link sits on the outlet name. When a source names a party that ran on a joint list, the whole list is included (e.g. "Smotrich" = the ט list, so זהות too). Notes are not rendered; verbatim objections from a scenario's own source go in decisions.md. Log each scenario in `docs/research/decisions.md`.
 - **הציונות הדתית / זהות:** soft-linked (one unit) in polls mode only; with results they are chosen and counted independently.
 - **Roles:** member / supporter (`o=`) / abstainer (`a=`); unselected = opponent. Clash analysis is members only; supporters' and abstainers' gaps have their own card. Investiture: for = members + supporters, against = all others except abstainers, approved when for > against. Old `o=` links mean supporters.
+
+## URL and security
+- **URL state lives in the fragment:** `#<view>?b=&m=&o=&a=`, with the views and method anchors as routes. Never put coalition state in the query: the server, and the Referer of every same-origin request, would see it. Old `?m=` links: `moveLegacyState` moves the query state into the fragment verbatim before any request, then the ids are checked. Other query params (e.g. `?s=wa`) stay. Share links are `/#results?…`.
+- **CSP (`netlify.toml`):** no inline scripts, no `style=""` attributes (set styles through the CSSOM), and no new hosts without updating the policy. The one script hash is the inline script of Netlify's badge, which runs in a srcdoc iframe that inherits our CSP; if smoke reports a new hash, update it there. Inline `<style>` elements are allowed (`style-src-elem 'unsafe-inline'`) only because the badge's style embeds the visitor's viewport size, so it has no stable hash.
 
 ## Conventions
 - `<html lang="he" dir="rtl">`, CSS logical properties only, Latin/URLs wrapped in `<bdi>`, gershayim `״` in names.
