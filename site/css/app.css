@@ -459,9 +459,11 @@ details.below summary { cursor: pointer; font-weight: 600; padding-block: 10px; 
 .below-list li + li { margin-block-start: 6px; }
 
 /* Party roles */
-.roles { display: flex; gap: 6px; padding: 0 12px 10px; padding-inline-start: 50px; }
-.role-btn { flex: 1; min-block-size: 44px; padding: 4px 6px; border: 1px solid #9aa3b5; border-radius: 999px; background: #fff; color: var(--fg); font-size: .85rem; cursor: pointer; white-space: nowrap; }
-.role-btn.is-on { background: #dbe5fa; border: 2px solid var(--accent); color: #0a2a7a; font-weight: 700; padding: 3px 5px; }
+.roles { display: flex; gap: 4px; padding: 0 12px 6px; padding-inline-start: 50px; margin-block-start: -2px; }
+/* 36px visual height; ::after extends the tap target to 44px. */
+.role-btn { position: relative; flex: 1; min-block-size: 36px; padding: 2px 6px; border: 1px solid #9aa3b5; border-radius: 999px; background: #fff; color: var(--fg); font-size: .85rem; cursor: pointer; white-space: nowrap; }
+.role-btn.is-on { background: #dbe5fa; border: 2px solid var(--accent); color: #0a2a7a; font-weight: 700; padding: 1px 5px; }
+.role-btn::after { content: ""; position: absolute; inset: -7px 0; } /* from the padding box, inside the 1–2px border */
 .role-btn.is-on::before { content: "✓ "; color: var(--accent); }
 .role-btn:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
 @media (max-width: 360px) { .roles { padding-inline-start: 12px; } }
@@ -471,3 +473,6 @@ details.below summary { cursor: pointer; font-weight: 600; padding-block: 10px; 
 .members-line { margin: 2px 0 0; font-size: .9rem; color: var(--fg); }
 .periphery .per-party + .per-party { margin-block-start: 10px; }
 .periphery .pair-list { margin-block-start: 4px; }
+.completions .list li + li { margin-block-start: 6px; }
+.row-btn.completion { display: grid; gap: 2px; }
+.completions .poll-legal { margin-block: 6px; }

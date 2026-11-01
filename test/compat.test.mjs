@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
   level, makeContext, topicStatus, crises, glue, friction, overall, newClashTopics,
   matrixCell, pairSummary, investiture, periphery, analyze, without, presets, parseState, serializeState,
-  withLinked, lowCoverage, addImpact, breakdown, ballotOrder, selected,
+  withLinked, lowCoverage, addImpact, breakdown, ballotOrder, selected, completions, redLinesCrossed,
 } from '../site/js/compat.js';
 
 const P = (partyId, topicId, position, redLine = false) => ({ partyId, topicId, position, redLine });
@@ -329,4 +329,80 @@ test('rankBySeats=false: crisis ties fall back to topic order, not poll seats', 
   const ctx = makeContext({ parties: base.parties, topics: base.topics, positions: pos, rankBySeats: false });
   const st = ['t1', 't2', 't3'].map((t) => topicStatus(ctx, ['a', 'b', 'c', 'd'], t));
   assert.deepEqual(crises(ctx, st).map((x) => x.topicId), ['t1', 't2']);
+});
+
+// Brute force over party subsets (not units): every set of non-members that reaches 61 with the members, keeps a
+// soft-linked pair together when both are non-members, and falls short when any one party (or pair) is dropped.
+function bruteMinimal(ctx, members) {
+  const reach = (ids) => Math.round([...members, ...ids].reduce((n, id) => n + ctx.seatsOf(id), 0)) >= 61;
+  const free = ctx.parties.map((p) => p.id).filter((id) => !members.includes(id) && ctx.passed(id) && ctx.seatsOf(id) > 0);
+  const out = [];
+  for (let mask = 1; mask < 1 << free.length; mask++) {
+    const ids = free.filter((_, i) => mask & (1 << i));
+    const pairOk = ids.every((id) => { const l = ctx.byId.get(id).linkedWith; return !l || !free.includes(l) || ids.includes(l); });
+    if (!pairOk || !reach(ids)) continue;
+    const groups = ids.filter((id) => { const l = ctx.byId.get(id).linkedWith; return !(l && ids.includes(l) && ctx.order.get(l) < ctx.order.get(id)); })
+      .map((id) => { const l = ctx.byId.get(id).linkedWith; return l && ids.includes(l) ? [id, l] : [id]; });
+    if (groups.some((g) => reach(ids.filter((id) => !g.includes(id))))) continue;
+    out.push(ids.join('+'));
+  }
+  return out.sort();
+}
+
+function seatFixture() {
+  return makeContext({
+    parties: [
+      { id: 'p30', pollAvg: 30 }, { id: 'p20', pollAvg: 20 }, { id: 'p14', pollAvg: 14 }, { id: 'p12', pollAvg: 12 },
+      { id: 'p10', pollAvg: 10 }, { id: 'rz', pollAvg: 9, linkedWith: 'z' }, { id: 'p8', pollAvg: 8 }, { id: 'p6', pollAvg: 6 },
+      { id: 'z', pollAvg: 2, linkedWith: 'rz' }, { id: 'p0', pollAvg: 0 },
+    ],
+    topics: [{ id: 't1' }],
+    positions: [P('p30', 't1', -2, true), P('p20', 't1', 0), P('p14', 't1', 2)],
+  });
+}
+
+test('completions: exactly the minimal sets, found by brute force; the linked pair is one unit', () => {
+  const ctx = seatFixture();
+  for (const members of [['p30'], ['p20'], ['p30', 'p20'], ['p12', 'p10'], ['p30', 'z'], ['p6']]) {
+    const c = completions(ctx, members, { limit: Infinity });
+    assert.deepEqual(c.list.map((x) => [...x.add].sort().join('+')).sort(), bruteMinimal(ctx, members).map((x) => x.split('+').sort().join('+')).sort(), members.join(','));
+    assert.equal(c.total, c.list.length);
+    for (const x of c.list) {
+      assert.ok(x.total >= 61);
+      assert.ok(!(x.add.includes('rz') && !members.includes('z')) || x.add.includes('z'), 'rz without z');
+      assert.ok(!(x.add.includes('z') && !members.includes('rz')) || x.add.includes('rz'), 'z without rz');
+    }
+  }
+  // With rz already a member, z alone is its own unit (9 + 30 + 20 = 59, + z 2 = 61).
+  assert.ok(completions(ctx, ['rz', 'p30', 'p20'], { limit: Infinity }).list.some((x) => x.add.join() === 'z'));
+});
+
+test('completions: sorted by added seats, then unit count, then party order; capped at 6 with the full count', () => {
+  const ctx = seatFixture();
+  const all = completions(ctx, ['p6'], { limit: Infinity }).list;
+  for (let i = 1; i < all.length; i++) {
+    const a = all[i - 1], b = all[i];
+    assert.ok(a.seats < b.seats || (a.seats === b.seats && a.units <= b.units), `${a.add} before ${b.add}`);
+  }
+  const capped = completions(ctx, ['p6']);
+  assert.equal(capped.list.length, 6);
+  assert.equal(capped.total, all.length);
+  assert.deepEqual(capped.list.map((x) => x.add), all.slice(0, 6).map((x) => x.add));
+});
+
+test('completions: none with no members, none once members reach 61, supporters never count', () => {
+  const ctx = seatFixture();
+  assert.deepEqual(completions(ctx, []), { list: [], total: 0 });
+  assert.deepEqual(completions(ctx, ['p30', 'p20', 'p12']), { list: [], total: 0 });
+  // p30 + p20 = 50: p12 alone completes it, even if p12 is "supporting" (supporters are not members).
+  assert.ok(completions(ctx, ['p30', 'p20']).list.some((x) => x.add.join() === 'p12'));
+});
+
+test('completions report head-on clash topics and red lines of the resulting coalition', () => {
+  const ctx = seatFixture();
+  const c = completions(ctx, ['p30', 'p20'], { limit: Infinity }).list;
+  const withP14 = c.find((x) => x.add.join() === 'p14');
+  assert.equal(withP14.clashTopics, 1); // p30 (-2) vs p14 (2)
+  assert.deepEqual(withP14.redLines, [{ partyId: 'p30', topicId: 't1' }]); // p30's red line, p20 and p14 are 2+ away
+  assert.deepEqual(redLinesCrossed(ctx, ['p30', 'p6']), []); // p6 has no position
 });

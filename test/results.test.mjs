@@ -79,3 +79,27 @@ test('results mode: bloc presets skip lists under the threshold', async () => {
   const ctx = contextFor({ meta: { ...meta, mode: 'results' }, parties, topics, positions, results });
   for (const p of Object.values(presets(ctx))) assert.ok(p.members.every((id) => ctx.passed(id)));
 });
+
+test('completions on the CEC results: the 53-seat bloc needs one more list of 8+ seats', async () => {
+  const { contextFor, completions } = await import('../site/js/compat.js');
+  const { topics, positions } = loadData();
+  const ctx = contextFor({ meta: { ...meta, mode: 'results' }, parties, topics, positions, results });
+  const c = completions(ctx, ['likud', 'otzma-yehudit', 'shas', 'utj', 'religious-zionism', 'zehut']);
+  assert.deepEqual(c.list.map((x) => [x.add.join('+'), x.seats, x.total]), [
+    ['democrats', 8, 61], ['raam', 8, 61], ['joint-list', 11, 64], ['together', 12, 65], ['yashar', 21, 74],
+  ]);
+  assert.ok(c.list.every((x) => !x.add.some((id) => ['kalkalit', 'amcha-yisrael'].includes(id))), 'lists under the threshold are never added');
+});
+
+test('investiture on the CEC results for the media scenarios (roles as reported)', async () => {
+  const { contextFor, investiture } = await import('../site/js/compat.js');
+  const { topics, positions } = loadData();
+  const ctx = contextFor({ meta: { ...meta, mode: 'results' }, parties, topics, positions, results });
+  const members = ['yashar', 'together', 'democrats', 'yisrael-beiteinu'];
+  const a = investiture(ctx, { members, supporters: ['raam'] });
+  assert.deepEqual([a.for, a.against, a.abstain, a.approved], [56, 64, 0, false]);
+  const b = investiture(ctx, { members, supporters: ['joint-list'], abstainers: ['raam', 'utj'] });
+  assert.deepEqual([b.for, b.against, b.abstain, b.approved], [59, 46, 15, true]);
+  const c = investiture(ctx, { members: ['likud', 'yashar', 'otzma-yehudit', 'religious-zionism', 'zehut'] });
+  assert.deepEqual([c.membersSeats, c.membersMajority, c.approved], [61, true, true]);
+});

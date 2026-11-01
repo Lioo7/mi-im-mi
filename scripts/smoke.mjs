@@ -9,7 +9,7 @@ import { mkdirSync, mkdtempSync, writeFileSync, rmSync, readFileSync, existsSync
 import { tmpdir } from 'node:os';
 import { join, extname, normalize } from 'node:path';
 import { ROOT, loadData } from './lib.mjs';
-import { contextFor, presets, serializeState, ballotOrder } from '../site/js/compat.js';
+import { contextFor, presets, serializeState, ballotOrder, completions } from '../site/js/compat.js';
 import { PROD_HOST } from '../site/js/stats.js';
 import { S } from '../site/js/strings.js';
 
@@ -224,8 +224,10 @@ try {
         // Each selected row has a 3-way role radiogroup with exactly one checked option, matching the URL.
         const roles = await evaluate(`(() => { const out = {}; for (const g of document.querySelectorAll('#builder .roles[role="radiogroup"]')) {
           if (!g.getAttribute('aria-label')) return 'unlabeled group'; const on = g.querySelectorAll('[role="radio"][aria-checked="true"]'); if (on.length !== 1) return 'checked ' + on.length;
-          if ([...g.querySelectorAll('[role="radio"]')].some((b) => b.getBoundingClientRect().height < 44)) return 'segment under 44px';
-          out[on[0].dataset.id] = on[0].dataset.role; } return JSON.stringify(out); })()`);
+          // Tap target >= 44px tall: the segment (or its ::after) must answer hits 4px above and below its box.
+          for (const b of g.querySelectorAll('[role="radio"]')) { b.scrollIntoView({ block: 'center' }); const r = b.getBoundingClientRect(); const x = r.left + r.width / 2;
+            if (r.height < 36 || ![r.top - 4, r.bottom + 4].every((y) => y < 0 || y >= innerHeight || b.contains(document.elementFromPoint(x, y)))) return 'segment tap target under 44px (' + b.dataset.key + ': h' + Math.round(r.height) + ', above ' + (document.elementFromPoint(x, r.top - 4)?.className || '-') + ', below ' + (document.elementFromPoint(x, r.bottom + 4)?.className || '-') + ')'; }
+          out[on[0].dataset.id] = on[0].dataset.role; } window.scrollTo(0, 0); return JSON.stringify(out); })()`);
         const q = new URLSearchParams(suffix.split('#')[0]);
         const want = {};
         for (const [k, role] of [['b', 'member'], ['m', 'member'], ['o', 'supporter'], ['a', 'abstainer']]) for (const id of (q.get(k) ?? '').split(',').filter((x) => passedIds.includes(x))) want[id] ??= role;
@@ -512,6 +514,33 @@ try {
     } else if (/\(7\)/.test(text) && !text.includes(legal)) errors.push(`[interaction] ${pid} party sheet shows seat figures without the legal sentence`);
     if (pid === 'religious-zionism') await shoot(z, 'interaction-party-sheet-m.png', false);
     await evaluate("document.querySelector('#sheet').close()");
+  }
+  // "מה חסר לרוב של 61": the coalition bloc is short; each row is minimal, tapping one adds it, undo restores.
+  if (!SEATS_HIDDEN) {
+    const blocQs = serializeState(ctx, { base: null, ...pr.coalition });
+    await c.send('Page.navigate', { url: `${baseUrl}${blocQs}#results` });
+    await waitFor(() => evaluate("document.body.dataset.view === 'results' && document.querySelector('#footer')?.children.length > 0"));
+    await sleep(300);
+    const card = await evaluate(`(() => { const c = document.querySelector('#results .completions'); if (!c) return null;
+      return { title: c.querySelector('h3').innerText, note: c.innerText.includes(${JSON.stringify(S.completions.note)}), rows: [...c.querySelectorAll('[data-act="complete"]')].map((b) => b.dataset.ids) }; })()`);
+    const wantRows = completions(ctx, pr.coalition.members).list.map((x) => x.add.join(','));
+    if (!card) errors.push('[interaction] completions card missing for a coalition short of 61');
+    else {
+      if (card.title !== S.completions.title || !card.note) errors.push(`[interaction] completions card title/note wrong (${card.title})`);
+      if (card.rows.join('|') !== wantRows.join('|')) errors.push(`[interaction] completions rows ${card.rows.join('|')} != ${wantRows.join('|')}`);
+      await evaluate('window.scrollTo(0, document.querySelector("#results .completions").getBoundingClientRect().top + scrollY - 70)');
+      await sleep(200);
+      await shoot(z, 'interaction-completions-m.png', false);
+      const before = await evaluate('location.search');
+      await evaluate("document.querySelector('#results [data-act=\"complete\"]').click()");
+      await sleep(300);
+      const after = new URLSearchParams(await evaluate('location.search')).get('m') ?? '';
+      if (!wantRows[0].split(',').every((id) => after.split(',').includes(id))) errors.push(`[interaction] tapping a completion did not add it (${after})`);
+      if (await evaluate("document.querySelector('#results .completions') !== null")) errors.push('[interaction] completions card should disappear once members reach 61');
+      await evaluate("document.querySelector('#toast [data-act=\"undo\"]').click()");
+      await sleep(300);
+      if ((await evaluate('location.search')) !== before) errors.push('[interaction] undo after a completion did not restore the coalition');
+    }
   }
   // A cell sheet with a quote renders it in quotation marks with an attribution line underneath.
   const withQuote = JSON.parse(readFileSync(join(ROOT, 'site', 'data', 'positions.json'), 'utf8')).find((p) => p.quote && p.quoteBy && p.sourceDate);

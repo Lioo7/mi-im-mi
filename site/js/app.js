@@ -434,7 +434,7 @@ function pollLegalLine() {
 // What the seat numbers are, placed before them: the CEC results status, or the legally required poll sentence.
 function seatSourceLine() {
   if (!isResults()) return pollNoteBtn();
-  return `<p class="seat-src">${esc(meta.resultsStatus)} · <a href="${esc(meta.resultsSourceUrl)}" rel="noopener" target="_blank">${esc(S.elected.sourceLink)}</a></p>`;
+  return `<p class="seat-src">${esc(meta.resultsStatus)} <a href="${esc(meta.resultsSourceUrl)}" rel="noopener" target="_blank">${esc(S.elected.sourceLink)}</a></p>`;
 }
 
 function pollNoteBtn() {
@@ -562,15 +562,44 @@ function renderResults() {
   if (members.length === 1) {
     el.innerHTML = `<p class="empty">${esc(S.results.addPartner)} <a href="#build">${esc(S.results.resultsEmptyLink)}</a></p>
       ${chosen.length > 1 ? overallBar(C.analyze(ctx, state), { statuses: false }) + peripheryCard() : ''}
+      ${completionsCard()}
       <h2>${esc(name(members[0]))}</h2>${profileHtml(members[0])}`;
     return;
   }
   const r = C.analyze(ctx, state);
   if (members.length === 2) {
-    el.innerHTML = overallBar(r) + `<section class="card">${pairHtml(members[0], members[1])}</section>` + peripheryCard() + coverageFootnote() + shareCard(r);
+    el.innerHTML = overallBar(r) + `<section class="card">${pairHtml(members[0], members[1])}</section>` + peripheryCard() + completionsCard() + coverageFootnote() + shareCard(r);
     return;
   }
-  el.innerHTML = overallBar(r) + crisesCard(r) + glueCard(r) + frictionCard(r) + peripheryCard() + coverageFootnote() + shareCard(r);
+  el.innerHTML = overallBar(r) + crisesCard(r) + glueCard(r) + frictionCard(r) + peripheryCard() + completionsCard() + coverageFootnote() + shareCard(r);
+}
+
+// "What is missing for 61": minimal sets of parties that would give the members alone a majority. Tap = add them.
+function completionsCard() {
+  if (!showSeats()) return '';
+  const { list, total } = C.completions(ctx, state.members);
+  const v = C.investiture(ctx, state);
+  if (v.membersMajority) return '';
+  const K = S.completions;
+  const n = (x) => S.seats.num(x, isResults());
+  const items = list.map((c) => {
+    const names = c.add.map(name);
+    const red = c.redLines.map((x) => `${name(x.partyId)} · ${topic(x.topicId).short}`);
+    const meta = [K.seats(n(c.seats), n(c.total)), K.clashes(c.clashTopics)];
+    return `<li><button type="button" class="row-btn completion" data-act="complete" data-ids="${c.add.join(',')}" data-key="complete-${c.add.join('-')}"
+      aria-label="${esc(K.aria(names.join(', '), meta.join(', '), red.length ? K.redLines(red.length, red.join(', ')) : ''))}">
+      <span class="row-title">+ ${esc(names.join(' + '))}</span>
+      <span class="row-meta muted small">${esc(meta.join(' · '))}</span>
+      ${red.length ? `<span class="row-meta small"><span class="tag tag-red"><span aria-hidden="true">🚩</span> ${esc(K.redLines(red.length, red.join(', ')))}</span></span>` : ''}
+    </button></li>`;
+  }).join('');
+  return `<section class="card completions">
+    <h3>${esc(K.title)}</h3>
+    <p class="note note-soft">${esc(K.note)}</p>
+    ${isResults() ? '' : pollLegalLine()}
+    <p class="muted small">${esc(K.intro(n(v.membersSeats)))}</p>
+    ${list.length ? `<ul class="list">${items}</ul>${total > list.length ? `<p class="muted small">${esc(K.more(list.length, total))}</p>` : ''}` : `<p>${esc(K.none)}</p>`}
+  </section>`;
 }
 
 // Supporters and abstainers vs the coalition members (never counted in the cards above).
@@ -846,6 +875,14 @@ function onClick(e) {
       setState(C.dropParty(state, id), { announceParty: id });
       toast(`${esc(S.results.removed(name(id)))} <button type="button" class="link-btn" data-act="undo">${esc(S.results.undo)}</button>`, 8000);
       break;
+    case 'complete': {
+      const add = el.dataset.ids.split(',');
+      undoState = { ...state };
+      setState({ ...add.reduce((st, pid) => C.dropParty(st, pid), state), base: state.base, members: [...state.members, ...add] });
+      announce(S.completions.applied(add.map(name).join(', ')));
+      toast(`${esc(S.completions.applied(add.map(name).join(', ')))} <button type="button" class="link-btn" data-act="undo">${esc(S.results.undo)}</button>`, 8000);
+      break;
+    }
     case 'undo':
       if (undoState) setState(undoState);
       undoState = null;
