@@ -2,7 +2,8 @@
 // and fails on console errors, page overflow, routing mistakes, or a GoatCounter beacon that carries coalition data.
 // Beacons: against production every beacon is checked (and never sent); on any other host none may be sent at all.
 // Zero installs: drives Chrome over the DevTools protocol with Node's built-in WebSocket.
-// Usage: node scripts/smoke.mjs [baseUrl]   (default: serves ./site on a local port)
+// Headers: local runs send netlify.toml's headers, so the CSP is enforced; remote runs check the served header matches.
+// Usage: node scripts/smoke.mjs [baseUrl] [--no-hud]   (default: serves ./site on a local port)
 import { spawn } from 'node:child_process';
 import { createServer } from 'node:http';
 import { mkdirSync, mkdtempSync, writeFileSync, rmSync, readFileSync, existsSync, statSync } from 'node:fs';
@@ -35,16 +36,38 @@ async function waitFor(fn, ms = 10000) {
 
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png', '.svg': 'image/svg+xml' };
 
-// Minimal static server for ./site (query strings ignored, like Netlify).
-async function serve() {
+// The headers Netlify sends for every path (netlify.toml: [[headers]] for = "/*").
+function siteHeaders() {
+  const toml = readFileSync(join(ROOT, 'netlify.toml'), 'utf8');
+  const block = toml.split('[[headers]]').find((b) => /for\s*=\s*"\/\*"/.test(b)) ?? '';
+  const values = block.split('[headers.values]')[1] ?? '';
+  return Object.fromEntries([...values.matchAll(/^\s*([\w-]+)\s*=\s*"(.*)"\s*$/gm)].map((m) => [m[1], m[2]]));
+}
+
+// Netlify's free plan injects a badge script into production pages. It builds a srcdoc iframe with an inline script
+// and style, which inherits our CSP. Local runs fetch the live tag and script and serve them on ?smoke-hud.
+async function fetchHud() {
+  const page = await (await fetch(`https://${PROD_HOST}/`)).text();
+  const tag = page.match(/<script[^>]*data-nf-variant[^>]*><\/script>/)?.[0];
+  if (!tag) throw new Error(`no badge script on https://${PROD_HOST}/ (run with --no-hud to skip the badge check)`);
+  const src = new URL(tag.match(/src="([^"]+)"/)[1].replace(/&amp;/g, '&'), `https://${PROD_HOST}/`);
+  return { tag, path: src.pathname, js: await (await fetch(src)).text() };
+}
+
+// Minimal static server for ./site (query strings ignored, like Netlify), sending netlify.toml's headers.
+async function serve(hud) {
   const dir = join(ROOT, 'site');
+  const headers = siteHeaders();
   const server = createServer((req, res) => {
-    let path = normalize(decodeURIComponent(new URL(req.url, 'http://x').pathname)).replace(/^([.][.][/\\])+/, '');
+    const url = new URL(req.url, 'http://x');
+    if (hud && url.pathname === hud.path) { res.writeHead(200, { ...headers, 'content-type': 'text/javascript' }); res.end(hud.js); return; }
+    let path = normalize(decodeURIComponent(url.pathname)).replace(/^([.][.][/\\])+/, '');
     let file = join(dir, path);
     if (existsSync(file) && statSync(file).isDirectory()) file = join(file, 'index.html');
     if (!file.startsWith(dir) || !existsSync(file)) { res.writeHead(404); res.end('not found'); return; }
-    res.writeHead(200, { 'content-type': TYPES[extname(file)] ?? 'application/octet-stream' });
-    res.end(readFileSync(file));
+    res.writeHead(200, { ...headers, 'content-type': TYPES[extname(file)] ?? 'application/octet-stream' });
+    const body = readFileSync(file);
+    res.end(hud && url.searchParams.has('smoke-hud') && file.endsWith('index.html') ? body.toString().replace('</body>', `${hud.tag}\n</body>`) : body);
   });
   await new Promise((r) => server.listen(0, '127.0.0.1', r));
   return { url: `http://127.0.0.1:${server.address().port}/`, stop: () => server.close() };
@@ -122,9 +145,12 @@ const legal = `ממוצע סקרים שפורסמו עד ${meta.pollsAsOf.split(
 // The line that must precede any seat number, and its element.
 const SRC_TEXT = RESULTS ? meta.resultsStatus : legal;
 const SRC_SEL = RESULTS ? '.seat-src' : '.poll-legal';
-const base = process.argv[2];
-const server = base ? null : await serve();
+const args = process.argv.slice(2);
+const base = args.find((a) => !a.startsWith('--'));
+const hud = base || args.includes('--no-hud') ? null : await fetchHud();
+const server = base ? null : await serve(hud);
 const baseUrl = (base ?? server.url).replace(/\/?$/, '/');
+const onProd = new URL(baseUrl).hostname === PROD_HOST;
 const profile = mkdtempSync(join(tmpdir(), 'smoke-chrome-'));
 const port = 9300 + Math.floor(Math.random() * 100);
 const chrome = spawn(CHROME, [
@@ -190,7 +216,11 @@ try {
     document.body.append(b);
   });` });
 
-  const evaluate = async (expr) => (await c.send('Runtime.evaluate', { expression: expr, returnByValue: true })).result.value;
+  // CSP violations, ours or inside the badge's srcdoc iframe, become console errors and fail the run.
+  await c.send('Page.addScriptToEvaluateOnNewDocument', { source: `document.addEventListener('securitypolicyviolation', (e) =>
+    console.error('CSP violation: ' + e.effectiveDirective + ' blocked ' + (e.blockedURI || 'inline') + ' ' + (e.sample || '')));` });
+
+  const evaluate = async (expr) => (await c.send('Runtime.evaluate', { expression: expr, returnByValue: true, awaitPromise: true })).result.value;
   const ready = () => waitFor(() => evaluate("document.querySelector('#builder')?.children.length > 0"));
   // A fresh load (a URL that differs only in its fragment would otherwise be a same-document navigation).
   const go = async (url) => {
@@ -433,6 +463,35 @@ try {
       }
     }
     console.log(`  ✓ legal sentence vs seat numbers: ${legalCases.length} views × 390×844, 375×667 (with host badge)`);
+  }
+
+  // The served CSP is netlify.toml's. Netlify's badge (real on production, emulated locally) runs under it: its srcdoc
+  // script reports back (data-nl-ready), and its hash is in the policy. (Its inline <style> embeds the viewport size,
+  // so it has no stable hash; style-src-elem allows inline <style> instead.)
+  const csp = siteHeaders()['Content-Security-Policy'];
+  if (base) {
+    const served = (await fetch(baseUrl, { method: 'HEAD' })).headers.get('content-security-policy');
+    if (served !== csp) errors.push(`[headers] the served CSP differs from netlify.toml:\n    served: ${served}\n    toml:   ${csp}`);
+  }
+  if (hud || onProd) {
+    for (const [z, dark] of [[SIZES[0], false], [SIZES[1], false], [SIZES[0], true]]) {
+      current = `badge-csp@${z.width}${dark ? '-dark' : ''}`;
+      await setSize(z);
+      await c.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value: dark ? 'dark' : 'light' }] });
+      await go(`${baseUrl}${hud ? '?smoke-hud=1' : ''}#results?m=likud,yashar`);
+      const ran = await waitFor(() => evaluate("document.querySelector('#nl-badge-frame')?.dataset.nlReady === '1'"), 6000).catch(() => false);
+      const hashes = await evaluate(`(async () => { const f = document.querySelector('#nl-badge-frame'); if (!f) return null;
+        const d = new DOMParser().parseFromString(f.srcdoc, 'text/html');
+        const h = async (t) => "'sha256-" + btoa(String.fromCharCode(...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(t))))) + "'";
+        return Promise.all([...d.querySelectorAll('script')].map((e) => h(e.textContent))); })()`);
+      if (!hashes) errors.push(`[${current}] Netlify's badge iframe did not mount`);
+      else if (hashes.some((x) => !csp.includes(x))) errors.push(`[${current}] the badge's inline script changed; its script hash is now ${hashes.join(' ')} (update netlify.toml)`);
+      if (!ran) errors.push(`[${current}] Netlify's badge script did not run under the CSP`);
+      await shoot(z, `badge-csp-${z.tag}${dark ? '-dark' : ''}.png`, false);
+    }
+    await c.send('Emulation.setEmulatedMedia', { features: [] });
+    await setSize(SIZES[0]);
+    console.log(`  ✓ Netlify badge under the CSP (${hud ? 'emulated' : 'production'})`);
   }
 
   // Interactions at phone width: pick a preset on the build view, open the poll note, go to results, open a cell, come back.
@@ -726,7 +785,6 @@ try {
   try { rmSync(profile, { recursive: true, force: true }); } catch { /* ignore */ }
 }
 
-const onProd = new URL(baseUrl).hostname === PROD_HOST;
 if (onProd && beacons.length === 0) errors.push('no GoatCounter beacon seen on production: the privacy check did not run');
 if (!onProd && beacons.length > 0) errors.push(`${beacons.length} GoatCounter beacon(s) sent from a non-production host (${new URL(baseUrl).host}); only ${PROD_HOST} may count`);
 

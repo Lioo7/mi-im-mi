@@ -8,5 +8,5 @@
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
     X-Frame-Options = "DENY"
-    Content-Security-Policy = "frame-ancestors 'none'"
+    Content-Security-Policy = "default-src 'none'; script-src 'self' 'sha256-BkKP2XO6WOEc3kXOiLr2ZoY83hamalKjPY9xBcbXVuw='; style-src 'self'; style-src-elem 'self' 'unsafe-inline'; style-src-attr 'none'; img-src 'self' https://miimmi.goatcounter.com; connect-src 'self' https://miimmi.goatcounter.com; base-uri 'none'; form-action 'none'; object-src 'none'; frame-ancestors 'none'"
     Permissions-Policy = "camera=(), microphone=(), geolocation=()"

@@ -476,7 +476,7 @@ function seatsBox() {
     const { v, html } = voteHtml();
     const pct = Math.min(100, (v.membersSeats / 61) * 100);
     body = `${html}
-      <div class="meter" role="img" aria-label="${esc(S.seats.meterLabel(v.membersSeats))}"><span style="inline-size:${pct}%"></span></div>`;
+      <div class="meter" role="img" aria-label="${esc(S.seats.meterLabel(v.membersSeats))}"><span data-pct="${pct}"></span></div>`;
   }
   return `<section class="seats-box" aria-label="${esc(S.seats.boxTitle)}"><h3>${esc(S.seats.boxTitle)}</h3>${seatSourceLine()}${positionsAsOfLine()}${body}</section>`;
 }
@@ -919,6 +919,8 @@ function render() {
   if (view === 'build') renderBuilder();
   if (view === 'results') { renderResults(); renderMatrix(); }
   renderBar();
+  // The CSP allows no inline style attributes; set the meters' widths through the CSSOM.
+  for (const el of document.querySelectorAll('.meter [data-pct]')) el.style.inlineSize = `${el.dataset.pct}%`;
   if (focusKey) document.querySelector(`[data-key="${CSS.escape(focusKey)}"]`)?.focus();
 }
 
