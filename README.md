@@ -6,7 +6,7 @@
 
 **מאז 1.11: לפי תוצאות הבחירות.** מספרי המנדטים הם התוצאות שפרסמה ועדת הבחירות המרכזית (נכון ל-30.10, לפני הגשה לנשיא). לכל מפלגה אפשר לסמן תפקיד (בקואליציה, תומכת מבחוץ, נמנעת; מי שלא נבחרה מתנגדת), ולראות אם הממשלה הייתה זוכה באמון ומה חסר לחברות הקואליציה כדי להגיע ל-61. במקום התרחישים לפי גושים יש שלושה תרחישים שעלו בתקשורת, כל אחד עם מקור ותאריך. העמדות עצמן מתועדות לפי ערב הבחירות.
 
-🔗 **האתר:** https://mi-im-mi-2026.netlify.app
+🔗 **האתר:** https://mi-im-mi-2026.netlify.app · **באנגלית:** [mi-im-mi-2026.netlify.app/#build?l=en](https://mi-im-mi-2026.netlify.app/#build?l=en)
 
 > לא המלצת הצבעה. האתר עצמאי ואין לי קשר לאף מפלגה.
 
@@ -20,6 +20,11 @@
   <tr><td align="center" width="33%"><img src="docs/screenshots/build.png" width="100%" alt="בחירת מפלגות, וליד כל מפלגה מה היא מוסיפה לקואליציה"><br><sub>בחירת מפלגות, וליד כל מפלגה מה היא מוסיפה לקואליציה</sub></td><td align="center" width="33%"><img src="docs/screenshots/results.png" width="100%" alt="תמונת מצב והנושאים עם הפערים הגדולים ביותר"><br><sub>תמונת מצב והנושאים עם הפערים הגדולים ביותר</sub></td><td align="center" width="33%"><img src="docs/screenshots/matrix.png" width="100%" alt="מפת העמדות, צבועה לפי הפער ממפלגת בסיס"><br><sub>מפת העמדות, צבועה לפי הפער ממפלגת בסיס</sub></td></tr>
   <tr><td align="center" width="33%"><img src="docs/screenshots/cell-sheet.png" width="100%" alt="מקור, ציטוט עם ייחוס, ולמה התא בצבע הזה"><br><sub>מקור, ציטוט עם ייחוס, ולמה התא בצבע הזה</sub></td><td align="center" width="33%"><img src="docs/screenshots/pair-view.png" width="100%" alt="השוואה בין שתי מפלגות, נושא אחרי נושא"><br><sub>השוואה בין שתי מפלגות, נושא אחרי נושא</sub></td><td align="center" width="33%"><img src="docs/screenshots/method.png" width="100%" alt="למה בניתי את זה, והמתודולוגיה"><br><sub>למה בניתי את זה, והמתודולוגיה</sub></td></tr>
 </table>
+
+<p align="center">
+  <img src="docs/screenshots/results-en.png" width="260" alt="הגרסה באנגלית: אותה קואליציה ואותם מספרים">
+  <br><sub>הגרסה באנגלית: אותה קואליציה ואותם מספרים, ושורה שהעברית היא הנוסח המחייב.</sub>
+</p>
 
 ## למה בניתי את זה
 
@@ -60,6 +65,15 @@
   - תג שהאחסון הוסיף בתחתית המסך הסתיר את ההסתייגות החוקית על הסקרים.
 - **מספרי המנדטים** הם התוצאות של ועדת הבחירות המרכזית, כפי שפורסמו (בלי חישוב מחדש, כי הסכמי עודפים משנים את החלוקה), והמפלגות מסודרות לפי מספר המנדטים. ממוצע הסקרים מלפני הבחירות נשמר בנתונים: אם יהיו בחירות חוזרות, החזרה למצב סקרים היא שינוי של שורה אחת (`mode` ב-`meta.json`), ואז הסקרים מוצגים עם ההסתייגות שנדרשת בחוק.
 
+## עברית ואנגלית
+
+- **האתר זמין גם באנגלית.** כפתור בראש העמוד מחליף שפה במקום, בלי לאבד את הקואליציה או את התצוגה. השפה נשמרת בכתובת (`l=en`, אחרי הסימן #), כך שקישור משותף נפתח באותה שפה. העברית היא הנוסח המחייב, ובראש כל עמוד באנגלית יש על כך שורה.
+- **מה תורגם:** כל הטקסט של האתר, הנושאים ותוויות הצירים, 112 התקצירים, ו-94 ציטוטים שאינם באנגלית. הציטוט עצמו נשאר בשפת המקור, ומתחתיו תרגום שמסומן כתרגום של האתר. השם הרשמי של הרשימה מוצג בעברית, כלשונו, ואחריו תרגום.
+- **איך זה נבדק:** תרגום ← בדיקה עיוורת ← ייבוא. סוכן בודק נפרד תרגם את האנגלית בחזרה לעברית בלי לראות את המקור, ורק אחר כך השווה למקור: נאמנות, מילון המונחים, ניטרליות, תוויות הצירים ושמות. 8 מתוך 373 פריטים סומנו, וכולם תוקנו. התרגומים נכנסים לנתונים דרך ה-CSV, כמו כל שינוי בעמדות.
+- **שמות באנגלית:** לפי רשימת לשכת העיתונות הממשלתית באנגלית או האנגלית של המפלגה עצמה, ואחרת תעתיק. שם עברי מתועתק (Beyachad, Yashar!), אלא אם יש לו שם מקובל באנגלית (Religious Zionism). אותיות הפתק נשארות בעברית.
+- **מילון המונחים עובר גם לאנגלית:** "Judea and Samaria / the West Bank", "applying sovereignty / annexation", ו-"Haredi (ultra-Orthodox)" בהופעה הראשונה. בדיקה אוטומטית אוכפת את המילון בשתי השפות.
+- **מגבלה ידועה:** תצוגה מקדימה של קישור באנגלית (למשל בוואטסאפ) מופיעה בעברית, כי היא לא רואה את החלק שאחרי ה-# ([#21](https://github.com/Lioo7/mi-im-mi/issues/21)).
+
 ## פרטיות
 
 אין עוגיות ואין משתמשים. הקואליציה נשמרת רק בכתובת שבדפדפן, אחרי הסימן #, ולכן לא נשלחת לשרת. כשמשתפים קישור, הבחירה מופיעה בו. קישור בפורמט הישן, שבו הקואליציה מופיעה אחרי סימן שאלה, מגיע לשרת פעם אחת כשפותחים אותו, ומיד מומר לפורמט החדש, לפני שהדף טוען נתונים. אנחנו לא שומרים ולא מנתחים את הבחירה. פירוט מלא נמצא בסעיף [פרטיות](https://mi-im-mi-2026.netlify.app/#privacy) באתר, ולידו [הצהרת הנגישות](https://mi-im-mi-2026.netlify.app/#accessibility) (ת״י 5568, ברמה AA), כולל מגבלות ידועות. מונה הכניסות ([GoatCounter](https://www.goatcounter.com)) פועל רק באתר עצמו, ומקבל רק את נתיב העמוד, הכותרת, רוחב המסך והדומיין שממנו הגיעו, בלי פרמטרי הקואליציה. בדיקת ה-smoke מוודאת את זה מול האתר, ומוודאת שמכל כתובת אחרת לא נשלח כלום.
@@ -84,8 +98,9 @@
 | HTML, CSS ו-JavaScript (ES modules), בלי framework ובלי build | עמוד אחד עם כמה תצוגות. פחות מ-60KB דחוס, כולל כל הנתונים, נטען מהר בטלפון, ואין שלב בנייה שיכול להישבר ביום הבחירות |
 | נתונים ב-JSON סטטי | אין שרת ואין מסד נתונים שיכולים ליפול. תיקון הוא עריכת קובץ ופריסה |
 | Netlify | פריסה בפקודה אחת, CDN, וכתובות טיוטה לבדיקה לפני פרודקשן |
-| `node --test` | 66 בדיקות לאלגוריתם ולנתונים, כולל בדיקת סימטריה (היפוך כיוון הציר חייב לתת תוצאה זהה), בדיקה שהמנדטים מסתכמים ב-120, ובדיקה מול חיפוש ממצה של הצירופים ל-61 |
-| בדיקת smoke עם Chrome headless | צילומי מסך ב-390 וב-1280 פיקסלים, בדיקת שגיאות, בדיקה ששורת המקור של המנדטים גלויה לפני המספרים (בתצוגת התוצאות: שורת ועדת הבחירות; בתצוגת סקרים: ההסתייגות שנדרשת בחוק), בדיקה שמונה הכניסות לא מקבל נתוני קואליציה ושאף בקשה לשרת לא נושאת אותה, ובדיקה שמדיניות האבטחה (CSP) לא חוסמת כלום, כולל התג ש-Netlify מוסיף לאתר |
+| `node --test` | 80 בדיקות לאלגוריתם ולנתונים, כולל בדיקת סימטריה (היפוך כיוון הציר חייב לתת תוצאה זהה), בדיקה שהמנדטים מסתכמים ב-120, בדיקה מול חיפוש ממצה של הצירופים ל-61, ובדיקות לשתי השפות |
+| שתי שפות בלי ספרייה | `strings.js` ו-`strings.en.js` באותו מבנה, ושדות `en` ליד העברית בנתונים. בדיקה נכשלת אם חסר תרגום לאחת המחרוזות, `validate.mjs` נכשל אם חסר תרגום בנתונים, ובדיקת מילון מונחים רצה על שתי השפות |
+| בדיקת smoke עם Chrome headless | צילומי מסך ב-390 וב-1280 פיקסלים, בדיקת שגיאות, בדיקה ששורת המקור של המנדטים גלויה לפני המספרים (בתצוגת התוצאות: שורת ועדת הבחירות; בתצוגת סקרים: ההסתייגות שנדרשת בחוק), בדיקה שמונה הכניסות לא מקבל נתוני קואליציה ושאף בקשה לשרת לא נושאת אותה, ובדיקה שמדיניות האבטחה (CSP) לא חוסמת כלום, כולל התג ש-Netlify מוסיף לאתר. כל התצוגות נבדקות גם באנגלית: כיוון ושפה, שאין טקסט עברי שלא תורגם, ואותם מספרים |
 
 ### הרצה מקומית
 
@@ -103,8 +118,8 @@ node scripts/smoke.mjs [baseUrl]      # בדיקת smoke עם צילומי מס�
 | קובץ | תוכן |
 |---|---|
 | [`site/data/parties.json`](site/data/parties.json) | 14 מפלגות: שם רשמי ושם מקוצר לפי ועדת הבחירות, אותיות הפתק, ממוצע סקרים, גוש, סטטוס מצע |
-| [`site/data/topics.json`](site/data/topics.json) | 8 נושאים, ולכל אחד תוויות ל-5 הדרגות בציר |
-| [`site/data/positions.json`](site/data/positions.json) | 112 עמדות: מיקום, קו אדום, סיכום, ציטוט וייחוס, מקור, סוג מקור, תאריך ועותק בארכיון |
+| [`site/data/topics.json`](site/data/topics.json) | 8 נושאים, ולכל אחד תוויות ל-5 הדרגות בציר, בעברית ובאנגלית (`en`) |
+| [`site/data/positions.json`](site/data/positions.json) | 112 עמדות: מיקום, קו אדום, סיכום (גם באנגלית), ציטוט וייחוס ותרגום הציטוט לאנגלית, מקור, סוג מקור, תאריך ועותק בארכיון |
 | [`site/data/meta.json`](site/data/meta.json) | תאריכי עדכון, `mode` (תוצאות או סקרים), סטטוס התוצאות, משפט ההסתייגות על הסקרים, קישורי המקורות ו-`showSeats` |
 | [`site/data/scenarios.json`](site/data/scenarios.json) | עד 4 תרחישים שעלו בתקשורת: חברות, תומכות ונמנעות, ומקור עם תאריך לכל אחד |
 | [`site/data/results-26.json`](site/data/results-26.json) | תוצאות ועדת הבחירות לכל רשימה: קולות, אחוזים ומנדטים, כפי שפורסמו (30.10.2026, לפני הגשה לנשיא) |
@@ -122,16 +137,29 @@ node scripts/smoke.mjs [baseUrl]      # בדיקת smoke עם צילומי מס�
 
 **Build a coalition and see where the parties agree and where they clash.**
 
-**Mi Im Mi ("Who With Whom")** is a neutral, Hebrew, mobile-first web app for Israel's Knesset election of 27 October 2026. Pick parties that might form a coalition, and see where their positions agree and where they clash.
+**Mi Im Mi ("Who With Whom")** is a neutral, mobile-first web app, in Hebrew with an English version, for Israel's Knesset election of 27 October 2026. Pick parties that might form a coalition, and see where their positions agree and where they clash.
 
 **Since 1 November it runs on the results:** seats as published by the Central Elections Committee (as of 30.10, before submission to the President). Each party can be marked as a member, an outside supporter or an abstainer (everyone else votes against). The app shows whether the government would win the investiture vote (for > against), the smallest sets of extra parties that would give the members alone 61 seats (fewest parties first, with the new head-on clashes and newly crossed red lines of each), and how far supporters and abstainers are from the coalition. Three scenarios raised in the media (each with its source and date, named by composition only) replace the bloc presets. Positions are as documented on election eve.
 
-🔗 https://mi-im-mi-2026.netlify.app
+🔗 https://mi-im-mi-2026.netlify.app · in English: [mi-im-mi-2026.netlify.app/#build?l=en](https://mi-im-mi-2026.netlify.app/#build?l=en)
 
 <table>
   <tr><td align="center" width="33%"><img src="docs/screenshots/build.png" width="100%" alt="Pick parties; each row shows what it would add"><br><sub>Pick parties; each row shows what it would add</sub></td><td align="center" width="33%"><img src="docs/screenshots/results.png" width="100%" alt="Status summary and the topics with the biggest gaps"><br><sub>Status summary and the topics with the biggest gaps</sub></td><td align="center" width="33%"><img src="docs/screenshots/matrix.png" width="100%" alt="Position map, colored by distance from a base party"><br><sub>Position map, colored by distance from a base party</sub></td></tr>
   <tr><td align="center" width="33%"><img src="docs/screenshots/cell-sheet.png" width="100%" alt="Source, attributed quote, and why the cell has its color"><br><sub>Source, attributed quote, and why the cell has its color</sub></td><td align="center" width="33%"><img src="docs/screenshots/pair-view.png" width="100%" alt="Two parties compared, topic by topic"><br><sub>Two parties compared, topic by topic</sub></td><td align="center" width="33%"><img src="docs/screenshots/method.png" width="100%" alt="Why I built this, and the method"><br><sub>Why I built this, and the method</sub></td></tr>
 </table>
+
+<p align="center">
+  <img src="docs/screenshots/results-en.png" width="260" alt="The English version: the same coalition and the same numbers">
+  <br><sub>The English version: the same coalition and numbers, with a line saying the Hebrew is authoritative.</sub>
+</p>
+
+**English version.**
+- **Toggle:** a button in the top bar switches language in place, keeping the coalition and the view. The language is kept in the URL fragment (`l=en`), so a shared link opens in the same language. The Hebrew is authoritative, and every English page says so.
+- **Translated:** all UI text, the topics and axis labels, the 112 summaries and the 94 quotes not already in English. A quote stays in its original language, with the site's translation under it, marked as such. The official list name is shown verbatim in Hebrew, followed by a translation.
+- **Checked:** translate → blind back-translation → import. An independent reviewer translated the English back into Hebrew without seeing the original, and only then compared (fidelity, glossary, neutrality, axis labels, names). 8 of 373 items were flagged; all were fixed. Translations enter the data through the same CSV import as every position change.
+- **Names:** from the Government Press Office's English list or the party's own English, otherwise transliterated. A Hebrew party name is transliterated (Beyachad, Yashar!) unless it has an established English name (Religious Zionism). Ballot letters stay in Hebrew.
+- **Glossary:** "Judea and Samaria / the West Bank", "applying sovereignty / annexation", and "Haredi (ultra-Orthodox)" on first use; a test enforces the glossary in both languages.
+- **Known limitation:** link previews (e.g. on WhatsApp) can't see the URL fragment, so an English link previews in Hebrew ([#21](https://github.com/Lioo7/mi-im-mi/issues/21)).
 
 **Why.** Before every election, people talk about "blocs", but rarely check whether the parties expected to govern together actually agree with each other. I wanted a simple tool that shows this, with a source for every position, and leaves the conclusions to the user. My background is in software engineering and computational social choice research, which is exactly about aggregating and comparing preferences.
 
@@ -162,7 +190,7 @@ node scripts/smoke.mjs [baseUrl]      # בדיקת smoke עם צילומי מס�
 - human checkpoints throughout
 - about 40 commits
 
-**Stack.** Static vanilla JS with no build step (<60KB gzipped including all data), JSON data, Netlify, `node --test` (66 tests, including mirror-symmetry tests, a 120-seat check and a brute-force check of the completions to 61), a full Content-Security-Policy, and a headless-Chrome smoke test that also checks that the page-view beacon and every request to the site carry no coalition data, that the CSP blocks nothing (including Netlify's injected badge), and that the line explaining the seat numbers comes before them: the results source line in results mode, the legally required poll disclaimer in polls mode.
+**Stack.** Static vanilla JS with no build step (<60KB gzipped including all data), JSON data, Netlify, `node --test` (80 tests, including mirror-symmetry tests, a 120-seat check, a brute-force check of the completions to 61, a test that fails on any missing translation, and a glossary test for both languages), bilingual with no i18n library (two string files with the same shape, `en` fields next to the Hebrew data), a full Content-Security-Policy, and a headless-Chrome smoke test that also checks that the page-view beacon and every request to the site carry no coalition data, that the CSP blocks nothing (including Netlify's injected badge), and that the line explaining the seat numbers comes before them: the results source line in results mode, the legally required poll disclaimer in polls mode. Every view is also checked in English: direction and language, no untranslated Hebrew, and the same numbers.
 
 **Corrections.** Every cell has a "found an error?" link. You can also email lioz.akirav@gmail.com or open an issue.
 
