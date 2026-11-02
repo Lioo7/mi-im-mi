@@ -338,8 +338,8 @@ function renderBuilder() {
     return `<li class="prow${on ? ' is-on' : ''}">
       <button type="button" role="checkbox" aria-checked="${on}" class="prow-main" data-act="toggle" data-id="${id}" data-key="row-${id}" aria-label="${esc(label)}">
         <span class="cb" aria-hidden="true">${on ? '✓' : ''}</span>
-        <span class="slip-tag">${esc(p.ballotLetters)}</span>
-        <span class="prow-text"><span class="prow-name">${esc(p.name)}</span>${sub ? `<span class="prow-sub">${esc(sub)}</span>` : ''}</span>
+        <span class="slip-tag"${lang === 'he' ? '' : ' lang="he"'}>${esc(p.ballotLetters)}</span>
+        <span class="prow-text"><span class="prow-name">${esc(p.name)}</span>${sub ? `<span class="prow-sub">${bidi(sub)}</span>` : ''}</span>
         <span class="prow-end">${im ? pillsHtml(im.agree, im.clash, im.unknown) : ''}</span>
       </button>
       ${on ? roleControl(id, role) : ''}
@@ -392,7 +392,7 @@ function belowThreshold() {
     <summary>${esc(E.belowTitle)} (${below.length})</summary>
     <p class="muted small">${esc(E.belowHint)}</p>
     <ul class="below-list">${below.map((p) => `<li><button type="button" class="row-btn below-btn" data-act="party" data-id="${p.id}" data-key="below-${p.id}" aria-label="${esc(E.viewPositions(p.name))}">
-      <span class="slip-tag">${esc(p.ballotLetters)}</span><span class="prow-name">${esc(p.name)}</span><span class="muted small">${esc(E.belowPct(ctx.listOf(p.id).pct.toFixed(2)))}</span></button></li>`).join('')}</ul>
+      <span class="slip-tag"${lang === 'he' ? '' : ' lang="he"'}>${esc(p.ballotLetters)}</span><span class="prow-name">${esc(p.name)}</span><span class="muted small">${esc(E.belowPct(ctx.listOf(p.id).pct.toFixed(2)))}</span></button></li>`).join('')}</ul>
   </details>`;
 }
 
@@ -428,7 +428,8 @@ function quoteHtml(p) {
     return `<p class="q-text"${/[\u0600-\u06FF]/.test(p.quote) ? ' lang="ar" dir="rtl"' : ''}>״${esc(p.quote)}״</p>${p.quoteTranslation ? `<p class="q-text q-trans">״${esc(p.quoteTranslation)}״ ${esc(p.quoteTranslatedBy === SITE_TRANSLATOR ? S.sheet.siteTranslation : S.sheet.translationBy(p.quoteTranslatedBy))}</p>` : ''}`;
   }
   const ql = /[\u0600-\u06FF]/.test(p.quote) ? 'ar' : /[\u0590-\u05FF]/.test(p.quote) ? 'he' : 'en';
-  const original = ql === 'en' ? `<p class="q-text">“${esc(p.quote)}”</p>` : `<p class="q-text" lang="${ql}" dir="rtl">״${esc(p.quote)}״</p>`;
+  // Quote marks follow the quote's language: ״…״ around Hebrew, “…” around English and Arabic.
+  const original = ql === 'en' ? `<p class="q-text">“${esc(p.quote)}”</p>` : `<p class="q-text" lang="${ql}" dir="rtl">${ql === 'he' ? `״${esc(p.quote)}״` : `“${esc(p.quote)}”`}</p>`;
   return original + (p.quoteTranslationEn ? `<p class="q-text q-trans">“${esc(p.quoteTranslationEn)}” ${esc(S.sheet.siteTranslation)}</p>` : '');
 }
 
