@@ -31,3 +31,43 @@ test('friction preview: never "0 במקום 0", hides when nothing changes', () 
   assert.equal(S.results.pairsTag('פער מהותי', 3), 'פער מהותי · 3 זוגות מפלגות');
   assert.equal(S.results.pairsTag('סתירה חזיתית', 1), 'סתירה חזיתית · זוג מפלגות אחד');
 });
+
+import { readFileSync } from 'node:fs';
+import { S as EN } from '../site/js/strings.en.js';
+
+// Every key in one language exists in the other, with the same kind of value: a missing translation fails here.
+function shape(v, path, out) {
+  if (typeof v === 'function') out.set(path, `function/${v.length}`);
+  else if (Array.isArray(v)) { out.set(path, `array/${v.length}`); v.forEach((x, i) => shape(x, `${path}[${i}]`, out)); }
+  else if (v && typeof v === 'object') { out.set(path, 'object'); for (const k of Object.keys(v)) shape(v[k], `${path}.${k}`, out); }
+  else out.set(path, typeof v);
+  return out;
+}
+
+test('the English strings have exactly the shape of the Hebrew ones', () => {
+  const he = shape(S, 'S', new Map());
+  const en = shape(EN, 'S', new Map());
+  assert.deepEqual([...he.keys()].filter((k) => !en.has(k)), [], 'missing in English');
+  assert.deepEqual([...en.keys()].filter((k) => !he.has(k)), [], 'missing in Hebrew');
+  assert.deepEqual([...he].filter(([k, t]) => en.get(k) !== t), [], 'different kind of value');
+});
+
+test('the English strings contain no Hebrew, except the switch to Hebrew and a ballot letter', () => {
+  const lines = readFileSync(new URL('../site/js/strings.en.js', import.meta.url), 'utf8').split('\n');
+  const hebrew = lines.filter((l) => /[֐-׿]/.test(l) && !/langToggle:|\(ט\)/.test(l) && !/^\s*\/\//.test(l));
+  assert.deepEqual(hebrew, []);
+  assert.equal(EN.lang, 'en');
+  assert.equal(EN.langToggle.to, 'he');
+  assert.equal(S.langToggle.to, 'en');
+});
+
+test('English formatting: dates, counts and the share text', () => {
+  assert.equal(EN.fmtDate('2026-10-30'), '30 Oct 2026');
+  assert.equal(EN.fmtDate(null), '');
+  assert.equal(EN.presets.shortDate('2026-11-02'), '2 Nov');
+  assert.equal(EN.elected.vsTitle(EN.fmtDate('2026-10-23')), 'Poll average (23 Oct) vs. results');
+  assert.equal(EN.nav.partyCount(1), '1 party selected');
+  assert.equal(EN.results.breakdown(3, 0, 0, 0, 0)[0][0], '3 topics in agreement');
+  assert.equal(EN.share.text('A + B', 1), 'The coalition I built: A + B · 1 topic in a head-on clash');
+  assert.equal(EN.results.withoutPreview({ kind: 'clash', before: 2, after: 0 }, 52, true), 'Without it: no topic in a head-on clash instead of 2 · 52 seats');
+});

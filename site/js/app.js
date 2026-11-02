@@ -1,15 +1,18 @@
 import { S as HE } from './strings.js';
+import { S as EN } from './strings.en.js';
 import * as C from './compat.js';
 import { countPageview } from './stats.js';
 import { correctionMailto, quoteAttribution, SITE_TRANSLATOR } from './links.js';
 
 const $ = (sel, root = document) => root.querySelector(sel);
-// Escaped text with Latin runs (names, standards) isolated in <bdi>, per the RTL convention.
-const bidi = (v) => esc(v).replace(/[A-Za-z][A-Za-z0-9.]*(?: [A-Za-z0-9.]+)*/g, (m) => `<bdi>${m}</bdi>`);
+// Escaped text with runs of the other script isolated in <bdi>: Latin (names, standards) in Hebrew, Hebrew (ballot
+// letters, names) in English.
+const OTHER_SCRIPT = { he: /[A-Za-z][A-Za-z0-9.]*(?: [A-Za-z0-9.]+)*/g, en: /[\u0590-\u05FF](?:[\u0590-\u05FF׳״"' -]*[\u0590-\u05FF׳״])?/g };
+const bidi = (v) => esc(v).replace(OTHER_SCRIPT[lang], (m) => (lang === 'he' ? `<bdi>${m}</bdi>` : `<bdi lang="he">${m}</bdi>`));
 const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 
 // The reader's language (fragment `l=`, Hebrew by default) and its strings; see setLanguage().
-const STRINGS = { he: HE };
+const STRINGS = { he: HE, en: EN };
 let S = HE;
 let lang = 'he';
 let data;
@@ -106,6 +109,13 @@ function toast(html, ms = 5000) {
 
 // ---------- static sections ----------
 function renderHeader() {
+  const T = S.langToggle;
+  const toggle = $('#lang-toggle');
+  toggle.textContent = T.label;
+  toggle.lang = T.lang;
+  toggle.setAttribute('aria-label', T.aria);
+  $('#lang-note').hidden = !S.translatedNote;
+  $('#lang-note p').textContent = S.translatedNote;
   $('#brand-name').textContent = S.appName;
   $('#nav-method').textContent = S.nav.method;
   $('#intro').textContent = S.buildIntro;
@@ -206,7 +216,7 @@ function renderMethod() {
 
     <h3>${esc(M.jointTitle)}</h3>
     ${isResults() ? seatSourceLine() : ''}
-    <ul>${(showSeats() ? [isResults() ? M.jointResults : M.jointRules[0], isResults() ? ctx.listOf('zehut').splitNote : M.jointSeats, ...M.jointRules.slice(1)] : M.jointRules).map((r) => `<li>${esc(r)}</li>`).join('')}</ul>
+    <ul>${(showSeats() ? [isResults() ? M.jointResults : M.jointRules[0], isResults() ? ctx.listOf('zehut').splitNote : M.jointSeats, ...M.jointRules.slice(1)] : M.jointRules).map((r) => `<li>${bidi(r)}</li>`).join('')}</ul>
     ${showSeats() && !isResults() ? pollLegalLine() : ''}
     <p class="small"><a href="https://www.ynet.co.il/news/elections2026/article/rjuhrwvdfl" rel="noopener">${esc(M.jointSource)}</a></p>
 
@@ -230,7 +240,7 @@ function renderMethod() {
     ${examples ? `<h3>${esc(M.examplesTitle)}</h3><ul>${examples}</ul>` : ''}
 
     ${isResults() ? `<h3>${esc(S.elected.resultsTitle)}</h3><p>${esc(S.elected.resultsText)}</p>${seatSourceLine()}${pollsVsResults()}` : ''}
-    ${showSeats() && !isResults() ? `<h3>${esc(M.pollsTitle)}</h3><p>${esc(M.pollsText)}</p><p><strong>${esc(meta.pollNote)}</strong></p>
+    ${showSeats() && !isResults() ? `<h3>${esc(M.pollsTitle)}</h3><p>${esc(M.pollsText)}</p><p><strong>${lang === 'he' ? esc(meta.pollNote) : `<span class="legal-he" lang="he" dir="rtl">${esc(data.meta.pollNote)}</span> ${esc(meta.pollNote)}`}</strong></p>
     <p>${esc(M.pollsGuidance)} <a href="${esc(meta.pollGuidanceUrl)}" rel="noopener">${esc(M.pollsGuidanceLink)}</a></p>` : ''}
     <h3>${esc(M.researchDocs)}</h3>
     <p>${esc(M.researchDocsNote)} <a href="https://github.com/Lioo7/mi-im-mi/tree/main/docs/research" rel="noopener">${esc(M.researchDocs)}</a></p>
@@ -400,7 +410,7 @@ function positionBlock(pid, tid, { heading = true } = {}) {
     ${heading ? `<p class="pos-label">${esc(axisLabel(tid, p.position))}</p>` : ''}
     ${p.redLine || p.componentsDisagree ? `<p>${p.redLine ? `<span class="tag tag-red"><span aria-hidden="true">🚩</span> ${esc(S.redLine)}</span> ` : ''}${p.componentsDisagree ? `<span class="tag tag-split"><span aria-hidden="true">${S.componentsIcon}</span> ${esc(S.componentsDisagree)}</span>` : ''}</p>` : ''}
     <p>${esc(p.summary)}</p>
-    ${p.quote ? `<blockquote><p class="q-text"${/[\u0600-\u06FF]/.test(p.quote) ? ' lang="ar" dir="rtl"' : ''}>״${esc(p.quote)}״</p>${p.quoteTranslation ? `<p class="q-text q-trans">״${esc(p.quoteTranslation)}״ ${esc(p.quoteTranslatedBy === SITE_TRANSLATOR ? S.sheet.siteTranslation : S.sheet.translationBy(p.quoteTranslatedBy))}</p>` : ''}<footer class="q-by">${esc(quoteAttribution(p, name(pid), S))}</footer></blockquote>` : ''}
+    ${p.quote ? `<blockquote>${quoteHtml(p)}<footer class="q-by">${esc(quoteAttribution(p, name(pid), S))}</footer></blockquote>` : ''}
     <p class="source">
       <span class="tag tag-src">${esc(T.sourceTypes[p.sourceType] ?? '')}</span>
       ${p.sourceDate ? `<span class="muted">${esc(T.date(fmtDate(p.sourceDate)))}</span>` : ''}
@@ -409,6 +419,17 @@ function positionBlock(pid, tid, { heading = true } = {}) {
       ${p.viaUrl ? `· <a href="${esc(p.viaUrl)}" rel="noopener" target="_blank">${esc(T.via)}</a>` : ''}
     </p>
   </div>`;
+}
+
+// A quote stays verbatim in its own language. In Hebrew, an Arabic quote carries our Hebrew translation (or an outlet's);
+// in English, every quote not in English carries our English translation.
+function quoteHtml(p) {
+  if (lang === 'he') {
+    return `<p class="q-text"${/[\u0600-\u06FF]/.test(p.quote) ? ' lang="ar" dir="rtl"' : ''}>״${esc(p.quote)}״</p>${p.quoteTranslation ? `<p class="q-text q-trans">״${esc(p.quoteTranslation)}״ ${esc(p.quoteTranslatedBy === SITE_TRANSLATOR ? S.sheet.siteTranslation : S.sheet.translationBy(p.quoteTranslatedBy))}</p>` : ''}`;
+  }
+  const ql = /[\u0600-\u06FF]/.test(p.quote) ? 'ar' : /[\u0590-\u05FF]/.test(p.quote) ? 'he' : 'en';
+  const original = ql === 'en' ? `<p class="q-text">“${esc(p.quote)}”</p>` : `<p class="q-text" lang="${ql}" dir="rtl">״${esc(p.quote)}״</p>`;
+  return original + (p.quoteTranslationEn ? `<p class="q-text q-trans">“${esc(p.quoteTranslationEn)}” ${esc(S.sheet.siteTranslation)}</p>` : '');
 }
 
 // First sentence of a position's summary, shown under its axis label in the pair view.
@@ -487,8 +508,14 @@ function seatsBox() {
   return `<section class="seats-box" aria-label="${esc(S.seats.boxTitle)}"><h3>${esc(S.seats.boxTitle)}</h3>${seatSourceLine()}${positionsAsOfLine()}${body}</section>`;
 }
 
+// The poll sentence is a legal requirement in Hebrew: in English it is shown verbatim, followed by our translation.
+function pollLegalText() {
+  const he = esc(HE.seats.pollLegal(HE.fmtDate(meta.pollsAsOf)));
+  return lang === 'he' ? he : `<span class="legal-he" lang="he" dir="rtl">${he}</span> ${esc(S.seats.pollLegal(fmtDate(meta.pollsAsOf)))}`;
+}
+
 function pollLegalLine() {
-  return `<p class="poll-legal">${esc(S.seats.pollLegal(fmtDate(meta.pollsAsOf)))}</p>`;
+  return `<p class="poll-legal">${pollLegalText()}</p>`;
 }
 
 // What the seat numbers are, placed before them: the CEC results status, or the legally required poll sentence.
@@ -498,7 +525,7 @@ function seatSourceLine() {
 }
 
 function pollNoteBtn() {
-  return `<p class="poll-legal">${esc(S.seats.pollLegal(fmtDate(meta.pollsAsOf)))} <button type="button" class="poll-btn" data-act="poll-info" data-key="poll-info" aria-label="${esc(S.seats.sourceInfo)}"><span aria-hidden="true">ⓘ</span></button></p>`;
+  return `<p class="poll-legal">${pollLegalText()} <button type="button" class="poll-btn" data-act="poll-info" data-key="poll-info" aria-label="${esc(S.seats.sourceInfo)}"><span aria-hidden="true">ⓘ</span></button></p>`;
 }
 
 function overallBar(r, { statuses = true } = {}) {
@@ -940,6 +967,14 @@ function onClick(e) {
   if (!el || el.tagName === 'SELECT') return;
   const { act, id } = el.dataset;
   switch (act) {
+    case 'lang':
+      // The view, the coalition and the scroll position stay; only the language changes.
+      if ($('#sheet').open) $('#sheet').close();
+      setLanguage(S.langToggle.to);
+      renderChrome();
+      writeUrl();
+      render();
+      break;
     case 'preset': {
       const p = C.presets(ctx)[id];
       lastPreset = id;
@@ -1045,7 +1080,7 @@ function setLanguage(l) {
   ctx = C.contextFor(data, lang);
   document.documentElement.lang = S.lang;
   document.documentElement.dir = S.dir;
-  document.title = `${S.appName} · ${S.tagline}`;
+  document.title = S.pageTitle;
 }
 
 // The parts rendered once per language (the views re-render on every state change).

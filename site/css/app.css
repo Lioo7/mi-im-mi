@@ -174,6 +174,20 @@ details.axis summary { cursor: pointer; font-weight: 600; min-block-size: 32px; 
 .topbar-in { display: flex; align-items: center; justify-content: space-between; min-block-size: 52px; }
 .brand { display: inline-flex; align-items: center; gap: 8px; color: var(--fg); text-decoration: none; font-weight: 800; font-size: 1.25rem; letter-spacing: -.01em; }
 .navlink { color: var(--accent); font-size: .95rem; padding: 10px 4px; }
+.topnav { display: inline-flex; align-items: center; gap: 6px; }
+.langlink { border: 1px solid var(--line); border-radius: 999px; background: none; color: var(--accent); font-size: .9rem; padding: 4px 12px; min-block-size: 36px; cursor: pointer; }
+.lang-note { background: var(--chip); border-block-end: 1px solid var(--line); color: var(--fg); font-size: .9rem; }
+.lang-note p { margin: 0; padding-block: 6px; }
+.lang-note[hidden] { display: none; }
+.brand-name, .navlink, .langlink { white-space: nowrap; }
+/* English link texts are longer; let them wrap rather than overflow a phone screen. */
+[dir="ltr"] .seat-src a, [dir="ltr"] .voter-info a { white-space: normal; }
+/* English pages show the required Hebrew poll sentence verbatim, on its own line, before the translation. */
+.legal-he { display: block; margin-block-end: 2px; }
+@media (max-width: 420px) {
+  [dir="ltr"] .brand { font-size: 1.05rem; }
+  [dir="ltr"] .navlink { font-size: .9rem; }
+}
 .intro { font-size: 1.08rem; margin-block: 16px 4px; font-weight: 600; }
 h2 { margin-block-start: 1.2em; }
 
@@ -320,6 +334,8 @@ body[data-view="build"] { padding-block-end: 100px; }
 .gap-main { display: grid; gap: 4px; flex: 1; min-inline-size: 0; }
 .chev { flex: none; font-size: 1.7rem; line-height: 1; color: var(--accent); transition: transform .15s; }
 .gap.is-open .chev { transform: rotate(-90deg); }
+/* The chevron points to the reading direction's end; open, it points down in both directions. */
+[dir="ltr"] .gap:not(.is-open) .chev { transform: scaleX(-1); }
 .pair-list { list-style: none; margin: 6px 0 2px; padding: 0; display: grid; gap: 4px; }
 .pair-btn { display: flex; align-items: center; justify-content: space-between; gap: 8px; inline-size: 100%; min-block-size: 44px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 8px; background: #fff; text-align: start; cursor: pointer; }
 .pair-btn:hover { border-color: var(--accent); }

@@ -12,11 +12,16 @@ export const S = {
   // 2026-10-30 -> 30.10.2026
   fmtDate: (iso) => (iso ? iso.split('-').reverse().join('.') : ''),
   appName: 'מי עם מי',
+  pageTitle: 'מי עם מי · בנו קואליציה וגלו איפה המפלגות מסכימות ואיפה הן מתנגשות',
   tagline: 'בנו קואליציה וגלו איפה המפלגות מסכימות ואיפה הן מתנגשות',
   updated: (d) => `עודכן ${d}`,
   stubBanner: 'נתוני דמה לפיתוח בלבד: העמדות אינן אמיתיות',
   skip: 'דלגו לתוצאות',
   loadError: 'שגיאה בטעינת הנתונים. נסו לרענן את הדף.',
+  // The switch to the other language: its label and aria-label are in that language.
+  langToggle: { to: 'en', label: 'English', aria: 'Switch to English', lang: 'en' },
+  // Shown only on a translation (the Hebrew is the original).
+  translatedNote: '',
 
   nav: {
     method: 'איך זה עובד',
@@ -409,7 +414,7 @@ export const S = {
       'תוויות ותפקידי ARIA לתיבות הסימון, לכפתורים, למפה ולחלונות.',
       'צבע תמיד מלווה בסמל או בטקסט, אף פעם לא לבדו.',
       'ניגודיות צבעים ברמת AA.',
-      'כתיבה מימין לשמאל, ועיצוב שמותאם קודם כול לטלפון.',
+      'כתיבה מימין לשמאל בעברית ומשמאל לימין באנגלית, ועיצוב שמותאם קודם כול לטלפון.',
     ],
     limitsTitle: 'מגבלות ידועות:',
     limits: [
