@@ -204,7 +204,7 @@ function renderMethod() {
     <p>${esc(M.resultsRule(showSeats()))}</p>
     <p>${esc(M.impactRule)}</p>
     <p>${esc(M.breakdownRule)}</p>
-    ${isResults() ? `<h3 id="closest-rule">${esc(M.closestTitle)}</h3><p>${esc(M.closestRule)}</p>` : ''}
+    ${isResults() ? `<h3 id="closest-rule" class="anchor" tabindex="-1">${esc(M.closestTitle)}</h3><p>${esc(M.closestRule)}</p>` : ''}
 
     <h3>${esc(M.axesTitle)}</h3>
     ${ctx.topics.map((t) => `
@@ -855,11 +855,14 @@ async function share() {
 }
 
 // ---------- sheet ----------
-function openSheet(html) {
+// Every sheet has a sticky bar: an optional back link at the start, the close button at the end.
+const BACK_CHEV = '<svg class="chev chev-back" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M15 5 8 12l7 7" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+function openSheet(html, { back = '' } = {}) {
   const d = $('#sheet');
-  d.innerHTML = `<div class="sheet-inner">
-    <button type="button" class="icon-btn sheet-close" data-act="close-sheet" aria-label="${esc(S.sheet.close)}"><span aria-hidden="true">✕</span></button>
-    ${html}</div>`;
+  d.innerHTML = `<div class="sheet-head">${back}
+    <button type="button" class="sheet-close" data-act="close-sheet" aria-label="${esc(S.sheet.close)}"><span aria-hidden="true">✕</span></button></div>
+    <div class="sheet-inner">${html}</div>`;
   d.querySelector('h2')?.setAttribute('id', 'sheet-title');
   if (!d.open) d.showModal();
   d.scrollTop = 0;
@@ -938,10 +941,13 @@ function closestRow(x, c, hasRedLines) {
   const warn = c.low.length ? K.warn(c.low.map((l, i) => K.warnItem(name(l.partyId), l.missing, i === 0)).join(', ')) : '';
   return `<li><button type="button" class="row-btn closest-row" data-act="closest-apply" data-id="${x}" data-ids="${c.add.join(',')}" data-key="closest-${c.add.join('-')}"
     aria-label="${esc(K.aria(partners, [red, ...counts, warn].filter(Boolean).join(', ')))}">
-    <span class="row-title">+ ${esc(partners)}</span>
-    ${red ? `<span class="row-meta small">${c.redLines.length ? `<span class="tag tag-red"><span aria-hidden="true">🚩</span> ${esc(red)}</span>` : `<span class="muted">${esc(red)}</span>`}</span>` : ''}
-    <span class="row-meta muted small">${esc(counts.join(' · '))}</span>
-    ${warn ? `<span class="row-meta small"><span class="tag tag-warn"><span aria-hidden="true">⚠</span> ${esc(warn)}</span></span>` : ''}
+    <span class="closest-main">
+      <span class="row-title">+ ${esc(partners)}</span>
+      ${red ? `<span class="row-meta small">${c.redLines.length ? `<span class="tag tag-red"><span aria-hidden="true">🚩</span> ${esc(red)}</span>` : `<span class="muted">${esc(red)}</span>`}</span>` : ''}
+      <span class="row-meta muted small closest-counts">${counts.map((t) => `<span>${esc(t)}</span>`).join('<span aria-hidden="true">·</span>')}</span>
+      ${warn ? `<span class="row-meta small"><span class="tag tag-warn"><span aria-hidden="true">⚠</span> ${esc(warn)}</span></span>` : ''}
+    </span>
+    <svg class="chev" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M15 5 8 12l7 7" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
   </button></li>`;
 }
 
@@ -966,17 +972,18 @@ function closestHtml(x) {
     r.ownCoverage < ctx.topics.length ? K.ownCoverage(S.toParty(p.name), r.ownCoverage) : '',
     r.ownRedLines === 0 ? K.noRedLines(S.toParty(p.name)) : '',
   ].filter(Boolean);
-  return `<p class="closest-back"><button type="button" class="link-btn" data-act="closest-back" data-id="${x}" data-key="closest-back">${esc(K.back(p.name))}</button></p>
-    <h2 tabindex="-1">${esc(K.title(p.name))}</h2>
+  return `<h2 tabindex="-1">${esc(K.title(p.name))}</h2>
     ${seatSourceLine()}${positionsAsOfLine()}
-    <p class="muted small">${esc(K.intro(p.name))}</p>
+    <p class="muted small">${esc(K.intro(p.name))} <a href="#closest-rule" data-act="close-sheet">${esc(K.howLink)}</a></p>
     ${notes.map((n) => `<p class="note note-soft">${esc(n)}</p>`).join('')}
     ${r.total ? (r.full.length ? list(r.full, v.fullAll, 'closest-all') : '') + partial : `<p>${esc(K.none)}</p>`}`;
 }
 
+const closestBack = (x) => `<button type="button" class="link-btn sheet-back" data-act="closest-back" data-id="${x}" data-key="closest-back">${BACK_CHEV}<span>${esc(S.closest.back(name(x)))}</span></button>`;
+
 function closestSheet(pid) {
   closestView = { pid, fullAll: false, partialOpen: false, partialAll: false };
-  openSheet(closestHtml(pid));
+  openSheet(closestHtml(pid), { back: closestBack(pid) });
   $('#sheet h2').focus();
 }
 
@@ -984,7 +991,7 @@ function closestSheet(pid) {
 function refreshClosest(key) {
   const d = $('#sheet');
   const top = d.scrollTop;
-  openSheet(closestHtml(closestView.pid));
+  openSheet(closestHtml(closestView.pid), { back: closestBack(closestView.pid) });
   d.scrollTop = top;
   d.querySelector(`[data-key="${CSS.escape(key)}"]`)?.focus();
 }
@@ -1011,7 +1018,7 @@ let view = 'build';
 let routeToken = 'build';
 
 // In-page sections of the method view that the footer links to.
-const METHOD_ANCHORS = ['why', 'privacy', 'accessibility'];
+const METHOD_ANCHORS = ['why', 'privacy', 'accessibility', 'closest-rule'];
 
 function route(initial = false) {
   const loc = C.parseLocation(location, passedIds());

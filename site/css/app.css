@@ -134,9 +134,17 @@ blockquote { margin: .4em 0 .6em; padding-inline-start: 12px; border-inline-star
   max-block-size: 88vh; border-radius: 16px 16px 0 0; background: var(--card); color: var(--fg);
 }
 .sheet::backdrop { background: rgba(20, 22, 28, .45); }
-.sheet-inner { padding: 16px var(--gutter) calc(24px + env(safe-area-inset-bottom)); }
-.sheet h2 { margin-block-start: 0; padding-inline-end: 48px; }
-.sheet-close { position: absolute; inset-inline-end: 8px; inset-block-start: 8px; }
+.sheet-inner { padding: 8px var(--gutter) calc(24px + env(safe-area-inset-bottom)); }
+.sheet h2 { margin-block-start: 0; }
+/* Sticky bar on every sheet: back (when there is one) at the start, close at the end. */
+.sheet-head { position: sticky; inset-block-start: 0; z-index: 2; display: flex; align-items: center; gap: 8px; padding-block: 6px; padding-inline: 8px; background: var(--card); border-block-end: 1px solid var(--line); }
+.sheet-back { display: inline-flex; align-items: center; gap: 2px; text-align: start; padding-inline: 4px 8px; font-size: .95rem; min-inline-size: 0; }
+.chev-back { inline-size: 18px; block-size: 18px; font-size: 1rem; }
+[dir="rtl"] .chev-back { transform: scaleX(-1); }
+.sheet-close { flex: none; margin-inline-start: auto; inline-size: 44px; block-size: 44px; border: 0; border-radius: 50%; background: var(--chip); color: var(--fg); font-size: 1.1rem; cursor: pointer; display: grid; place-items: center; }
+.sheet-close:hover { background: #dbe3f7; }
+.sheet-close:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.sheet .seat-src { font-size: .85rem; color: var(--muted); margin-block-end: 4px; }
 .why { margin: .2em 0 .6em; padding-inline-start: 1.2em; }
 .compare { display: grid; gap: 4px; margin-block: 8px 12px; font-weight: 600; }
 .closest-open { text-align: start; }
@@ -357,8 +365,10 @@ body[data-view="build"] { padding-block-end: 100px; }
 .pills { display: grid; grid-template-columns: repeat(3, 40px); gap: 3px; }
 .pill { text-align: center; border-radius: 999px; font-weight: 800; font-size: .8rem; line-height: 1.5; font-variant-numeric: tabular-nums; }
 
-.row-btn.gap-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.gap-main { display: grid; gap: 4px; flex: 1; min-inline-size: 0; }
+.row-btn.gap-head, .row-btn.closest-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.gap-main, .closest-main { display: grid; gap: 4px; flex: 1; min-inline-size: 0; }
+[dir="ltr"] .closest-row .chev { transform: scaleX(-1); }
+.closest-counts { gap: 2px 6px; }
 .chev { flex: none; font-size: 1.7rem; line-height: 1; color: var(--accent); transition: transform .15s; }
 .gap.is-open .chev { transform: rotate(-90deg); }
 /* The chevron points to the reading direction's end; open, it points down in both directions. */

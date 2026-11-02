@@ -832,6 +832,19 @@ try {
         if (st.full.length !== want.full.length || st.partial?.length !== want.partial.length) errors.push(`[${tag}] "show all" should list ${want.full.length} + ${want.partial.length}, got ${st.full.length} + ${st.partial?.length}`);
         if (st.full.map((r) => r.ids).join('|') !== want.full.map((c) => c.add.join(',')).join('|')) errors.push(`[${tag}] expanded main rows are out of order`);
         if (st.overflow) errors.push(`[${tag}] horizontal overflow with every row shown`);
+        // The sheet's bar stays at the top while scrolling: back at the start, close (44px+, round) at the end.
+        await evaluate("document.querySelector('#sheet').scrollTop = document.querySelector('#sheet').scrollHeight / 2");
+        await sleep(200);
+        const bar = await evaluate(`(() => { const s = document.querySelector('#sheet').getBoundingClientRect(); const h = document.querySelector('#sheet .sheet-head');
+          const back = h?.querySelector('[data-act="closest-back"]')?.getBoundingClientRect(); const x = h?.querySelector('.sheet-close')?.getBoundingClientRect();
+          if (!h || !back || !x) return 'missing';
+          if (document.querySelector('#sheet').scrollTop < 200) return 'did not scroll';
+          if (Math.abs(h.getBoundingClientRect().top - s.top) > 1) return 'bar not at the top: ' + Math.round(h.getBoundingClientRect().top - s.top);
+          if (x.width < 44 || x.height < 44) return 'close ' + x.width + 'x' + x.height;
+          const rtl = document.dir === 'rtl'; if (rtl ? !(back.left > x.right) : !(back.right < x.left)) return 'back and close on the wrong sides';
+          return 'ok'; })()`);
+        if (bar !== 'ok') errors.push(`[${tag}] sticky sheet bar: ${bar}`);
+        if (size === SIZES[0]) await shoot(size, `interaction-closest-scrolled-m${lng === 'he' ? '' : '-en'}.png`, false);
         // Tapping the first row selects it, with Likud as the base, on the results view; undo restores.
         const before = await frag();
         await evaluate("document.querySelector('#sheet [data-act=\"closest-apply\"]').click()");
@@ -852,6 +865,11 @@ try {
         st = await evaluate(sheetState);
         const shas = await check(`${tag}-shas`, 'shas', st);
         if (st && !st.text.includes(T.closest.ownCoverage(T.toParty(nm('shas')), shas.ownCoverage))) errors.push(`[${tag}-shas] the party's own coverage note is missing`);
+        // "How is this calculated?" closes the sheet and lands on the rule on the method page.
+        await evaluate(`[...document.querySelectorAll('#sheet a[href="#closest-rule"]')].find((a) => a.innerText === ${JSON.stringify(T.closest.howLink)})?.click()`);
+        await sleep(400);
+        const how = await evaluate("JSON.stringify([document.querySelector('#sheet').open, document.body.dataset.view, (() => { const r = document.querySelector('#closest-rule')?.getBoundingClientRect(); return Boolean(r) && r.top >= 0 && r.top < innerHeight / 2; })(), document.documentElement.lang])");
+        if (how !== JSON.stringify([false, 'method', true, lng])) errors.push(`[${tag}] the method link should close the sheet and show the rule (${how})`);
         // The build-view picker opens the same list (Yisrael Beytenu: its red lines lead the order) and resets.
         await go(`${baseUrl}#build${lng === 'he' ? '' : '?l=en'}`);
         await ready();
