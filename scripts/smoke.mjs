@@ -758,8 +758,10 @@ try {
       const lc = contextFor({ meta, parties, topics, positions, results }, lng);
       const nm = (id) => lc.byId.get(id).name;
       const sfx = lng === 'he' ? '' : '&l=en';
-      const rowText = (x, c) => [T.closest.agree(c.agree), T.closest.xClash(c.xClash, nm(x)), T.closest.wholeClash(c.wholeClash),
-        T.closest.redLines(c.redLines.length, c.redLines.map((r) => lc.topics.find((t) => t.id === r.topicId).short).join(', ')), T.closest.seats(c.seats)];
+      // The row's numbers in sort order; the red-line part only when the party declared red lines.
+      const rowText = (x, c, own) => [
+        own ? T.closest.redLines(c.redLines.length, c.redLines.map((r) => lc.topics.find((t) => t.id === r.topicId).short).join(', ')) : null,
+        T.closest.xClash(c.xClash, nm(x)), T.closest.wholeClash(c.wholeClash), T.closest.agree(c.agree), T.closest.seats(c.seats)].filter(Boolean);
       const sheetState = `(() => { const s = document.querySelector('#sheet'); if (!s.open) return null;
         const rows = (root) => [...(root?.querySelectorAll('[data-act="closest-apply"]') ?? [])].map((b) => ({ ids: b.dataset.ids, text: b.innerText.replace(/\\s+/g, ' '), warn: b.querySelector('.tag-warn') !== null }));
         const src = s.querySelector('.seat-src'); const first = s.querySelector('[data-act="closest-apply"]'); const part = s.querySelector('#closest-partial-list');
@@ -779,8 +781,13 @@ try {
         if (!st.src.includes(lng === 'he' ? meta.resultsStatus : meta.en.resultsStatus) || !st.srcFirst || !st.srcVisible) errors.push(`[${tag}] the results status line must come first and be visible`);
         if (st.full.map((r) => r.ids).join('|') !== want.full.slice(0, 5).map((c) => c.add.join(',')).join('|')) errors.push(`[${tag}] main rows ${st.full.map((r) => r.ids).join('|')}`);
         st.full.forEach((r, i) => {
-          const miss = rowText(x, want.full[i]).filter((t) => !r.text.includes(t));
-          if (miss.length) errors.push(`[${tag}] row ${r.ids} lacks "${miss.join('", "')}"`);
+          let at = 0;
+          for (const t of rowText(x, want.full[i], want.ownRedLines > 0)) {
+            const k = r.text.indexOf(t, at);
+            if (k < 0) { errors.push(`[${tag}] row ${r.ids}: "${t}" missing or out of sort order in "${r.text}"`); break; }
+            at = k + t.length;
+          }
+          if (!want.ownRedLines && r.text.includes(T.closest.redLines(0, ''))) errors.push(`[${tag}] row ${r.ids} shows red lines for a party that declared none`);
           if (r.warn) errors.push(`[${tag}] main-list row ${r.ids} has a missing-data warning`);
         });
         if (want.partial.length) {

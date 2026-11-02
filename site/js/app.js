@@ -928,18 +928,19 @@ function partyNotes(p) {
   return notes.map((n) => `<p class="note note-soft">${bidi(n)}</p>`).join('') + (seatNote ? pollLegalLine() : '');
 }
 
-// One coalition from closestTo(): every number on the row is a sort key, in sort order of importance.
-function closestRow(x, c) {
+// One coalition from closestTo(): every number on the row is a sort key, shown in sort order. The red-line part
+// appears only when X declared red lines (otherwise the note above the list says so once).
+function closestRow(x, c, hasRedLines) {
   const K = S.closest;
   const partners = c.add.map(name).join(' + ');
-  const counts = [K.agree(c.agree), K.xClash(c.xClash, name(x)), K.wholeClash(c.wholeClash)];
-  const red = K.redLines(c.redLines.length, c.redLines.map((r) => topic(r.topicId).short).join(', '));
+  const counts = [K.xClash(c.xClash, name(x)), K.wholeClash(c.wholeClash), K.agree(c.agree), K.seats(c.seats)];
+  const red = hasRedLines ? K.redLines(c.redLines.length, c.redLines.map((r) => topic(r.topicId).short).join(', ')) : '';
   const warn = c.low.length ? K.warn(c.low.map((l, i) => K.warnItem(name(l.partyId), l.missing, i === 0)).join(', ')) : '';
   return `<li><button type="button" class="row-btn closest-row" data-act="closest-apply" data-id="${x}" data-ids="${c.add.join(',')}" data-key="closest-${c.add.join('-')}"
-    aria-label="${esc(K.aria(partners, [...counts, red, K.seats(c.seats), warn].filter(Boolean).join(', ')))}">
+    aria-label="${esc(K.aria(partners, [red, ...counts, warn].filter(Boolean).join(', ')))}">
     <span class="row-title">+ ${esc(partners)}</span>
+    ${red ? `<span class="row-meta small">${c.redLines.length ? `<span class="tag tag-red"><span aria-hidden="true">🚩</span> ${esc(red)}</span>` : `<span class="muted">${esc(red)}</span>`}</span>` : ''}
     <span class="row-meta muted small">${esc(counts.join(' · '))}</span>
-    <span class="row-meta small">${c.redLines.length ? `<span class="tag tag-red"><span aria-hidden="true">🚩</span> ${esc(red)}</span><span class="muted">· ${esc(K.seats(c.seats))}</span>` : `<span class="muted">${esc(red)} · ${esc(K.seats(c.seats))}</span>`}</span>
     ${warn ? `<span class="row-meta small"><span class="tag tag-warn"><span aria-hidden="true">⚠</span> ${esc(warn)}</span></span>` : ''}
   </button></li>`;
 }
@@ -951,7 +952,7 @@ function closestHtml(x) {
   const p = party(x);
   const r = C.closestTo(ctx, x);
   const v = closestView;
-  const list = (rows, all, act) => `<ol class="list closest-list">${(all ? rows : rows.slice(0, CLOSEST_SHOWN)).map((c) => closestRow(x, c)).join('')}</ol>
+  const list = (rows, all, act) => `<ol class="list closest-list">${(all ? rows : rows.slice(0, CLOSEST_SHOWN)).map((c) => closestRow(x, c, r.ownRedLines > 0)).join('')}</ol>
     ${rows.length > CLOSEST_SHOWN ? `<button type="button" class="link-btn" data-act="${act}" data-key="${act}" aria-expanded="${all}">${esc(all ? S.completions.showFewer : S.completions.showAll(rows.length))}</button>` : ''}`;
   const silent = K.orList(ordered([...new Set(r.partial.flatMap((c) => c.low.map((l) => l.partyId)))]).map(name));
   const open = v.partialOpen || !r.full.length;
