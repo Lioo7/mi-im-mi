@@ -894,6 +894,36 @@ try {
     if (hebrew) errors.push(`[${current}] ${pid}|${tid} sheet: Hebrew text outside lang="he": ${hebrew}`);
   }
   console.log('  ✓ English interactions');
+
+  // Phone layout, both languages, also at 360 (a common Android width): at least 16px between the brand and the nav, a
+  // header that doesn't overflow, overview topics on one line each (no hyphenation) in a 4×2 grid on phones and one row
+  // on wide screens, Hebrew matrix headers visibly apart, and the English translation line on one line on phones.
+  const LAYOUT_CHECK = `(() => { const bad = []; const rtl = document.documentElement.dir === 'rtl';
+    const brand = document.querySelector('.brand').getBoundingClientRect(), nav = document.querySelector('.topnav').getBoundingClientRect();
+    const gap = rtl ? brand.left - nav.right : nav.left - brand.right; if (gap < 16) bad.push('brand–nav gap ' + Math.round(gap) + 'px');
+    const bar = document.querySelector('.topbar-in'); if (bar.scrollWidth > bar.clientWidth + 1) bad.push('header overflows');
+    const lines = (e) => { const r = document.createRange(); r.selectNodeContents(e); return new Set([...r.getClientRects()].map((x) => Math.round(x.top))).size; };
+    const segs = [...document.querySelectorAll('#results .seg-label')];
+    if (segs.some((e) => lines(e) > 1)) bad.push('overview topic label wraps or hyphenates: ' + segs.filter((e) => lines(e) > 1).map((e) => e.textContent).join(', '));
+    const rows = new Set([...document.querySelectorAll('#results .seg')].map((e) => Math.round(e.getBoundingClientRect().top))).size;
+    if (rows !== (innerWidth <= 600 ? 2 : 1)) bad.push('overview has ' + rows + ' rows');
+    if (rtl) { const tx = [...document.querySelectorAll('#matrix .topic-btn')].map((b) => { const r = document.createRange(); r.selectNodeContents(b); return r.getBoundingClientRect(); });
+      const sep = Math.min(...tx.slice(1).map((r, i) => tx[i].left - r.right)); if (sep < 4) bad.push('matrix headers ' + sep.toFixed(1) + 'px apart'); }
+    const note = document.querySelector('#lang-note'); if (!note.hidden && innerWidth <= 400 && lines(note) > 1) bad.push('translation line wraps');
+    return bad.join('; '); })()`;
+  for (const w of [360, 390, 1280]) {
+    await c.send('Emulation.setDeviceMetricsOverride', { width: w, height: 800, deviceScaleFactor: 2, mobile: w < 600 });
+    for (const l of ['he', 'en']) {
+      current = `layout-${l}@${w}`;
+      await go(`${baseUrl}#results?m=likud,yashar,together${l === 'en' ? '&l=en' : ''}`);
+      await waitFor(() => evaluate("document.querySelector('#results .seg') !== null && document.querySelector('#matrix .topic-btn') !== null"));
+      await sleep(250);
+      const bad = await evaluate(LAYOUT_CHECK);
+      if (bad) errors.push(`[${current}] ${bad}`);
+    }
+  }
+  await setSize(SIZES[0]);
+  console.log('  ✓ phone layout at 360, 390 and 1280 (both languages)');
   c.close();
 } catch (e) {
   errors.push(`smoke failed: ${e.message}`);

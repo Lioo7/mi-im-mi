@@ -30,11 +30,12 @@ export const S = {
   loadError: 'The data could not be loaded. Try refreshing the page.',
   langSwitch: { label: 'Language', other: 'he' },
   langNames: { he: 'עברית', en: 'English' },
-  translatedNote: 'Translated from Hebrew · the Hebrew version is authoritative',
+  translatedNote: 'Translated from Hebrew; the Hebrew is authoritative',
   nameOf: (n) => NAMES[n] ?? n,
 
   nav: {
     method: 'How it works',
+    methodShort: 'About',
     back: '← Edit',
     toResults: 'Results →',
     backFromMethod: '← Back',

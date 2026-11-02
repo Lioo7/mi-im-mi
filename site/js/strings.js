@@ -28,6 +28,8 @@ export const S = {
 
   nav: {
     method: 'איך זה עובד',
+    // The header link on phones (≤400px), where the full label doesn't fit next to the language switch.
+    methodShort: 'איך זה עובד',
     back: '← עריכה',
     toResults: 'לתוצאות ←',
     backFromMethod: '← חזרה',

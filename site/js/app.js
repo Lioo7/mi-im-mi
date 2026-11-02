@@ -119,7 +119,7 @@ function renderHeader() {
   $('#lang-note').hidden = !S.translatedNote;
   $('#lang-note').textContent = S.translatedNote;
   $('#brand-name').textContent = S.appName;
-  $('#nav-method').textContent = S.nav.method;
+  $('#nav-method').innerHTML = `<span class="nav-long">${esc(S.nav.method)}</span><span class="nav-short">${esc(S.nav.methodShort)}</span>`;
   $('#intro').textContent = S.buildIntro;
   $('#purpose').textContent = S.buildPurpose;
   if (isResults()) {

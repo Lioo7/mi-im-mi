@@ -95,7 +95,7 @@ button, select { font: inherit; color: inherit; }
 .share-row { margin-block-start: 12px; }
 .segs { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(8, 1fr); gap: 3px; }
 .seg { display: grid; justify-items: center; padding: 6px 0 4px; border-radius: 6px; font-size: .95rem; }
-.seg-label { font-size: .62rem; font-weight: 600; }
+.seg-label { font-size: .62rem; font-weight: 600; white-space: nowrap; hyphens: none; -webkit-hyphens: none; }
 
 .pos-label { font-weight: 700; }
 .pos-label.none { color: var(--none-fg); }
@@ -183,6 +183,22 @@ details.axis summary { cursor: pointer; font-weight: 600; min-block-size: 32px; 
 .lang-note { margin-block: 8px 0; color: var(--muted); font-size: .85rem; }
 .lang-note[hidden] { display: none; }
 .brand-name, .navlink { white-space: nowrap; }
+/* At least 16px between the brand and the nav, in both directions. */
+.topbar-in { gap: 16px; }
+/* Phones: a slightly smaller brand so logo, nav and language switch fit on one line at 360; the overview's 8 topics as
+   a 4×2 grid of whole words; Hebrew matrix headers smaller, with room between neighbours (English ones are vertical). */
+.nav-short { display: none; }
+@media (max-width: 400px) {
+  .brand { font-size: 1.1rem; }
+  .nav-long { display: none; }
+  .nav-short { display: inline; }
+  .lang-note { font-size: .78rem; }
+  .matrix th[scope="row"], .matrix thead td { inline-size: 80px; }
+  [dir="rtl"] .topic-btn { font-size: .58rem; letter-spacing: 0; padding-inline: 1px; }
+}
+@media (max-width: 600px) {
+  .segs { grid-template-columns: repeat(4, 1fr); }
+}
 /* English link texts are longer; let them wrap rather than overflow a phone screen. */
 [dir="ltr"] .seat-src a, [dir="ltr"] .voter-info a { white-space: normal; }
 /* English pages show the required Hebrew poll sentence verbatim, on its own line, before the translation. */
