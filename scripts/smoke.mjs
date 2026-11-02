@@ -10,7 +10,7 @@ import { mkdirSync, mkdtempSync, writeFileSync, rmSync, readFileSync, existsSync
 import { tmpdir } from 'node:os';
 import { join, extname, normalize } from 'node:path';
 import { ROOT, loadData } from './lib.mjs';
-import { contextFor, presets, serializeState, ballotOrder, completions, parseLocation, stateKeysIn, selected, locationFor } from '../site/js/compat.js';
+import { contextFor, presets, serializeState, ballotOrder, completions, parseLocation, stateKeysIn, selected, locationFor, closestTo } from '../site/js/compat.js';
 import { PROD_HOST } from '../site/js/stats.js';
 import { S } from '../site/js/strings.js';
 import { S as EN } from '../site/js/strings.en.js';
@@ -743,6 +743,134 @@ try {
       await shoot(z, 'interaction-completions-change-m.png', false);
     }
   }
+  // Hebrew text outside an element with lang="he" (an untranslated string on the English page).
+  const HEBREW_OUTSIDE = `(() => { const out = []; const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    for (let n; (n = w.nextNode());) { if (!/[\\u05D0-\\u05EA]/.test(n.data)) continue; const el = n.parentElement;
+      if (el.closest('noscript, script, style') || el.closest('[lang]')?.lang === 'he') continue; out.push(n.data.trim().slice(0, 40)); }
+    return out.slice(0, 3).join(' | '); })()`;
+  // Closest coalitions to a party (#22, results mode): from the party sheet and the build-view picker, in both languages,
+  // on a regular and a short phone. Rows match closestTo() and show every sort key; coalitions with a silent partner are
+  // collapsed behind a toggle naming exactly those partners (never X); tapping a row selects it with X as the base.
+  if (RESULTS) {
+    const { positions } = loadData();
+    for (const lng of ['he', 'en']) {
+      const T = lng === 'he' ? S : EN;
+      const lc = contextFor({ meta, parties, topics, positions, results }, lng);
+      const nm = (id) => lc.byId.get(id).name;
+      const sfx = lng === 'he' ? '' : '&l=en';
+      const rowText = (x, c) => [T.closest.agree(c.agree), T.closest.xClash(c.xClash, nm(x)), T.closest.wholeClash(c.wholeClash),
+        T.closest.redLines(c.redLines.length, c.redLines.map((r) => lc.topics.find((t) => t.id === r.topicId).short).join(', ')), T.closest.seats(c.seats)];
+      const sheetState = `(() => { const s = document.querySelector('#sheet'); if (!s.open) return null;
+        const rows = (root) => [...(root?.querySelectorAll('[data-act="closest-apply"]') ?? [])].map((b) => ({ ids: b.dataset.ids, text: b.innerText.replace(/\\s+/g, ' '), warn: b.querySelector('.tag-warn') !== null }));
+        const src = s.querySelector('.seat-src'); const first = s.querySelector('[data-act="closest-apply"]'); const part = s.querySelector('#closest-partial-list');
+        const toggle = s.querySelector('[data-act="closest-partial"]');
+        return { title: s.querySelector('h2')?.innerText, focus: document.activeElement === s.querySelector('h2'),
+          src: src?.innerText ?? '', srcFirst: Boolean(src && first && (src.compareDocumentPosition(first) & Node.DOCUMENT_POSITION_FOLLOWING)),
+          srcVisible: Boolean(src) && src.getBoundingClientRect().top >= 0 && src.getBoundingClientRect().bottom <= innerHeight,
+          full: rows(s.querySelector('.sheet-inner > .closest-list')), partial: part && !part.hidden ? rows(part) : null,
+          toggle: toggle ? toggle.innerText.replace(/^[▸▾]\\s*/, '') + '|' + toggle.getAttribute('aria-expanded') : '',
+          note: s.innerText.includes(${JSON.stringify(T.closest.partialNote)}), text: s.innerText.replace(/\\s+/g, ' '),
+          overflow: s.scrollWidth > s.clientWidth + 1 || document.documentElement.scrollWidth > innerWidth + 1 }; })()`;
+      const check = async (tag, x, st) => {
+        const want = closestTo(lc, x);
+        const silent = [...new Set(want.partial.flatMap((c) => c.low.map((l) => l.partyId)))].sort((a, b) => lc.order.get(a) - lc.order.get(b)).map(nm);
+        if (!st) { errors.push(`[${tag}] the closest-coalitions sheet did not open`); return want; }
+        if (st.title !== T.closest.title(nm(x))) errors.push(`[${tag}] title "${st.title}"`);
+        if (!st.src.includes(lng === 'he' ? meta.resultsStatus : meta.en.resultsStatus) || !st.srcFirst || !st.srcVisible) errors.push(`[${tag}] the results status line must come first and be visible`);
+        if (st.full.map((r) => r.ids).join('|') !== want.full.slice(0, 5).map((c) => c.add.join(',')).join('|')) errors.push(`[${tag}] main rows ${st.full.map((r) => r.ids).join('|')}`);
+        st.full.forEach((r, i) => {
+          const miss = rowText(x, want.full[i]).filter((t) => !r.text.includes(t));
+          if (miss.length) errors.push(`[${tag}] row ${r.ids} lacks "${miss.join('", "')}"`);
+          if (r.warn) errors.push(`[${tag}] main-list row ${r.ids} has a missing-data warning`);
+        });
+        if (want.partial.length) {
+          if (st.partial !== null) errors.push(`[${tag}] the list with silent partners should be collapsed on load`);
+          if (st.toggle !== `${T.closest.showPartial(want.partial.length, T.closest.orList(silent))}|false`) errors.push(`[${tag}] toggle "${st.toggle}"`);
+          if (silent.includes(nm(x)) || st.toggle.includes(nm(x))) errors.push(`[${tag}] the toggle must not name the party itself`);
+          if (!st.note) errors.push(`[${tag}] the partial-comparison sentence is missing`);
+        }
+        if (st.overflow) errors.push(`[${tag}] horizontal overflow in the sheet`);
+        return want;
+      };
+      // The method page states the rule.
+      await go(`${baseUrl}#method${lng === 'he' ? '' : '?l=en'}`);
+      await waitFor(() => evaluate("document.querySelector('#method h1') !== null"));
+      if (!(await evaluate(`document.querySelector('#closest-rule')?.nextElementSibling?.innerText === ${JSON.stringify(T.method.closestRule)}`))) errors.push(`[closest-${lng}] the method page should state the closest-coalitions rule`);
+      for (const size of [SIZES[0], { tag: 's', width: 375, height: 667, mobile: true, dpr: 2 }]) {
+        await setSize(size);
+        const tag = `closest-${lng}@${size.width}`;
+        // Likud, from its party sheet.
+        await go(`${baseUrl}#results?m=likud,yashar${sfx}`);
+        await waitFor(() => evaluate("document.querySelector('.party-btn[data-id=\"likud\"]') !== null"));
+        await evaluate("document.querySelector('.party-btn[data-id=\"likud\"]').click()");
+        await sleep(250);
+        await evaluate("document.querySelector('#sheet [data-act=\"closest\"]').click()");
+        await sleep(300);
+        let st = await evaluate(sheetState);
+        const want = await check(tag, 'likud', st);
+        if (st && !st.focus) errors.push(`[${tag}] focus should move to the list's heading`);
+        if (size === SIZES[0]) await shoot(size, `interaction-closest-m${lng === 'he' ? '' : '-en'}.png`, false);
+        if (lng === 'en') { const hebrew = await evaluate(HEBREW_OUTSIDE); if (hebrew) errors.push(`[${tag}] Hebrew outside lang="he": ${hebrew}`); }
+        // Expand the silent-partner list, then both "show all".
+        await evaluate("document.querySelector('#sheet [data-act=\"closest-partial\"]').click()");
+        await sleep(200);
+        st = await evaluate(sheetState);
+        if (!st.partial || st.partial.map((r) => r.ids).join('|') !== want.partial.slice(0, 5).map((c) => c.add.join(',')).join('|')) errors.push(`[${tag}] expanded partial rows ${st.partial?.map((r) => r.ids).join('|')}`);
+        if (st.partial && !st.partial.every((r) => r.warn)) errors.push(`[${tag}] every row with a silent partner needs its warning`);
+        if (!st.toggle.endsWith('|true')) errors.push(`[${tag}] the toggle should report aria-expanded=true`);
+        if (size === SIZES[0]) await shoot(size, `interaction-closest-partial-m${lng === 'he' ? '' : '-en'}.png`, false);
+        for (const act of ['closest-all', 'closest-partial-all']) await evaluate(`document.querySelector('#sheet [data-act="${act}"]')?.click()`);
+        await sleep(200);
+        st = await evaluate(sheetState);
+        if (st.full.length !== want.full.length || st.partial?.length !== want.partial.length) errors.push(`[${tag}] "show all" should list ${want.full.length} + ${want.partial.length}, got ${st.full.length} + ${st.partial?.length}`);
+        if (st.full.map((r) => r.ids).join('|') !== want.full.map((c) => c.add.join(',')).join('|')) errors.push(`[${tag}] expanded main rows are out of order`);
+        if (st.overflow) errors.push(`[${tag}] horizontal overflow with every row shown`);
+        // Tapping the first row selects it, with Likud as the base, on the results view; undo restores.
+        const before = await frag();
+        await evaluate("document.querySelector('#sheet [data-act=\"closest-apply\"]').click()");
+        await sleep(400);
+        const wantHash = locationFor(ctx, { base: 'likud', members: ['likud', ...want.full[0].add], supporters: [], abstainers: [] }, 'results', '', lng);
+        const got = await evaluate("JSON.stringify([location.hash, document.body.dataset.view, document.querySelector('#sheet').open])");
+        if (got !== JSON.stringify([wantHash, 'results', false])) errors.push(`[${tag}] tapping a row should select it on #results (${got}, want ${wantHash})`);
+        await evaluate("document.querySelector('#toast [data-act=\"undo\"]').click()");
+        await sleep(300);
+        if ((await frag()) !== before) errors.push(`[${tag}] undo did not restore the coalition`);
+        // Shas: its own coverage note above the list, and never in its own toggle.
+        await go(`${baseUrl}#results?m=likud,shas${sfx}`);
+        await waitFor(() => evaluate("document.querySelector('.party-btn[data-id=\"shas\"]') !== null"));
+        await evaluate("document.querySelector('.party-btn[data-id=\"shas\"]').click()");
+        await sleep(250);
+        await evaluate("document.querySelector('#sheet [data-act=\"closest\"]').click()");
+        await sleep(300);
+        st = await evaluate(sheetState);
+        const shas = await check(`${tag}-shas`, 'shas', st);
+        if (st && !st.text.includes(T.closest.ownCoverage(T.toParty(nm('shas')), shas.ownCoverage))) errors.push(`[${tag}-shas] the party's own coverage note is missing`);
+        // The build-view picker opens the same list (Yisrael Beytenu: its red lines lead the order) and resets.
+        await go(`${baseUrl}#build${lng === 'he' ? '' : '?l=en'}`);
+        await ready();
+        await evaluate("(() => { const s = document.querySelector('[data-act=\"closest-pick\"]'); s.value = 'yisrael-beiteinu'; s.dispatchEvent(new Event('change', { bubbles: true })); })()");
+        await sleep(300);
+        st = await evaluate(sheetState);
+        await check(`${tag}-picker`, 'yisrael-beiteinu', st);
+        if ((await evaluate("document.querySelector('[data-act=\"closest-pick\"]').value")) !== '') errors.push(`[${tag}-picker] the picker should reset (no preselected party)`);
+        if (size === SIZES[0] && lng === 'he') await shoot(size, 'interaction-closest-picker-m.png', false);
+        await evaluate("document.querySelector('#sheet').close()");
+      }
+    }
+    await setSize(z);
+    console.log('  ✓ closest coalitions');
+  } else {
+    await go(`${baseUrl}#results?m=likud,yashar`);
+    await waitFor(() => evaluate("document.querySelector('.party-btn[data-id=\"likud\"]') !== null"));
+    await evaluate("document.querySelector('.party-btn[data-id=\"likud\"]').click()");
+    await sleep(250);
+    if (await evaluate("document.querySelector('[data-act=\"closest\"], [data-act=\"closest-pick\"]') !== null")) errors.push('[interaction] closest coalitions must not appear in polls mode');
+    await go(`${baseUrl}#method`);
+    await waitFor(() => evaluate("document.querySelector('#method h1') !== null"));
+    if (await evaluate("document.querySelector('#closest-rule') !== null")) errors.push('[interaction] the closest-coalitions rule must not appear on the method page in polls mode');
+    await evaluate("document.querySelector('#sheet').close()");
+  }
+
   // A cell sheet with a quote renders it in quotation marks with an attribution line underneath.
   const withQuote = JSON.parse(readFileSync(join(ROOT, 'site', 'data', 'positions.json'), 'utf8')).find((p) => p.quote && p.quoteBy && p.sourceDate);
   await go(`${baseUrl}#results?m=${withQuote.partyId},together`);
@@ -785,10 +913,6 @@ try {
   // before the seats, the same investiture numbers, and links that keep l=en.
   const withLang = (suffix) => { const { search, hash } = splitSuffix(suffix); const h = hash || '#build'; return `${search}${h}${h.includes('?') ? '&' : '?'}l=en`; };
   const enCases = cases.filter(([, suffix]) => !isLegacy(suffix)).map(([name, suffix, v]) => [name, withLang(suffix), v]);
-  const HEBREW_OUTSIDE = `(() => { const out = []; const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
-    for (let n; (n = w.nextNode());) { if (!/[\\u05D0-\\u05EA]/.test(n.data)) continue; const el = n.parentElement;
-      if (el.closest('noscript, script, style') || el.closest('[lang]')?.lang === 'he') continue; out.push(n.data.trim().slice(0, 40)); }
-    return out.slice(0, 3).join(' | '); })()`;
   const EN_SRC = RESULTS ? meta.en.resultsStatus : legal;
   // The language switch: both names, the current one first as plain text (aria-current), the other a button, each with
   // its own lang; set off from the nav; and the header (logo, nav link, switch) on one line (up to 56px tall with the
