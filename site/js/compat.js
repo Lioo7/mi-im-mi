@@ -76,12 +76,24 @@ export function resultsOrder(parties, { seats, lists }) {
 
 // The app's context for the active mode. Results: CEC seats and seat order. Polls: poll order, or ballot
 // order with seats hidden. Seats are official in results mode, so showSeats applies to polls mode only.
-export function contextFor({ meta, parties, topics, positions, results }) {
+// The order is computed from the Hebrew records before they are localized, so it never changes with the language.
+export function contextFor({ meta, parties, topics, positions, results }, lang = 'he') {
   const src = seatSource(meta, parties, results);
-  if (src.mode === 'results') return makeContext({ parties: resultsOrder(parties, src), topics, positions, ...src });
+  const L = (rec) => localize(rec, lang);
+  if (src.lists) src.lists = new Map([...src.lists].map(([id, l]) => [id, L(l)]));
+  const loc = { topics: topics.map(L), positions };
+  if (src.mode === 'results') return makeContext({ parties: resultsOrder(parties, src).map(L), ...loc, ...src });
   return meta.showSeats !== false
-    ? makeContext({ parties, topics, positions })
-    : makeContext({ parties: ballotOrder(parties), topics, positions, rankBySeats: false });
+    ? makeContext({ parties: parties.map(L), ...loc })
+    : makeContext({ parties: ballotOrder(parties).map(L), ...loc, rankBySeats: false });
+}
+
+// Languages the site is published in; Hebrew is the default and the authoritative text.
+export const LANGS = ['he', 'en'];
+
+// A data record in the reader's language: its `en` fields over the Hebrew ones. Hebrew records are returned as is.
+export function localize(rec, lang) {
+  return lang === 'he' || !rec?.en ? rec : { ...rec, ...rec.en };
 }
 
 // Party order when seats are hidden: by ballot letters (Hebrew alphabetical), then name for shared letters.
@@ -462,8 +474,11 @@ export function parseLocation({ search, hash }, validIds) {
   const q = new URLSearchParams(search);
   for (const k of STATE_KEYS) q.delete(k);
   const rest = q.toString();
+  const l = new URLSearchParams(fragment).get('l');
   return {
     route, state: parseState(legacy ? search : fragment, validIds), legacy, fromFragment: stateKeysIn(fragment), search: rest ? `?${rest}` : '',
+    // `l=` (fragment only) names a language other than Hebrew; `hasParams` tells a full link from a nav link (`#method`).
+    lang: LANGS.includes(l) ? l : 'he', hasParams: i >= 0,
   };
 }
 
@@ -480,6 +495,7 @@ export function moveLegacyState({ search, hash }) {
   return `${rest ? `?${rest}` : ''}#${route}?${fragment}`;
 }
 
-export function locationFor(ctx, state, route, search = '') {
-  return `${search}#${route}${serializeState(ctx, state)}`;
+export function locationFor(ctx, state, route, search = '', lang = 'he') {
+  const s = serializeState(ctx, state);
+  return `${search}#${route}${s}${lang === 'he' ? '' : `${s ? '&' : '?'}l=${lang}`}`;
 }

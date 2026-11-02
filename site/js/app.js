@@ -1,4 +1,4 @@
-import { S } from './strings.js';
+import { S as HE } from './strings.js';
 import * as C from './compat.js';
 import { countPageview } from './stats.js';
 import { correctionMailto, quoteAttribution, SITE_TRANSLATOR } from './links.js';
@@ -8,6 +8,11 @@ const $ = (sel, root = document) => root.querySelector(sel);
 const bidi = (v) => esc(v).replace(/[A-Za-z][A-Za-z0-9.]*(?: [A-Za-z0-9.]+)*/g, (m) => `<bdi>${m}</bdi>`);
 const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 
+// The reader's language (fragment `l=`, Hebrew by default) and its strings; see setLanguage().
+const STRINGS = { he: HE };
+let S = HE;
+let lang = 'he';
+let data;
 let ctx;
 let meta;
 let electionResults = null;
@@ -26,7 +31,7 @@ const name = (id) => party(id)?.name ?? id;
 const topic = (id) => ctx.topics.find((t) => t.id === id);
 const posOf = (pid, tid) => ctx.idx.get(`${pid}|${tid}`);
 const axisLabel = (tid, position) => (position == null ? S.sheet.noPositionLabel : topic(tid).axis[String(position)]);
-const fmtDate = (iso) => (iso ? iso.split('-').reverse().join('.') : '');
+const fmtDate = (iso) => S.fmtDate(iso);
 const ordered = (ids) => [...ids].sort((a, b) => ctx.order.get(a) - ctx.order.get(b));
 const isResults = () => ctx.mode === 'results';
 // Official results are always shown; poll averages only while showSeats is on.
@@ -53,7 +58,8 @@ function applyState(next) {
 // The URL is `<query>#<route>?<state>`; the state stays in the fragment, so it never reaches the server.
 // A bare address with no coalition stays bare.
 function writeUrl() {
-  const rest = C.selected(state).length || location.hash ? C.locationFor(ctx, state, routeToken, location.search) : location.search;
+  const rest = C.selected(state).length || location.hash || lang !== 'he'
+    ? C.locationFor(ctx, state, routeToken, location.search, lang) : location.search;
   history.replaceState(null, '', location.pathname + rest);
 }
 
@@ -105,7 +111,7 @@ function renderHeader() {
   $('#intro').textContent = S.buildIntro;
   $('#purpose').textContent = S.buildPurpose;
   if (isResults()) {
-    $('#voter-info').remove();
+    $('#voter-info')?.remove();
   } else {
     $('#voter-info').innerHTML = `${esc(S.voterInfo)} <a href="${esc(S.voterInfoUrl)}" rel="noopener" target="_blank">${esc(S.voterInfoLink)}</a>`;
   }
@@ -263,7 +269,7 @@ function pollsVsResults() {
 // ---------- presets & builder ----------
 function presetOrder() {
   const keys = ['opposition-arab', 'unity', 'opposition', 'coalition'];
-  return keys.sort((a, b) => S.presets[a].localeCompare(S.presets[b], 'he'));
+  return keys.sort((a, b) => S.presets[a].localeCompare(S.presets[b], S.locale));
 }
 
 // Results mode: scenarios raised in the media, named by their composition only, sorted alphabetically by that name.
@@ -272,14 +278,14 @@ function scenarioList() {
   return (scenarioData?.scenarios ?? []).map((sc) => ({
     ...sc,
     label: P.scenarioLabel(ordered(sc.members).map(name), ordered(sc.supporters).map(name), ordered(sc.abstainers).map(name)),
-  })).sort((a, b) => a.label.localeCompare(b.label, 'he'));
+  })).sort((a, b) => a.label.localeCompare(b.label, S.locale));
 }
 
 function renderScenarios() {
   const P = S.presets;
   const items = scenarioList().map((sc) => `<li class="scenario">
     <button type="button" class="preset" data-act="scenario" data-id="${esc(sc.id)}" data-key="scenario-${esc(sc.id)}">${esc(sc.label)}</button>
-    <p class="scen-src">${esc(P.sourcesLabel(sc.sources.length))} ${sc.sources.map((src) => `${src.by ? esc(P.personIn(src.by)) : ''}<a href="${esc(src.url)}" rel="noopener" target="_blank">${bidi(src.outlet)}</a>, ${esc(P.shortDate(src.date))}`).join(' · ')}</p>
+    <p class="scen-src">${esc(P.sourcesLabel(sc.sources.length))} ${sc.sources.map((x) => C.localize(x, lang)).map((src) => `${src.by ? esc(P.personIn(src.by)) : ''}<a href="${esc(src.url)}" rel="noopener" target="_blank">${bidi(src.outlet)}</a>, ${esc(P.shortDate(src.date))}`).join(' · ')}</p>
   </li>`).join('');
   $('#presets').innerHTML = `
     <h2>${esc(P.scenariosTitle(P.shortDate(scenarioData.asOf)))}</h2>
@@ -394,7 +400,7 @@ function positionBlock(pid, tid, { heading = true } = {}) {
     ${heading ? `<p class="pos-label">${esc(axisLabel(tid, p.position))}</p>` : ''}
     ${p.redLine || p.componentsDisagree ? `<p>${p.redLine ? `<span class="tag tag-red"><span aria-hidden="true">🚩</span> ${esc(S.redLine)}</span> ` : ''}${p.componentsDisagree ? `<span class="tag tag-split"><span aria-hidden="true">${S.componentsIcon}</span> ${esc(S.componentsDisagree)}</span>` : ''}</p>` : ''}
     <p>${esc(p.summary)}</p>
-    ${p.quote ? `<blockquote><p class="q-text"${/[\u0600-\u06FF]/.test(p.quote) ? ' lang="ar" dir="rtl"' : ''}>״${esc(p.quote)}״</p>${p.quoteTranslation ? `<p class="q-text q-trans">״${esc(p.quoteTranslation)}״ ${esc(p.quoteTranslatedBy === SITE_TRANSLATOR ? S.sheet.siteTranslation : S.sheet.translationBy(p.quoteTranslatedBy))}</p>` : ''}<footer class="q-by">${esc(quoteAttribution(p, name(pid)))}</footer></blockquote>` : ''}
+    ${p.quote ? `<blockquote><p class="q-text"${/[\u0600-\u06FF]/.test(p.quote) ? ' lang="ar" dir="rtl"' : ''}>״${esc(p.quote)}״</p>${p.quoteTranslation ? `<p class="q-text q-trans">״${esc(p.quoteTranslation)}״ ${esc(p.quoteTranslatedBy === SITE_TRANSLATOR ? S.sheet.siteTranslation : S.sheet.translationBy(p.quoteTranslatedBy))}</p>` : ''}<footer class="q-by">${esc(quoteAttribution(p, name(pid), S))}</footer></blockquote>` : ''}
     <p class="source">
       <span class="tag tag-src">${esc(T.sourceTypes[p.sourceType] ?? '')}</span>
       ${p.sourceDate ? `<span class="muted">${esc(T.date(fmtDate(p.sourceDate)))}</span>` : ''}
@@ -749,7 +755,7 @@ function renderMatrix() {
 
 // ---------- share & bar ----------
 function shareUrl() {
-  return location.origin + location.pathname + C.locationFor(ctx, state, 'results');
+  return location.origin + location.pathname + C.locationFor(ctx, state, 'results', '', lang);
 }
 
 function shareCard(r) {
@@ -832,7 +838,7 @@ function cellSheet(pid, tid) {
     ${positionBlock(pid, tid)}
     <h3>${esc(S.sheet.why)}</h3>
     ${whyHtml(cell, pid, tid)}
-    <p class="correction"><a href="${esc(correctionMailto({ party: p.name, topic: topic(tid).name, url: location.href, bodyIntro: S.sheet.correctionBody }))}">${esc(S.sheet.correction)}</a></p>`);
+    <p class="correction"><a href="${esc(correctionMailto({ party: p.name, topic: topic(tid).name, url: location.href }, S))}">${esc(S.sheet.correction)}</a></p>`);
 }
 
 function topicSheet(tid) {
@@ -895,6 +901,11 @@ const METHOD_ANCHORS = ['why', 'privacy', 'accessibility'];
 function route(initial = false) {
   const loc = C.parseLocation(location, passedIds());
   // A fragment with state (a pasted link, back/forward) brings its coalition; one without (a nav link) keeps the current one.
+  // A full link also brings its language (none = Hebrew); a nav link keeps the current one.
+  if (!initial && loc.hasParams && loc.lang !== lang) {
+    setLanguage(loc.lang);
+    renderChrome();
+  }
   if (!initial && loc.fromFragment) {
     if (C.serializeState(ctx, loc.state) !== C.serializeState(ctx, state)) lastPreset = null;
     applyState(loc.state);
@@ -1025,6 +1036,26 @@ function bind() {
   $('#sheet').addEventListener('click', (e) => { if (e.target.id === 'sheet') e.target.close(); });
 }
 
+// Switches the strings, the localized data and the page's lang/dir. The party order never changes with the language.
+// Results: seat order. Polls: poll order, or ballot letters with seats hidden (the poll order would reveal standings).
+function setLanguage(l) {
+  S = STRINGS[l] ?? HE;
+  lang = S.lang;
+  meta = C.localize(data.meta, lang);
+  ctx = C.contextFor(data, lang);
+  document.documentElement.lang = S.lang;
+  document.documentElement.dir = S.dir;
+  document.title = `${S.appName} · ${S.tagline}`;
+}
+
+// The parts rendered once per language (the views re-render on every state change).
+function renderChrome() {
+  renderHeader();
+  renderPresets();
+  renderMethod();
+  renderFooter();
+}
+
 async function main() {
   // An old link carries the coalition in the query. Move it to the fragment before any request, so no fetch carries it
   // (a fetch's Referer is this URL). The ids are checked once the data has loaded.
@@ -1040,19 +1071,15 @@ async function main() {
     get('results-26').catch(() => null),
     get('scenarios').catch(() => null),
   ]);
-  meta = m;
+  data = { meta: m, parties, topics, positions, results };
   electionResults = results;
-  scenarioData = meta.mode === 'results' ? scenarios : null;
-  if (meta.mode === 'results' && !results) throw new Error('results-26: missing');
-  // Results: seat order. Polls: poll order, or ballot letters with seats hidden (the poll order would reveal standings).
-  ctx = C.contextFor({ meta, parties, topics, positions, results });
+  scenarioData = m.mode === 'results' ? scenarios : null;
+  if (m.mode === 'results' && !results) throw new Error('results-26: missing');
+  setLanguage(C.parseLocation(location, []).lang);
   // Lists under the threshold (results mode) cannot be selected, so a link naming them drops them like unknown ids.
   // route(true) then rewrites the link without the dropped ids, so sharing it again does not carry them.
   applyState(C.parseLocation(location, passedIds()).state);
-  renderHeader();
-  renderPresets();
-  renderMethod();
-  renderFooter();
+  renderChrome();
   // The host's free plan floats a badge (202×64px) at the bottom-right. Reserve room under the bar and page
   // so it never covers the required poll sentence.
   if (document.querySelector('script[data-nf-variant]')) document.body.classList.add('host-badge');

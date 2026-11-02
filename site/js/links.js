@@ -1,34 +1,28 @@
-// Small link builders (pure, testable).
+// Small link builders (pure, testable). Each takes the reader's strings (`S`, Hebrew by default).
+import { S as HE } from './strings.js';
+
 export const CONTACT_EMAIL = 'lioz.akirav@gmail.com';
 
 // mailto: link for reporting a wrong position. The body carries the page URL the reader was on.
-export function correctionMailto({ party, topic, url, bodyIntro = 'הקישור לעמוד:', email = CONTACT_EMAIL }) {
-  const subject = `תיקון: ${party} · ${topic}`;
-  const body = `${bodyIntro} ${url}\n\n`;
+export function correctionMailto({ party, topic, url, email = CONTACT_EMAIL }, S = HE) {
+  const subject = S.sheet.correctionSubject(party, topic);
+  const body = `${S.sheet.correctionBody} ${url}\n\n`;
   return `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 }
 
-// Where a quote was published, in Hebrew, for the attribution line under it.
-const MEDIA = {
-  'x.com': 'X', 'www.ynet.co.il': 'ynet', 'www.mako.co.il': 'מאקו', 'www.maariv.co.il': 'מעריב', 'www.walla.co.il': 'וואלה',
-  'www.i24news.tv': 'i24NEWS', 'www.inn.co.il': 'ערוץ 7', 'www.israelnationalnews.com': 'ערוץ 7', 'www.kipa.co.il': 'כיפה',
-  '13tv.co.il': 'חדשות 13', 'www.arab48.com': 'Arab48', 'bokra.net': 'בוקרא', 'www.hakalkalit.org': 'הכלכלית',
-  'main.knesset.gov.il': 'הצעת חוק בכנסת',
-};
-
-export function quoteChannel({ sourceUrl, sourceType }) {
+// Where a quote was published, for the attribution line under it.
+export function quoteChannel({ sourceUrl, sourceType }, S = HE) {
   let host = '';
   try { host = new URL(sourceUrl).hostname; } catch { /* no usable url */ }
-  if (MEDIA[host]) return MEDIA[host];
-  return sourceType === 'platform' ? 'מצע המפלגה' : 'אתר המפלגה';
+  if (S.links.media[host]) return S.links.media[host];
+  return sourceType === 'platform' ? S.links.platform : S.links.partySite;
 }
 
 // "<speaker or party>, <channel>, <date>" (the date is left out when the source is undated).
 export const SITE_TRANSLATOR = 'האתר';
 
 // A translated quote says so: "<speaker>, <original channel>, <date> (תרגום: <translator>)".
-export function quoteAttribution({ quoteBy, quoteChannel: channel, quoteTranslatedBy, sourceUrl, sourceType, sourceDate }, partyName) {
-  const date = sourceDate ? sourceDate.split('-').reverse().join('.') : '';
-  const line = [quoteBy || partyName, channel || quoteChannel({ sourceUrl, sourceType }), date].filter(Boolean).join(', ');
-  return quoteTranslatedBy && quoteTranslatedBy !== SITE_TRANSLATOR ? `${line} (תרגום: ${quoteTranslatedBy})` : line;
+export function quoteAttribution({ quoteBy, quoteChannel: channel, quoteTranslatedBy, sourceUrl, sourceType, sourceDate }, partyName, S = HE) {
+  const line = [quoteBy || partyName, channel || quoteChannel({ sourceUrl, sourceType }, S), S.fmtDate(sourceDate)].filter(Boolean).join(', ');
+  return quoteTranslatedBy && quoteTranslatedBy !== SITE_TRANSLATOR ? `${line} ${S.links.translatedBy(quoteTranslatedBy)}` : line;
 }

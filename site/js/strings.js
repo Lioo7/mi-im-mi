@@ -5,6 +5,12 @@ const topicsN = (n) => plural(n, 'נושא אחד', 'נושאים');
 const inTopics = (n) => (n === 1 ? 'בנושא אחד' : `ב-${n} נושאים`);
 
 export const S = {
+  lang: 'he',
+  dir: 'rtl',
+  // Collation for the alphabetical lists (presets, scenarios).
+  locale: 'he',
+  // 2026-10-30 -> 30.10.2026
+  fmtDate: (iso) => (iso ? iso.split('-').reverse().join('.') : ''),
   appName: 'מי עם מי',
   tagline: 'בנו קואליציה וגלו איפה המפלגות מסכימות ואיפה הן מתנגשות',
   updated: (d) => `עודכן ${d}`,
@@ -265,6 +271,7 @@ export const S = {
     archive: 'עותק בארכיון',
     correction: 'מצאתם טעות בעמדה הזו?',
     correctionBody: 'הקישור לעמוד:',
+    correctionSubject: (party, topic) => `תיקון: ${party} · ${topic}`,
     refExplain: 'זו מפלגת הבסיס. שאר העמודה נצבעת לפי המרחק ממנה.',
     noneExplain: 'לאחת המפלגות אין עמדה מוצהרת בנושא, ולכן אין השוואה. התא לא נספר בתוצאות.',
     agree: (a, b) => `${a} ו${b} באותה נקודה בסולם.`,
@@ -433,5 +440,18 @@ export const S = {
     privacy: 'פרטיות',
     a11y: 'הצהרת נגישות',
     notAdvice: 'לא המלצת הצבעה',
+  },
+
+  // Quote attribution (links.js): where a quote was published, by source host.
+  links: {
+    media: {
+      'x.com': 'X', 'www.ynet.co.il': 'ynet', 'www.mako.co.il': 'מאקו', 'www.maariv.co.il': 'מעריב', 'www.walla.co.il': 'וואלה',
+      'www.i24news.tv': 'i24NEWS', 'www.inn.co.il': 'ערוץ 7', 'www.israelnationalnews.com': 'ערוץ 7', 'www.kipa.co.il': 'כיפה',
+      '13tv.co.il': 'חדשות 13', 'www.arab48.com': 'Arab48', 'bokra.net': 'בוקרא', 'www.hakalkalit.org': 'הכלכלית',
+      'main.knesset.gov.il': 'הצעת חוק בכנסת',
+    },
+    platform: 'מצע המפלגה',
+    partySite: 'אתר המפלגה',
+    translatedBy: (who) => `(תרגום: ${who})`,
   },
 };
