@@ -10,9 +10,10 @@ import { mkdirSync, mkdtempSync, writeFileSync, rmSync, readFileSync, existsSync
 import { tmpdir } from 'node:os';
 import { join, extname, normalize } from 'node:path';
 import { ROOT, loadData } from './lib.mjs';
-import { contextFor, presets, serializeState, ballotOrder, completions, parseLocation, stateKeysIn, selected } from '../site/js/compat.js';
+import { contextFor, presets, serializeState, ballotOrder, completions, parseLocation, stateKeysIn, selected, locationFor } from '../site/js/compat.js';
 import { PROD_HOST } from '../site/js/stats.js';
 import { S } from '../site/js/strings.js';
+import { S as EN } from '../site/js/strings.en.js';
 
 const CHROME = process.env.CHROME_PATH ?? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const OUT = join(ROOT, 'smoke');
@@ -778,6 +779,101 @@ try {
     errors.push(`[interaction] a pasted fragment should replace the coalition without a reload (${JSON.stringify(pasted)})`);
   }
   console.log('  ✓ interactions');
+
+  // English (#3): every case again with l=en (old-format links are Hebrew-only). The Hebrew pass covers the logic; this
+  // one checks the language: lang/dir and title, the translation notice, no Hebrew outside lang="he", the source line
+  // before the seats, the same investiture numbers, and links that keep l=en.
+  const withLang = (suffix) => { const { search, hash } = splitSuffix(suffix); const h = hash || '#build'; return `${search}${h}${h.includes('?') ? '&' : '?'}l=en`; };
+  const enCases = cases.filter(([, suffix]) => !isLegacy(suffix)).map(([name, suffix, v]) => [name, withLang(suffix), v]);
+  const HEBREW_OUTSIDE = `(() => { const out = []; const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    for (let n; (n = w.nextNode());) { if (!/[\\u05D0-\\u05EA]/.test(n.data)) continue; const el = n.parentElement;
+      if (el.closest('noscript, script, style') || el.closest('[lang]')?.lang === 'he') continue; out.push(n.data.trim().slice(0, 40)); }
+    return out.slice(0, 3).join(' | '); })()`;
+  const EN_SRC = RESULTS ? meta.en.resultsStatus : legal;
+  const EN_POLL_TEXT = /\bseats?\b|\bpolls?\b|at the threshold|of 61|\(61\+\)|≈\d/i;
+  for (const z2 of SIZES) {
+    await setSize(z2);
+    for (const [name, suffix, expectView] of enCases) {
+      current = `en-${name}@${z2.width}`;
+      await go(baseUrl + suffix);
+      await waitFor(() => evaluate("document.body.dataset.view !== undefined && document.querySelector('#footer')?.children.length > 0"));
+      await sleep(250);
+      const page = await evaluate(`JSON.stringify({ view: document.body.dataset.view, lang: document.documentElement.lang, dir: document.documentElement.dir, title: document.title,
+        note: document.querySelector('#lang-note').hidden ? '' : document.querySelector('#lang-note').innerText.trim(), url: location.search + location.hash,
+        overflow: document.documentElement.scrollWidth > window.innerWidth + 1 })`).then(JSON.parse);
+      if (page.view !== expectView) errors.push(`[${current}] expected view "${expectView}", got "${page.view}"`);
+      if (page.lang !== 'en' || page.dir !== 'ltr') errors.push(`[${current}] expected lang=en dir=ltr, got ${page.lang}/${page.dir}`);
+      if (page.title !== EN.pageTitle) errors.push(`[${current}] <title> should be "${EN.pageTitle}", got "${page.title}"`);
+      if (page.note !== EN.translatedNote) errors.push(`[${current}] the translation notice is missing (${page.note})`);
+      if (page.overflow) errors.push(`[${current}] horizontal page overflow`);
+      const exp = parseLocation(splitSuffix(suffix), passedIds);
+      const token = ['build', 'results', 'method', 'why', 'privacy', 'accessibility'].includes(exp.route) ? exp.route : expectView;
+      const wantUrl = locationFor(ctx, exp.state, token, exp.search, 'en');
+      if (page.url !== wantUrl) errors.push(`[${current}] URL should settle on "${wantUrl}", got "${page.url}"`);
+      const hebrew = await evaluate(HEBREW_OUTSIDE);
+      if (hebrew) errors.push(`[${current}] Hebrew text outside lang="he" (untranslated?): ${hebrew}`);
+      if (SEATS_HIDDEN) {
+        const seatText = await evaluate(`(document.body.innerText.match(${EN_POLL_TEXT}) || [])[0] || ''`);
+        if (seatText) errors.push(`[${current}] showSeats is off but poll-derived text is visible: "${seatText}"`);
+      } else if (expectView === 'build') {
+        const box = await evaluate(`(() => { const b = document.querySelector('#builder .seats-box'); if (!b) return 'missing box'; if (!b.innerText.replace(/\\s+/g, ' ').includes(${JSON.stringify(EN_SRC)})) return 'source line missing';
+          const l = b.querySelector('${SRC_SEL}'), sl = b.querySelector('.seats-line'); return l.compareDocumentPosition(sl) & Node.DOCUMENT_POSITION_FOLLOWING ? 'ok' : 'source line must come before the numbers'; })()`);
+        if (box !== 'ok') errors.push(`[${current}] seats box: ${box}`);
+      }
+      if (expectView === 'results' && !SEATS_HIDDEN && members_in_url(suffix) && name !== 'results-single') {
+        const vote = await evaluate(`(() => { const o = document.querySelector('#results .overall'); if (!o) return 'no summary'; const t = o.innerText.replace(/\\s+/g, ' ');
+          if (!t.includes(${JSON.stringify(EN_SRC)})) return 'source line missing';
+          const m = t.match(/For ≈?(\\d+) · Against ≈?(\\d+) · Abstaining ≈?(\\d+)/); return m ? m.slice(1).join(',') : 'vote line missing'; })()`);
+        if (!/^\d+,\d+,\d+$/.test(vote)) errors.push(`[${current}] investiture: ${vote}`);
+        if (RESULTS && name === 'results-roles' && vote !== '59,46,15') errors.push(`[${current}] expected For 59 · Against 46 · Abstaining 15, got ${vote}`);
+      }
+      if (expectView === 'results') {
+        const wa = await evaluate("document.querySelector('#results a[href^=\"https://wa.me/\"]')?.href || ''");
+        const wantShare = baseUrl + locationFor(ctx, exp.state, 'results', '', 'en');
+        const text = wa ? new URL(wa).searchParams.get('text') : '';
+        if (wa && (!text.endsWith(`\n${wantShare}`) || !text.startsWith('The coalition I built: '))) errors.push(`[${current}] English WhatsApp text should start "The coalition I built:" and end with ${wantShare} (${text})`);
+      }
+      await shoot(z2, `${name}-${z2.tag}-en.png`);
+    }
+    console.log(`  ✓ English, ${z2.width}px: ${enCases.length} views`);
+  }
+
+  // English interactions at phone width: the toggle (both ways, keeping the coalition, the view and focus), a nav link,
+  // a pasted English link, and cell sheets with quotes in Hebrew and Arabic.
+  await setSize(SIZES[0]);
+  current = 'en-interaction@390';
+  await go(`${baseUrl}#results?m=likud,yashar`);
+  await waitFor(() => evaluate("document.body.dataset.view === 'results'"));
+  await evaluate('window.smokeSameDoc = true');
+  const state = () => evaluate("JSON.stringify([document.documentElement.lang, location.hash, document.activeElement?.id || '', document.querySelector('#results-coalition').innerText.includes(" + JSON.stringify(parties.find((p) => p.id === 'likud').en.name) + "), window.smokeSameDoc === true])");
+  await evaluate("document.querySelector('#lang-toggle').focus(); document.querySelector('#lang-toggle').click()");
+  await sleep(300);
+  if (await state() !== JSON.stringify(['en', `#results${qsOf(['likud', 'yashar'])}&l=en`, 'lang-toggle', true, true])) errors.push(`[${current}] the toggle should switch to English in place, keeping the coalition and focus (${await state()})`);
+  await evaluate("document.querySelector('#nav-method').click()");
+  await sleep(300);
+  if ((await evaluate('location.hash')) !== `#method${qsOf(['likud', 'yashar'])}&l=en`) errors.push(`[${current}] a nav link should keep l=en (${await evaluate('location.hash')})`);
+  await evaluate("history.back()");
+  await sleep(300);
+  await evaluate("document.querySelector('#lang-toggle').click()");
+  await sleep(300);
+  if ((await evaluate("document.documentElement.lang + location.hash")) !== `he#results${qsOf(['likud', 'yashar'])}`) errors.push(`[${current}] the toggle should switch back to Hebrew and drop l= (${await evaluate('location.hash')})`);
+  await evaluate("location.hash = '#results?m=together,democrats&l=en'");
+  await sleep(400);
+  const pastedEn = await evaluate("JSON.stringify([document.documentElement.lang, document.querySelector('#results-coalition').innerText, window.smokeSameDoc === true])");
+  if (!pastedEn.startsWith('["en",') || !pastedEn.includes('Beyachad') || !pastedEn.endsWith('true]')) errors.push(`[${current}] a pasted English link should switch the language and coalition without a reload (${pastedEn})`);
+  for (const [m, pid, tid, ql] of [['yashar,likud', 'yashar', 'draft', 'he'], ['likud,raam', 'raam', 'palestinian', 'ar']]) {
+    await go(`${baseUrl}#results?m=${m}&l=en`);
+    await waitFor(() => evaluate("document.querySelector('[data-act=\"cell\"]') !== null"));
+    await evaluate(`document.querySelector('[data-act="cell"][data-party="${pid}"][data-topic="${tid}"]').click()`);
+    await sleep(300);
+    const sheet = await evaluate(`(() => { const s = document.querySelector('#sheet'); if (!s.open) return 'not open';
+      const q = s.querySelector('blockquote .q-text'); const t = s.querySelector('blockquote .q-trans'); const mail = s.querySelector('.correction a')?.href ?? '';
+      return JSON.stringify([q?.lang, t?.innerText.endsWith(${JSON.stringify(EN.sheet.siteTranslation)}), new URL(mail).searchParams.get('subject')?.startsWith('Correction: ')]); })()`);
+    if (sheet !== JSON.stringify([ql, true, true])) errors.push(`[${current}] ${pid}|${tid} sheet: the quote must stay in its language (${ql}) with the site's translation and an English correction mail (${sheet})`);
+    const hebrew = await evaluate(HEBREW_OUTSIDE);
+    if (hebrew) errors.push(`[${current}] ${pid}|${tid} sheet: Hebrew text outside lang="he": ${hebrew}`);
+  }
+  console.log('  ✓ English interactions');
   c.close();
 } catch (e) {
   errors.push(`smoke failed: ${e.message}`);
