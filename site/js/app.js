@@ -517,7 +517,17 @@ function voteHtml() {
 // reaches it first on any screen.
 function seatsLine() {
   if (!showSeats() || !C.selected(state).length) return '';
-  return `${seatSourceLine()}${positionsAsOfLine()}${voteHtml().html}`;
+  return `${seatSourceLine()}${positionsAsOfLine()}${voteHtml().html}${pivotalHtml()}`;
+}
+
+// Parties the 61 or the investiture majority depends on (#13): numbers only, right after the vote they change.
+function pivotalHtml() {
+  const v = C.investiture(ctx, state);
+  if (!v.approved) return '';
+  const S2 = S.seats;
+  const n = (x) => S2.num(x, isResults());
+  const rows = C.pivotal(ctx, state).map((p) => `<li>${esc(S2.pivotalRow(name(p.partyId), p.role, p.breaksMajority ? n(p.vote.membersSeats) : null, n(p.vote.for), n(p.vote.against)))}</li>`).join('');
+  return `<div class="pivotal muted small"><p>${esc(S2.pivotalIntro(v.membersMajority))}</p>${rows ? `<ul>${rows}</ul>` : `<p>${esc(S2.pivotalNone)}</p>`}</div>`;
 }
 
 // Results mode: the positions are as documented on election eve, while the seats are the results.

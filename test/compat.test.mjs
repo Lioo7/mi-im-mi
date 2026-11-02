@@ -5,7 +5,7 @@ import {
   matrixCell, pairSummary, investiture, periphery, analyze, without, presets, parseState, serializeState,
   parseLocation, locationFor, moveLegacyState, localize, contextFor,
   withLinked, lowCoverage, addImpact, breakdown, ballotOrder, selected, completions, redLinesCrossed, closestTo,
-  peripheryClashes,
+  peripheryClashes, pivotal,
 } from '../site/js/compat.js';
 
 const P = (partyId, topicId, position, redLine = false) => ({ partyId, topicId, position, redLine });
@@ -222,6 +222,54 @@ test('without() removes a party from any role', () => {
   assert.equal(r.clashTopics, 0);
   assert.equal(r.vote.membersSeats, 40);
   assert.equal(without(ctx, { members: ['a'], supporters: ['c'] }, 'c').vote.for, 30);
+});
+
+// Exact seats (results-style) for the pivotal tests; parties in the given order.
+const seated = (pairs) => makeContext({ parties: pairs.map(([id]) => ({ id })), topics: [], positions: [], seats: new Map(pairs) });
+const piv = (ctx, state) => pivotal(ctx, state).map((p) => [p.partyId, p.role, p.breaksMajority, p.breaksVote]);
+
+test('pivotal (#13): one member with 61+ breaks both the 61 and the vote', () => {
+  const ctx = seated([['x', 62], ['y', 58]]);
+  assert.deepEqual(piv(ctx, { members: ['x'] }), [['x', 'member', true, true]]);
+});
+
+test('pivotal: with exactly 61, every member with seats breaks the 61', () => {
+  const ctx = seated([['a', 30], ['b', 20], ['c', 11], ['d', 59]]);
+  const r = pivotal(ctx, { members: ['a', 'b', 'c'] });
+  assert.deepEqual(r.map((p) => [p.partyId, p.breaksMajority, p.breaksVote]), [['a', true, true], ['b', true, true], ['c', true, true]]);
+  // Without c: members 50, for 50 vs 70 against (c now votes against).
+  assert.deepEqual([r[2].vote.membersSeats, r[2].vote.for, r[2].vote.against], [50, 50, 70]);
+});
+
+test('pivotal: members short of 61 but the vote passes: only the vote counts, and a supporter never breaks the 61', () => {
+  const ctx = seated([['a', 30], ['b', 20], ['c', 11], ['d', 10], ['e', 49]]);
+  // for 61 (a + b + c) vs 49, d abstaining. Without d (voting against): 61 vs 59, still a majority.
+  assert.deepEqual(piv(ctx, { members: ['a', 'b'], supporters: ['c'], abstainers: ['d'] }),
+    [['a', 'member', false, true], ['b', 'member', false, true], ['c', 'supporter', false, true]]);
+});
+
+test('pivotal: a removal that leaves a tie fails the vote; a vote that is already a tie lists nobody', () => {
+  const ctx = seated([['x', 31], ['y', 29], ['z', 2], ['w', 58]]);
+  // 62 vs 58; without z: 60 vs 60, a tie, so no majority.
+  assert.deepEqual(piv(ctx, { members: ['x', 'y'], supporters: ['z'] }),
+    [['x', 'member', false, true], ['y', 'member', false, true], ['z', 'supporter', false, true]]);
+  // 60 vs 60 already: not approved, nothing depends on one party.
+  assert.deepEqual(pivotal(ctx, { members: ['x', 'y'] }), []);
+});
+
+test('pivotal: an abstainer is listed only when its vote against makes the vote fail; rows in role, then party order', () => {
+  // Party order puts the abstainers first; the rows still start with the members.
+  const ctx = seated([['b', 10], ['d', 1], ['a', 58], ['c', 51]]);
+  // 58 vs 51, b and d abstaining. b against: 58 vs 61 (fails). d against: 58 vs 52 (passes).
+  const r = pivotal(ctx, { members: ['a'], abstainers: ['b', 'd'] });
+  assert.deepEqual(r.map((p) => [p.partyId, p.role, p.breaksMajority, p.breaksVote]), [['a', 'member', false, true], ['b', 'abstainer', false, true]]);
+  assert.deepEqual([r[1].vote.for, r[1].vote.against, r[1].vote.abstain], [58, 61, 1]);
+});
+
+test('pivotal: when any one party can leave and 61 and the majority remain, nobody is listed', () => {
+  // Six members of 13 (78) and a supporter of 2; without any one of them: 65+ members, a majority either way.
+  const ctx = seated([['m1', 13], ['m2', 13], ['m3', 13], ['m4', 13], ['m5', 13], ['m6', 13], ['s', 2], ['o', 40]]);
+  assert.deepEqual(pivotal(ctx, { members: ['m1', 'm2', 'm3', 'm4', 'm5', 'm6'], supporters: ['s'] }), []);
 });
 
 test('presets use blocs only; unity = likud + largest opposition', () => {

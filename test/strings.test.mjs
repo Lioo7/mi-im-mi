@@ -118,3 +118,31 @@ test('red-line summary (#14): singular, plural and none, in both languages', () 
   assert.equal(EN.results.redLinesCrossed(2, 'A · B, C · D'), '2 red lines are crossed within the coalition: A · B, C · D');
   assert.equal(EN.results.noRedLinesCrossed, 'No red line is crossed within the coalition');
 });
+
+test('pivotal rows (#13): numbers only, an abstainer as voting against, in both languages', () => {
+  assert.equal(S.seats.pivotalIntro(true), 'מפלגות שבלעדיהן אין לחברות הקואליציה 61, או שאין רוב בהצבעת האמון (בעד מול נגד):');
+  assert.equal(S.seats.pivotalIntro(false), 'מפלגות שבלעדיהן אין רוב בהצבעת האמון (בעד מול נגד):');
+  assert.equal(EN.seats.pivotalIntro(true), 'Parties without which the members no longer have 61, or the confidence vote has no majority (for vs against):');
+  assert.equal(EN.seats.pivotalIntro(false), 'Parties without which the confidence vote has no majority (for vs against):');
+  assert.equal(S.seats.pivotalRow('ישר!', 'member', 40, 40, 80), 'בלי ישר!: חברות הקואליציה 40 מתוך 61 · 40 מול 80');
+  assert.equal(S.seats.pivotalRow('ביחד', 'member', null, 47, 65), 'בלי ביחד: 47 מול 65');
+  assert.equal(S.seats.pivotalRow('הרשימה המשותפת', 'supporter', null, 48, 64), 'בלי הרשימה המשותפת (תומכת): 48 מול 64');
+  assert.equal(S.seats.pivotalRow('רע״ם', 'abstainer', null, 59, 61), 'אם רע״ם תצביע נגד: 59 מול 61');
+  assert.equal(S.seats.pivotalRow('ביחד', 'member', null, '≈47', '≈65'), 'בלי ביחד: ≈47 מול ≈65');
+  assert.equal(EN.seats.pivotalRow('Yashar!', 'member', 40, 40, 80), 'Without Yashar!: coalition members 40 of 61 · 40 vs 80');
+  assert.equal(EN.seats.pivotalRow('Beyachad', 'member', null, 47, 65), 'Without Beyachad: 47 vs 65');
+  assert.equal(EN.seats.pivotalRow('The Joint List', 'supporter', null, 48, 64), 'Without The Joint List (supporter): 48 vs 64');
+  assert.equal(EN.seats.pivotalRow("Ra'am", 'abstainer', null, 59, 61), "If Ra'am votes against: 59 vs 61");
+});
+
+test('#1, #13, #14: no verdict words (best, recommended, kingmaker, risk…) in the new strings, in both languages', () => {
+  const VERDICT = /הטוב|מומלצ|מועדפ|סיכון|מסוכנ|מכריע|לשון מאזניים|קריטי|מפתח|\bbest\b|\brecommended\b|\bkingmaker\b|\brisk|\bcritical\b|\bkey\b|\bdecisive\b/i;
+  for (const T of [S, EN]) {
+    const texts = [
+      T.seats.pivotalIntro(true), T.seats.pivotalIntro(false), T.seats.pivotalNone, ...['member', 'supporter', 'abstainer'].map((r) => T.seats.pivotalRow('X', r, 60, 60, 60)),
+      T.results.redLinesCrossed(2, 'X'), T.results.noRedLinesCrossed, T.method.redLinesCrossedRule,
+      T.share.text('X', 1, 0), T.share.text('X', 1, 1), T.share.text('X', 1, 5), ...T.method.rolesRules(true, false),
+    ];
+    assert.deepEqual(texts.filter((t) => VERDICT.test(t)), []);
+  }
+});

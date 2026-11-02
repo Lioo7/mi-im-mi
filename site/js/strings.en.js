@@ -129,6 +129,12 @@ export const S = {
     rejected: 'The government would not win the confidence vote',
     membersLine: (n, missing) => (missing ? `Coalition members alone: ${n} of 61 · ${missing} short` : `Coalition members alone: ${n} · a majority of 61`),
     meterLabel: (n) => `Coalition members: ${n} of 61`,
+    // Parties a result depends on (#13). Numbers come formatted (≈ in polls mode); members is null unless the 61 breaks.
+    // A removed party votes against; an abstainer is shown as voting against.
+    pivotalIntro: (majority) => `Parties without which ${majority ? 'the members no longer have 61, or ' : ''}the confidence vote has no majority (for vs against):`,
+    pivotalRow: (name, role, members, f, a) => (role === 'abstainer' ? `If ${name} votes against: ${f} vs ${a}`
+      : `Without ${name}${role === 'supporter' ? ' (supporter)' : ''}: ${members != null ? `coalition members ${members} of 61 · ` : ''}${f} vs ${a}`),
+    pivotalNone: 'No single party does this.',
     majority: 'Majority',
     short: (n) => `${n} short`,
     outsideBit: (n) => `+ ${n} from outside`,
@@ -382,6 +388,7 @@ export const S = {
       ...(seats ? [
         'The confidence vote: for = the seats of the coalition members and the supporters. Abstaining = the seats of the abstainers. Against = everyone else, assuming every party not marked votes against. The government wins the confidence vote when there are more votes for than against (a majority of those voting).',
         'Whether the coalition members alone have 61 seats is shown separately.',
+        'Under the vote, the parties the outcome depends on, each on its own: a member without which the coalition members no longer have 61, and a member or supporter without which the confidence vote has no majority (for not greater than against; a tie included). A party that leaves counts as opposed, like any party not picked. An abstainer is checked as if it voted against. Each party is shown with the numbers without it (for vs against, and the coalition members\' seats when they drop below 61). The parties are listed by role and then in party order, with no ranking. When the government would not win the confidence vote, the list is not shown.',
         'Not computed: individual Knesset members moving between positions, absences, and Knesset members voting against their faction\'s position.',
         `What is missing for a majority of 61: the smallest combinations of parties that are not coalition members (including supporters and abstainers) that bring the coalition members alone to at least 61 seats. A combination counts as "smallest" when removing any one of its parties leaves the coalition below 61. ${linked ? 'Religious Zionism and Zehut, which ran on one list, count as one unit when neither is in the coalition. ' : ''}Order: combinations with the fewest lists first, then by the number of seats added, then by the party order. 6 are shown, and you can show all of them. For each combination we show the number of topics in a head-on clash in the resulting coalition and how many of them are new, and only the red lines that the combination crosses for the first time; red lines that the current coalition already crosses are shown once above the list. This is information, not a recommendation.`,
       ] : []),

@@ -10,7 +10,7 @@ import { mkdirSync, mkdtempSync, writeFileSync, rmSync, readFileSync, existsSync
 import { tmpdir } from 'node:os';
 import { join, extname, normalize } from 'node:path';
 import { ROOT, loadData } from './lib.mjs';
-import { contextFor, presets, serializeState, ballotOrder, completions, parseLocation, stateKeysIn, selected, locationFor, closestTo, redLinesCrossed } from '../site/js/compat.js';
+import { contextFor, presets, serializeState, ballotOrder, completions, parseLocation, stateKeysIn, selected, locationFor, closestTo, redLinesCrossed, pivotal, investiture } from '../site/js/compat.js';
 import { PROD_HOST } from '../site/js/stats.js';
 import { S } from '../site/js/strings.js';
 import { S as EN } from '../site/js/strings.en.js';
@@ -137,6 +137,9 @@ const cases = [
   ['results-old-outside', '?m=yashar,together,democrats,yisrael-beiteinu&o=raam', 'results'],
   ['results-roles', '#results?m=yashar,together,democrats,yisrael-beiteinu&o=joint-list&a=raam,utj', 'results'],
   ['build-roles', '#build?m=yashar,together,democrats,yisrael-beiteinu&o=joint-list&a=raam,utj', 'build'],
+  // Pivotal parties (#13): the media scenarios with an abstainer that matters (רע״ם) and with 3 of 5 members pivotal.
+  ['results-scenario-arab', '#results?m=yashar,together,democrats,yisrael-beiteinu&o=joint-list&a=raam', 'results'],
+  ['results-pivotal-partial', '#results?m=likud,yashar,together,religious-zionism,zehut', 'results'],
   ['method', '#method', 'method'],
   ['privacy', '#privacy', 'method'],
   ['accessibility', '#accessibility', 'method'],
@@ -155,6 +158,17 @@ const legal = `ממוצע סקרים שפורסמו עד ${meta.pollsAsOf.split(
 // The line that must precede any seat number, and its element.
 const SRC_TEXT = RESULTS ? meta.resultsStatus : legal;
 const SRC_SEL = RESULTS ? '.seat-src' : '.poll-legal';
+// The pivotal rows (#13) as each language should render them: only when the vote passes, after the source line.
+function pivotalText(lng, state) {
+  const c = posCtx[lng];
+  const T = lng === 'he' ? S : EN;
+  const n = (x) => T.seats.num(x, RESULTS);
+  const rows = pivotal(c, state).map((p) => T.seats.pivotalRow(c.byId.get(p.partyId).name, p.role, p.breaksMajority ? n(p.vote.membersSeats) : null, n(p.vote.for), n(p.vote.against)));
+  return [T.seats.pivotalIntro(investiture(c, state).membersMajority), ...(rows.length ? rows : [T.seats.pivotalNone])];
+}
+const PIVOTAL_JS = `(() => { const o = document.querySelector('#results .overall'); const p = o?.querySelector('.pivotal'); if (!p) return null;
+  const src = o.querySelector('${SRC_SEL}'); if (!src || !(src.compareDocumentPosition(p) & Node.DOCUMENT_POSITION_FOLLOWING)) return ['source line must come before the pivotal rows'];
+  return [...p.querySelectorAll('p, li')].map((e) => e.innerText.replace(/\\s+/g, ' ').trim()); })()`;
 const args = process.argv.slice(2);
 const base = args.find((a) => !a.startsWith('--'));
 const hud = base || args.includes('--no-hud') ? null : await fetchHud();
@@ -327,6 +341,7 @@ try {
       }
       if (SEATS_HIDDEN) {
         const seatText = await evaluate(`(document.body.innerText.match(${POLL_TEXT}) || [])[0] || ''`);
+        if (await evaluate("document.querySelector('.pivotal') !== null")) errors.push(`[${current}] showSeats is off but the pivotal rows are shown`);
         if (seatText) errors.push(`[${current}] showSeats is off but poll-derived text is visible: "${seatText}"`);
         if (expectView === 'build') {
           const order = await evaluate("[...document.querySelectorAll('#builder [data-act=\"toggle\"]')].map((b) => b.dataset.id).join(',')");
@@ -376,6 +391,15 @@ try {
       if (expectView === 'results' && !SEATS_HIDDEN) {
         const ok = await evaluate(`document.querySelectorAll('#results .seats-line').length === 0 || document.querySelector('#results').innerText.replace(/\\s+/g, ' ').includes(${JSON.stringify(SRC_TEXT)})`);
         if (!ok) errors.push(`[${current}] results show seats without the full source line`);
+        {
+          const st = parseLocation(splitSuffix(suffix), passedIds).state;
+          const got = await evaluate(PIVOTAL_JS);
+          const want = st.members.length && investiture(posCtx.he, st).approved ? pivotalText('he', st) : null;
+          if (JSON.stringify(got) !== JSON.stringify(want)) errors.push(`[${current}] pivotal rows: expected ${JSON.stringify(want)}, got ${JSON.stringify(got)}`);
+          if (RESULTS && name === 'results-scenario-arab' && !(got?.length === 7 && got.includes('אם רע״ם תצביע נגד: 59 מול 61'))) errors.push(`[${current}] expected 6 pivotal rows with רע״ם voting against (59 מול 61)`);
+          if (RESULTS && name === 'results-pivotal-partial' && got?.slice(1).map((t) => t.split(':')[0]).join('|') !== 'בלי הליכוד|בלי ישר!|בלי ביחד') errors.push(`[${current}] expected הליכוד, ישר!, ביחד as pivotal, got ${JSON.stringify(got)}`);
+          if (RESULTS && name === 'results-coalition' && got !== null) errors.push(`[${current}] the vote fails, so no pivotal rows`);
+        }
         if (expectView === 'results' && members_in_url(suffix) && name !== 'results-single' && !(await evaluate("document.querySelector('#matrix .tap-hint')?.innerText.includes('לחצו על כל תא או נושא')"))) errors.push(`[${current}] matrix tap hint missing`);
         const line = await evaluate("document.querySelector('#results-coalition')?.innerText || ''");
         if (!line.trim()) errors.push(`[${current}] results are missing the coalition line`);
@@ -1023,6 +1047,12 @@ try {
         const wantShare = baseUrl + locationFor(ctx, exp.state, 'results', '', 'en');
         const text = wa ? new URL(wa).searchParams.get('text') : '';
         if (wa && (!text.endsWith(`\n${wantShare}`) || !text.startsWith('The coalition I built: '))) errors.push(`[${current}] English WhatsApp text should start "The coalition I built:" and end with ${wantShare} (${text})`);
+        if (!SEATS_HIDDEN) {
+          const got = await evaluate(PIVOTAL_JS);
+          const want = exp.state.members.length && investiture(posCtx.en, exp.state).approved ? pivotalText('en', exp.state) : null;
+          if (JSON.stringify(got) !== JSON.stringify(want)) errors.push(`[${current}] English pivotal rows: expected ${JSON.stringify(want)}, got ${JSON.stringify(got)}`);
+          if (RESULTS && name === 'results-scenario-arab' && !got?.includes("If Ra'am votes against: 59 vs 61")) errors.push(`[${current}] expected "If Ra'am votes against: 59 vs 61"`);
+        } else if (await evaluate("document.querySelector('.pivotal') !== null")) errors.push(`[${current}] showSeats is off but the pivotal rows are shown`);
         if (exp.state.members.length >= 2) {
           const got = await evaluate(REDLINES_JS);
           const want = redLinesText('en', exp.state.members);

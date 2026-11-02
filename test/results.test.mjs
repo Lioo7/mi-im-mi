@@ -152,6 +152,26 @@ test('red-line summary (#14) on the real data: none in the media scenarios, two 
   assert.deepEqual(completions(ctx, bloc).currentRedLines, crossed);
 });
 
+test('pivotal parties (#13) on the real data: the three media scenarios', async () => {
+  const { contextFor, pivotal } = await import('../site/js/compat.js');
+  const { topics, positions, scenarios } = loadData();
+  const ctx = contextFor({ meta: { ...meta, mode: 'results' }, parties, topics, positions, results });
+  const rows = (id) => pivotal(ctx, scenarios.scenarios.find((x) => x.id === id))
+    .map((p) => [p.partyId, p.role, p.breaksMajority ? p.vote.membersSeats : null, p.vote.for, p.vote.against]);
+  // 59 vs 53 with רע״ם abstaining: every member and the supporter, and רע״ם voting against makes it 59 vs 61.
+  assert.deepEqual(rows('change-arab-not-opposing'), [
+    ['yashar', 'member', null, 38, 74], ['together', 'member', null, 47, 65], ['democrats', 'member', null, 51, 61],
+    ['yisrael-beiteinu', 'member', null, 52, 60], ['joint-list', 'supporter', null, 48, 64], ['raam', 'abstainer', null, 59, 61],
+  ]);
+  // Exactly 61: every member; without זהות it is a 60–60 tie.
+  assert.deepEqual(rows('likud-yashar-right'), [
+    ['likud', 'member', 34, 34, 86], ['yashar', 'member', 40, 40, 80], ['otzma-yehudit', 'member', 54, 54, 66],
+    ['religious-zionism', 'member', 56, 56, 64], ['zehut', 'member', 60, 60, 60],
+  ]);
+  // 66: הציונות הדתית (5) and זהות (1) can each leave.
+  assert.deepEqual(rows('segal-unity'), [['likud', 'member', 39, 39, 81], ['yashar', 'member', 45, 45, 75], ['together', 'member', 54, 54, 66]]);
+});
+
 test('validateScenarios rejects a fifth scenario, double roles, seatless lists and undated sources', () => {
   const { scenarios } = loadData();
   const m = { ...meta, mode: 'results' };

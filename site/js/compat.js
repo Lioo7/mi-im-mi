@@ -467,6 +467,22 @@ export function without(ctx, state, partyId) {
   return analyze(ctx, dropParty(state, partyId));
 }
 
+// Parties a result depends on (#13): a member without which the members drop below 61; a member or supporter without
+// which the investiture vote fails (for ≤ against); an abstainer whose vote against makes it fail. "Without" is
+// dropParty: an unselected party votes against. Nothing when the vote already fails (61 members implies it passes).
+// Role order (members, supporters, abstainers), then party order; never ranked.
+export function pivotal(ctx, state) {
+  const now = investiture(ctx, state);
+  if (!now.approved) return [];
+  const { members, supporters = [], abstainers = [] } = state;
+  return [['member', members], ['supporter', supporters], ['abstainer', abstainers]]
+    .flatMap(([role, ids]) => sortByParty(ctx, ids).map((partyId) => {
+      const vote = without(ctx, state, partyId).vote;
+      return { partyId, role, vote, breaksMajority: role === 'member' && now.membersMajority && !vote.membersMajority, breaksVote: !vote.approved };
+    }))
+    .filter((p) => p.breaksMajority || p.breaksVote);
+}
+
 export function presets(ctx) {
   const inBloc = (bloc) => ctx.parties.filter((p) => p.bloc === bloc && ctx.passed(p.id)).map((p) => p.id);
   const opposition = inBloc('opposition');

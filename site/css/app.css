@@ -426,6 +426,9 @@ details.below summary { cursor: pointer; font-weight: 600; padding-block: 10px; 
 .verdict.is-yes span { color: #166534; }
 .verdict.is-no span { color: #b91c1c; }
 .members-line { margin: 2px 0 0; font-size: .9rem; color: var(--fg); }
+.pivotal { margin-block-start: 8px; }
+.pivotal p { margin: 0; }
+.pivotal ul { margin: 2px 0 0; padding-inline-start: 1.2em; }
 .periphery .per-party + .per-party { margin-block-start: 10px; }
 .periphery .pair-list { margin-block-start: 4px; }
 .completions .list li + li { margin-block-start: 6px; }
