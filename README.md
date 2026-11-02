@@ -67,7 +67,7 @@
 
 ## עברית ואנגלית
 
-- **האתר זמין גם באנגלית.** כפתור בראש העמוד מחליף שפה במקום, בלי לאבד את הקואליציה או את התצוגה. השפה נשמרת בכתובת (`l=en`, אחרי הסימן #), כך שקישור משותף נפתח באותה שפה. העברית היא הנוסח המחייב, ובראש כל עמוד באנגלית יש על כך שורה.
+- **האתר זמין גם באנגלית.** בקצה הסרגל העליון מופיעות שתי השפות, "עברית | English": השפה הנוכחית מודגשת, ולחיצה על השנייה מחליפה שפה במקום, בלי לאבד את הקואליציה או את התצוגה. השפה נשמרת בכתובת (`l=en`, אחרי הסימן #), כך שקישור משותף נפתח באותה שפה. העברית היא הנוסח המחייב, וכל עמוד באנגלית אומר את זה בשורה קטנה מתחת לסרגל העליון.
 - **מה תורגם:** כל הטקסט של האתר, הנושאים ותוויות הצירים, 112 התקצירים, ו-94 ציטוטים שאינם באנגלית. הציטוט עצמו נשאר בשפת המקור, ומתחתיו תרגום שמסומן כתרגום של האתר. השם הרשמי של הרשימה מוצג בעברית, כלשונו, ואחריו תרגום.
 - **איך זה נבדק:** תרגום ← בדיקה עיוורת ← ייבוא. סוכן בודק נפרד תרגם את האנגלית בחזרה לעברית בלי לראות את המקור, ורק אחר כך השווה למקור: נאמנות, מילון המונחים, ניטרליות, תוויות הצירים ושמות. 8 מתוך 373 פריטים סומנו, וכולם תוקנו. התרגומים נכנסים לנתונים דרך ה-CSV, כמו כל שינוי בעמדות.
 - **שמות באנגלית:** לפי רשימת לשכת העיתונות הממשלתית באנגלית או האנגלית של המפלגה עצמה, ואחרת תעתיק. שם עברי מתועתק (Beyachad, Yashar!), אלא אם יש לו שם מקובל באנגלית (Religious Zionism). אותיות הפתק נשארות בעברית.
@@ -154,7 +154,7 @@ node scripts/smoke.mjs [baseUrl]      # בדיקת smoke עם צילומי מס�
 </p>
 
 **English version.**
-- **Toggle:** a button in the top bar switches language in place, keeping the coalition and the view. The language is kept in the URL fragment (`l=en`), so a shared link opens in the same language. The Hebrew is authoritative, and every English page says so.
+- **Language switch:** both languages at the end of the top bar ("English | עברית"), the current one in bold; tapping the other switches in place, keeping the coalition and the view. The language is kept in the URL fragment (`l=en`), so a shared link opens in the same language. The Hebrew is authoritative, and every English page says so in a small line under the header.
 - **Translated:** all UI text, the topics and axis labels, the 112 summaries and the 94 quotes not already in English. A quote stays in its original language, with the site's translation under it, marked as such. The official list name is shown verbatim in Hebrew, followed by a translation.
 - **Checked:** translate → blind back-translation → import. An independent reviewer translated the English back into Hebrew without seeing the original, and only then compared (fidelity, glossary, neutrality, axis labels, names). 8 of 373 items were flagged; all were fixed. Translations enter the data through the same CSV import as every position change.
 - **Names:** from the Government Press Office's English list or the party's own English, otherwise transliterated. A Hebrew party name is transliterated (Beyachad, Yashar!) unless it has an established English name (Religious Zionism). Ballot letters stay in Hebrew.

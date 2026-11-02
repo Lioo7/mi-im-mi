@@ -109,13 +109,15 @@ function toast(html, ms = 5000) {
 
 // ---------- static sections ----------
 function renderHeader() {
-  const T = S.langToggle;
-  const toggle = $('#lang-toggle');
-  toggle.textContent = T.label;
-  toggle.lang = T.lang;
-  toggle.setAttribute('aria-label', T.aria);
+  // Both languages, each named in its own language: the current one as plain text, the other a button that switches.
+  const sw = $('#lang-switch');
+  sw.setAttribute('aria-label', S.langSwitch.label);
+  sw.innerHTML = [lang, S.langSwitch.other].map((l) => (l === lang
+    ? `<strong lang="${l}" aria-current="true">${esc(S.langNames[l])}</strong>`
+    : `<button type="button" class="lang-btn" lang="${l}" data-act="lang" data-key="lang-switch">${esc(S.langNames[l])}</button>`))
+    .join('<span class="lang-sep" aria-hidden="true">|</span>');
   $('#lang-note').hidden = !S.translatedNote;
-  $('#lang-note p').textContent = S.translatedNote;
+  $('#lang-note').textContent = S.translatedNote;
   $('#brand-name').textContent = S.appName;
   $('#nav-method').textContent = S.nav.method;
   $('#intro').textContent = S.buildIntro;
@@ -979,10 +981,12 @@ function onClick(e) {
     case 'lang':
       // The view, the coalition and the scroll position stay; only the language changes.
       if ($('#sheet').open) $('#sheet').close();
-      setLanguage(S.langToggle.to);
+      setLanguage(S.langSwitch.other);
       renderChrome();
       writeUrl();
       render();
+      // The switch was re-rendered: keep focus on it (now the button for the language just left).
+      $('#lang-switch button').focus();
       break;
     case 'preset': {
       const p = C.presets(ctx)[id];

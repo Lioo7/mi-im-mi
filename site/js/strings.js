@@ -18,8 +18,9 @@ export const S = {
   stubBanner: 'נתוני דמה לפיתוח בלבד: העמדות אינן אמיתיות',
   skip: 'דלגו לתוצאות',
   loadError: 'שגיאה בטעינת הנתונים. נסו לרענן את הדף.',
-  // The switch to the other language: its label and aria-label are in that language.
-  langToggle: { to: 'en', label: 'English', aria: 'Switch to English', lang: 'en' },
+  // The language switch shows both names, each in its own language; the current one is plain text.
+  langSwitch: { label: 'שפה', other: 'en' },
+  langNames: { he: 'עברית', en: 'English' },
   // Shown only on a translation (the Hebrew is the original).
   translatedNote: '',
   // A person or channel named in the data, in the reader's language (the data is in Hebrew).

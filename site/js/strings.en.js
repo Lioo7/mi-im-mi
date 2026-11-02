@@ -28,9 +28,9 @@ export const S = {
   stubBanner: 'Dummy data for development only: these positions are not real',
   skip: 'Skip to results',
   loadError: 'The data could not be loaded. Try refreshing the page.',
-  // The switch to the other language: its label and aria-label are in that language.
-  langToggle: { to: 'he', label: 'עברית', aria: 'מעבר לעברית', lang: 'he' },
-  translatedNote: 'Translated from Hebrew. The Hebrew version is authoritative.',
+  langSwitch: { label: 'Language', other: 'he' },
+  langNames: { he: 'עברית', en: 'English' },
+  translatedNote: 'Translated from Hebrew · the Hebrew version is authoritative',
   nameOf: (n) => NAMES[n] ?? n,
 
   nav: {

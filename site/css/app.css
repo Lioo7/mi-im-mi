@@ -174,12 +174,15 @@ details.axis summary { cursor: pointer; font-weight: 600; min-block-size: 32px; 
 .topbar-in { display: flex; align-items: center; justify-content: space-between; min-block-size: 52px; }
 .brand { display: inline-flex; align-items: center; gap: 8px; color: var(--fg); text-decoration: none; font-weight: 800; font-size: 1.25rem; letter-spacing: -.01em; }
 .navlink { color: var(--accent); font-size: .95rem; padding: 10px 4px; }
-.topnav { display: inline-flex; align-items: center; gap: 6px; }
-.langlink { border: 1px solid var(--line); border-radius: 999px; background: none; color: var(--accent); font-size: .9rem; padding: 4px 12px; min-block-size: 36px; cursor: pointer; }
-.lang-note { background: var(--chip); border-block-end: 1px solid var(--line); color: var(--fg); font-size: .9rem; }
-.lang-note p { margin: 0; padding-block: 6px; }
+.topnav { display: inline-flex; align-items: center; gap: 10px; }
+/* Language switch: its own element at the header's end, set off from the nav by a thin divider. */
+.langswitch { display: inline-flex; align-items: center; gap: 6px; padding-inline-start: 10px; border-inline-start: 1px solid var(--line); font-size: .9rem; white-space: nowrap; }
+.langswitch strong { color: var(--fg); font-weight: 700; }
+.lang-sep { color: var(--muted); }
+.lang-btn { border: 0; background: none; padding: 10px 2px; font: inherit; color: var(--accent); text-decoration: underline; cursor: pointer; }
+.lang-note { margin-block: 8px 0; color: var(--muted); font-size: .85rem; }
 .lang-note[hidden] { display: none; }
-.brand-name, .navlink, .langlink { white-space: nowrap; }
+.brand-name, .navlink { white-space: nowrap; }
 /* English link texts are longer; let them wrap rather than overflow a phone screen. */
 [dir="ltr"] .seat-src a, [dir="ltr"] .voter-info a { white-space: normal; }
 /* English pages show the required Hebrew poll sentence verbatim, on its own line, before the translation. */
@@ -189,10 +192,6 @@ details.axis summary { cursor: pointer; font-weight: 600; min-block-size: 32px; 
 /* On phones the English names are wider than a matrix column: set them vertically, read bottom to top. */
 @media (max-width: 480px) {
   [dir="ltr"] .topic-btn { writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap; inline-size: auto; min-inline-size: 6.8em; block-size: 100%; min-block-size: 0; padding: 6px 0; text-align: start; }
-}
-@media (max-width: 420px) {
-  [dir="ltr"] .brand { font-size: 1.05rem; }
-  [dir="ltr"] .navlink { font-size: .9rem; }
 }
 .intro { font-size: 1.08rem; margin-block: 16px 4px; font-weight: 600; }
 h2 { margin-block-start: 1.2em; }

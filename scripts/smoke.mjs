@@ -790,6 +790,18 @@ try {
       if (el.closest('noscript, script, style') || el.closest('[lang]')?.lang === 'he') continue; out.push(n.data.trim().slice(0, 40)); }
     return out.slice(0, 3).join(' | '); })()`;
   const EN_SRC = RESULTS ? meta.en.resultsStatus : legal;
+  // The language switch: both names, the current one first as plain text (aria-current), the other a button, each with
+  // its own lang; set off from the nav; and the header (logo, nav link, switch) on one line (up to 56px tall with the
+  // links' tap padding; a wrapped line is 60px or more).
+  const SWITCH_CHECK = (cur) => `(() => { const sw = document.querySelector('#lang-switch'); const items = [...sw.querySelectorAll('strong, button')];
+    const got = items.map((e) => e.tagName + ':' + e.lang + ':' + (e.getAttribute('aria-current') || '')).join(' ');
+    const want = ${JSON.stringify(cur === 'en' ? 'STRONG:en:true BUTTON:he:' : 'STRONG:he:true BUTTON:en:')};
+    if (got !== want) return 'items ' + got;
+    if (parseFloat(getComputedStyle(sw).borderInlineStartWidth) < 1) return 'no divider from the nav';
+    const rows = ['#brand-name', '#nav-method', '#lang-switch'].map((q) => document.querySelector(q).getBoundingClientRect());
+    const mid = (r) => r.top + r.height / 2;
+    if (rows.some((r) => Math.abs(mid(r) - mid(rows[0])) > 8 || r.height > 56)) return 'header wraps: ' + rows.map((r) => Math.round(r.top) + '/' + Math.round(r.height)).join(' ');
+    return 'ok'; })()`;
   const EN_POLL_TEXT = /\bseats?\b|\bpolls?\b|at the threshold|of 61|\(61\+\)|≈\d/i;
   for (const z2 of SIZES) {
     await setSize(z2);
@@ -812,6 +824,8 @@ try {
       if (page.url !== wantUrl) errors.push(`[${current}] URL should settle on "${wantUrl}", got "${page.url}"`);
       const hebrew = await evaluate(HEBREW_OUTSIDE);
       if (hebrew) errors.push(`[${current}] Hebrew text outside lang="he" (untranslated?): ${hebrew}`);
+      const sw = await evaluate(SWITCH_CHECK('en'));
+      if (sw !== 'ok') errors.push(`[${current}] language switch: ${sw}`);
       if (SEATS_HIDDEN) {
         const seatText = await evaluate(`(document.body.innerText.match(${EN_POLL_TEXT}) || [])[0] || ''`);
         if (seatText) errors.push(`[${current}] showSeats is off but poll-derived text is visible: "${seatText}"`);
@@ -845,16 +859,22 @@ try {
   await go(`${baseUrl}#results?m=likud,yashar`);
   await waitFor(() => evaluate("document.body.dataset.view === 'results'"));
   await evaluate('window.smokeSameDoc = true');
-  const state = () => evaluate("JSON.stringify([document.documentElement.lang, location.hash, document.activeElement?.id || '', document.querySelector('#results-coalition').innerText.includes(" + JSON.stringify(parties.find((p) => p.id === 'likud').en.name) + "), window.smokeSameDoc === true])");
-  await evaluate("document.querySelector('#lang-toggle').focus(); document.querySelector('#lang-toggle').click()");
+  const state = () => evaluate("JSON.stringify([document.documentElement.lang, location.hash, document.activeElement?.dataset?.key || '', document.querySelector('#results-coalition').innerText.includes(" + JSON.stringify(parties.find((p) => p.id === 'likud').en.name) + "), window.smokeSameDoc === true])");
+  for (const z3 of SIZES) {
+    await setSize(z3);
+    const sw = await evaluate(SWITCH_CHECK('he'));
+    if (sw !== 'ok') errors.push(`[${current}] Hebrew language switch at ${z3.width}: ${sw}`);
+  }
+  await setSize(SIZES[0]);
+  await evaluate("document.querySelector('#lang-switch button').focus(); document.querySelector('#lang-switch button').click()");
   await sleep(300);
-  if (await state() !== JSON.stringify(['en', `#results${qsOf(['likud', 'yashar'])}&l=en`, 'lang-toggle', true, true])) errors.push(`[${current}] the toggle should switch to English in place, keeping the coalition and focus (${await state()})`);
+  if (await state() !== JSON.stringify(['en', `#results${qsOf(['likud', 'yashar'])}&l=en`, 'lang-switch', true, true])) errors.push(`[${current}] the toggle should switch to English in place, keeping the coalition and focus (${await state()})`);
   await evaluate("document.querySelector('#nav-method').click()");
   await sleep(300);
   if ((await evaluate('location.hash')) !== `#method${qsOf(['likud', 'yashar'])}&l=en`) errors.push(`[${current}] a nav link should keep l=en (${await evaluate('location.hash')})`);
   await evaluate("history.back()");
   await sleep(300);
-  await evaluate("document.querySelector('#lang-toggle').click()");
+  await evaluate("document.querySelector('#lang-switch button').click()");
   await sleep(300);
   if ((await evaluate("document.documentElement.lang + location.hash")) !== `he#results${qsOf(['likud', 'yashar'])}`) errors.push(`[${current}] the toggle should switch back to Hebrew and drop l= (${await evaluate('location.hash')})`);
   await evaluate("location.hash = '#results?m=together,democrats&l=en'");
