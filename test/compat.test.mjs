@@ -4,7 +4,7 @@ import {
   level, makeContext, topicStatus, crises, glue, friction, overall, newClashTopics,
   matrixCell, pairSummary, investiture, periphery, analyze, without, presets, parseState, serializeState,
   parseLocation, locationFor, moveLegacyState, localize, contextFor,
-  withLinked, lowCoverage, addImpact, breakdown, ballotOrder, selected, completions, redLinesCrossed,
+  withLinked, lowCoverage, addImpact, breakdown, ballotOrder, selected, completions, redLinesCrossed, closestTo,
 } from '../site/js/compat.js';
 
 const P = (partyId, topicId, position, redLine = false) => ({ partyId, topicId, position, redLine });
@@ -499,4 +499,176 @@ test('completions: a new clash and a newly crossed red line are reported as new'
   assert.deepEqual(r.list.map((x) => [x.add.join(), x.clashTopics, x.newClashTopics, x.newRedLines]), [
     ['c', 2, 1, [{ partyId: 'a', topicId: 't1' }]],
   ]);
+});
+
+// ---------- closest coalitions to a party (#22) ----------
+
+// Results-mode context: `seats` maps id -> seats (0 = under the threshold); parties keep the given order.
+function closestFixture(seats, positions, topicIds = ['t1', 't2', 't3', 't4']) {
+  return makeContext({
+    parties: Object.keys(seats).map((id) => ({ id })),
+    topics: topicIds.map((id) => ({ id })),
+    positions,
+    seats: new Map(Object.entries(seats)),
+    mode: 'results',
+  });
+}
+
+const ids = (rows) => rows.map((r) => r.add.join('+'));
+
+// Brute force, independent of completions(): every set of other lists with seats that gives X 61+, where dropping any
+// partner leaves it short; the keys come straight from the positions (gap, the red-line rule, any-pair clashes).
+function bruteClosest(seats, positions, topicIds, x) {
+  const at = (id, t) => positions.find((p) => p.partyId === id && p.topicId === t && p.position != null);
+  const clash = (a, b, t) => { const p = at(a, t), q = at(b, t); if (!p || !q) return false; const d = Math.abs(p.position - q.position); return d >= 3 || (d === 2 && Boolean(p.redLine || q.redLine)); };
+  const gap = (a, b, t) => { const p = at(a, t), q = at(b, t); return p && q ? Math.abs(p.position - q.position) : null; };
+  const order = Object.keys(seats);
+  const free = order.filter((id) => id !== x && seats[id] > 0);
+  const sum = (s) => Math.round(s.reduce((n, id) => n + seats[id], seats[x]));
+  const rows = [];
+  if (seats[x] <= 0) return { full: [], partial: [] };
+  for (let mask = 1; mask < 1 << free.length; mask++) {
+    const add = free.filter((_, i) => mask & (1 << i));
+    if (sum(add) < 61 || add.some((id) => sum(add.filter((o) => o !== id)) >= 61)) continue;
+    const m = [x, ...add];
+    const row = {
+      add, seats: sum(add),
+      red: topicIds.filter((t) => at(x, t)?.redLine && add.some((p) => gap(x, p, t) >= 2)).length,
+      xClash: topicIds.filter((t) => add.some((p) => clash(x, p, t))).length,
+      whole: topicIds.filter((t) => m.some((a, i) => m.slice(i + 1).some((b) => clash(a, b, t)))).length,
+      agree: topicIds.filter((t) => { const g = add.map((p) => gap(x, p, t)).filter((d) => d != null); return g.length && g.every((d) => d <= 1); }).length,
+      low: add.filter((p) => topicIds.filter((t) => !at(p, t)).length >= 3),
+    };
+    rows.push(row);
+  }
+  const key = (r) => r.add.map((id) => order.indexOf(id));
+  const lex = (a, b) => { for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return a[i] - b[i]; return 0; };
+  rows.sort((a, b) => a.red - b.red || a.xClash - b.xClash || a.whole - b.whole || b.agree - a.agree || b.seats - a.seats
+    || a.add.length - b.add.length || lex(key(a), key(b)));
+  return { full: rows.filter((r) => !r.low.length), partial: rows.filter((r) => r.low.length) };
+}
+
+function mulberry32(seed) {
+  return () => {
+    seed = (seed + 0x6d2b79f5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+test('closestTo: the same coalitions, order, counts and groups as a brute force, for every party, over random fixtures', () => {
+  const seats = { a: 30, b: 25, c: 20, d: 15, e: 12, f: 10, g: 8, h: 0 };
+  const topicIds = ['t1', 't2', 't3', 't4'];
+  let sawPartial = 0;
+  let sawFull = 0;
+  for (let seed = 1; seed <= 40; seed++) {
+    const rnd = mulberry32(seed);
+    const positions = [];
+    for (const id of Object.keys(seats)) {
+      topicIds.forEach((t, i) => {
+        // g states one position only (3 without), f two (2 without: still enough); the rest are random.
+        const none = id === 'g' ? i > 0 : id === 'f' ? i >= 2 : rnd() < 0.15;
+        positions.push(P(id, t, none ? null : Math.floor(rnd() * 5) - 2, !none && rnd() < 0.15));
+      });
+    }
+    const ctx = closestFixture(seats, positions, topicIds);
+    for (const x of Object.keys(seats)) {
+      const got = closestTo(ctx, x);
+      const want = bruteClosest(seats, positions, topicIds, x);
+      const view = (rows) => rows.map((r) => [r.add.join('+'), r.redLines.length, r.xClash, r.wholeClash, r.agree, r.seats, r.low.map((l) => l.partyId).join()]);
+      const wantView = (rows) => rows.map((r) => [r.add.join('+'), r.red, r.xClash, r.whole, r.agree, r.seats, r.low.join()]);
+      assert.deepEqual(view(got.full), wantView(want.full), `seed ${seed}, x=${x}, full`);
+      assert.deepEqual(view(got.partial), wantView(want.partial), `seed ${seed}, x=${x}, partial`);
+      assert.equal(got.total, want.full.length + want.partial.length);
+      assert.ok([...got.full, ...got.partial].every((r) => !r.add.includes('h')), 'a list under the threshold is never a partner');
+      sawPartial += got.partial.length;
+      sawFull += got.full.length;
+    }
+  }
+  assert.ok(sawPartial > 0 && sawFull > 0, 'the fixtures populate both groups');
+});
+
+test('closestTo key 1: fewer of X\'s own red lines crossed comes first, even with more head-on clashes', () => {
+  // x + a: x's red line on t1 is crossed (gap 2), one clash. x + b: no red line, but two clashes (t2, t3).
+  const ctx = closestFixture({ x: 40, a: 25, b: 25 }, [
+    P('x', 't1', -1, true), P('a', 't1', 1), P('b', 't1', -1),
+    P('x', 't2', -2), P('a', 't2', -2), P('b', 't2', 2),
+    P('x', 't3', -2), P('a', 't3', -2), P('b', 't3', 1),
+  ]);
+  const r = closestTo(ctx, 'x');
+  assert.deepEqual(ids(r.full), ['b', 'a']);
+  assert.deepEqual(r.full.map((c) => [c.redLines.length, c.xClash]), [[0, 2], [1, 1]]);
+});
+
+test('closestTo key 2: fewer topics where X clashes with a partner comes before fewer clashes in the whole coalition', () => {
+  // x + a + (b|c): x clashes with a on t1. x + b + c: x clashes with nobody, but b and c clash on t2 and t3.
+  const ctx = closestFixture({ x: 31, a: 15, b: 15, c: 15 }, [
+    P('x', 't1', 2), P('a', 't1', -2), P('b', 't1', 2), P('c', 't1', 2),
+    P('x', 't2', 0), P('a', 't2', 0), P('b', 't2', -2), P('c', 't2', 2),
+    P('x', 't3', 0), P('a', 't3', 0), P('b', 't3', 2), P('c', 't3', -2),
+  ]);
+  const r = closestTo(ctx, 'x');
+  assert.equal(ids(r.full)[0], 'b+c');
+  assert.deepEqual([r.full[0].xClash, r.full[0].wholeClash], [0, 2]);
+  assert.ok(r.full.slice(1).every((c) => c.xClash === 1 && c.wholeClash === 1));
+});
+
+test('closestTo key 3: partners that clash with each other count, before agreement with X', () => {
+  // x agrees with a and b on t2 and t3, but a and b clash head-on on t1 (x is 2 away from each, no clash with x).
+  const ctx = closestFixture({ x: 31, a: 15, b: 15, c: 15 }, [
+    P('x', 't1', 0), P('a', 't1', -2), P('b', 't1', 2), P('c', 't1', 0),
+    P('x', 't2', 1), P('a', 't2', 1), P('b', 't2', 1), P('c', 't2', null),
+    P('x', 't3', 0), P('a', 't3', 0), P('b', 't3', 0), P('c', 't3', 2),
+  ]);
+  const r = closestTo(ctx, 'x');
+  const ab = r.full.find((c) => c.add.join() === 'a,b');
+  assert.deepEqual([ab.xClash, ab.wholeClash, ab.agree], [0, 1, 2]);
+  assert.equal(ids(r.full).at(-1), 'a+b', 'more agreement does not outweigh a clash between the partners');
+  assert.ok(r.full.slice(0, -1).every((c) => c.wholeClash === 0 && c.agree < ab.agree));
+});
+
+test('closestTo key 4: more agreement comes before more seats; key 5: then more seats, over the completions order', () => {
+  // x + b agrees on t1 (61 seats); x + a is 2 apart (70 seats).
+  const agree = closestFixture({ x: 40, a: 30, b: 21 }, [P('x', 't1', 0), P('a', 't1', 2), P('b', 't1', 0)], ['t1']);
+  assert.deepEqual(ids(closestTo(agree, 'x').full), ['b', 'a']);
+  // No positions at all: every key ties up to seats, so x + a (70) comes before x + b (61), although completions lists b first.
+  const seats = closestFixture({ x: 40, a: 30, b: 21 }, [], ['t1']);
+  assert.deepEqual(completions(seats, ['x']).list.map((c) => c.add.join()), ['b', 'a']);
+  assert.deepEqual(ids(closestTo(seats, 'x').full), ['a', 'b']);
+});
+
+test('closestTo tie-break: fewer partners, then party order', () => {
+  const pos = ['x', 'b', 'c', 'a', 'd'].flatMap((id) => ['t1', 't2', 't3', 't4'].map((t) => P(id, t, 0)));
+  const ctx = closestFixture({ x: 40, b: 11, c: 10, a: 21, d: 21 }, pos);
+  assert.deepEqual(ids(closestTo(ctx, 'x').full), ['a', 'd', 'b+c']);
+});
+
+test('closestTo groups: a partner without a position on 3+ topics moves its coalition to `partial`; X\'s own gaps do not', () => {
+  const ctx = closestFixture({ x: 40, a: 21, b: 21 }, [
+    // a: one position (3 without), never in conflict. b: two without (enough), clashing with x on t1 and t2.
+    P('x', 't1', -2), P('x', 't2', -2), P('x', 't3', 0), P('x', 't4', 0),
+    P('a', 't1', null), P('a', 't2', null), P('a', 't3', null), P('a', 't4', 0),
+    P('b', 't1', 2), P('b', 't2', 2), P('b', 't3', null), P('b', 't4', null),
+  ]);
+  const r = closestTo(ctx, 'x');
+  assert.deepEqual(ids(r.full), ['b'], 'exactly 2 topics without a position stays in the main list');
+  assert.deepEqual(ids(r.partial), ['a'], 'a silent partner would sort first, but is listed apart');
+  assert.deepEqual(r.partial[0].low, [{ partyId: 'a', missing: 3 }]);
+  assert.deepEqual([r.partial[0].xClash, r.full[0].xClash], [0, 2]);
+  // a as X: its own missing positions are noted (ownCoverage), not grouped.
+  const asA = closestTo(ctx, 'a');
+  assert.deepEqual([ids(asA.full), ids(asA.partial), asA.ownCoverage], [['x'], [], 1]);
+});
+
+test('closestTo: partners\' red lines are not X\'s; X without a position never agrees; under the threshold gives nothing', () => {
+  const ctx = closestFixture({ x: 40, a: 21, h: 0 }, [
+    P('x', 't1', -1), P('a', 't1', 1, true), // a's red line, crossed by x: a clash, but not one of x's red lines
+    P('x', 't2', null), P('a', 't2', 0), P('h', 't2', 0),
+  ]);
+  const [row] = closestTo(ctx, 'x').full;
+  assert.deepEqual([row.add.join(), row.redLines.length, row.xClash, row.wholeClash, row.agree], ['a', 0, 1, 1, 0]);
+  assert.equal(closestTo(ctx, 'x').ownRedLines, 0);
+  assert.equal(closestTo(ctx, 'a').ownRedLines, 1);
+  assert.deepEqual(closestTo(ctx, 'h'), { full: [], partial: [], total: 0, ownCoverage: 1, ownRedLines: 0 });
 });

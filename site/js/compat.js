@@ -391,6 +391,45 @@ export function completions(ctx, members, { limit = Infinity } = {}) {
   return { list, total: found.length, currentRedLines };
 }
 
+// "The coalitions closest to X's stated positions": the minimal winning coalitions that include X (completions of [x]).
+// Per coalition: X's own red lines crossed, topics where X clashes head-on with a partner, head-on clash topics in the
+// whole coalition (any pair), topics where X agrees or has a small gap with every partner that stated a position
+// (counted only if X and at least one partner did), and seats. Sorted by those, in that order, with no weights;
+// a full tie keeps the completions order (fewer partners, then party order). Coalitions with a partner that has no
+// position on 3+ topics (lowCoverage) go in `partial`: silence cannot clash, so they are listed apart.
+export function closestTo(ctx, x) {
+  const { list, total } = ctx.passed(x) ? completions(ctx, [x]) : { list: [], total: 0 };
+  const rows = list.map((c) => {
+    const members = [x, ...c.add];
+    let xClash = 0;
+    let agree = 0;
+    for (const t of ctx.topics) {
+      const levels = c.add.map((p) => pairLevel(ctx.idx, x, p, t.id).level).filter((l) => l !== 'NONE');
+      if (levels.includes('CLASH')) xClash++;
+      if (levels.length && levels.every((l) => SEV[l] <= SEV.MINOR)) agree++;
+    }
+    return {
+      add: c.add,
+      members,
+      seats: c.total,
+      redLines: redLinesCrossed(ctx, members).filter((r) => r.partyId === x),
+      xClash,
+      wholeClash: ctx.topics.filter((t) => topicStatus(ctx, members, t.id).status === 'CLASH').length,
+      agree,
+      low: lowCoverage(ctx, c.add),
+    };
+  });
+  rows.sort((a, b) => a.redLines.length - b.redLines.length || a.xClash - b.xClash || a.wholeClash - b.wholeClash
+    || b.agree - a.agree || b.seats - a.seats);
+  return {
+    full: rows.filter((r) => !r.low.length),
+    partial: rows.filter((r) => r.low.length),
+    total,
+    ownCoverage: coverage(ctx, x),
+    ownRedLines: ctx.topics.filter((t) => hasPos(posOf(ctx.idx, x, t.id)) && posOf(ctx.idx, x, t.id).redLine).length,
+  };
+}
+
 // Clash analysis covers coalition members only; supporters and abstainers are in periphery().
 export function analyze(ctx, { members, base = null, supporters = [], abstainers = [] }) {
   const statuses = ctx.topics.map((t) => topicStatus(ctx, members, t.id));

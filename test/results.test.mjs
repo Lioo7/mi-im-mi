@@ -91,6 +91,26 @@ test('completions on the CEC results: the 53-seat bloc needs one more list of 8+
   assert.ok(c.list.every((x) => !x.add.some((id) => ['kalkalit', 'amcha-yisrael'].includes(id))), 'lists under the threshold are never added');
 });
 
+test('closest coalitions on the CEC results: minimal, 61+, with X; silent partners only in the partial list', async () => {
+  const { contextFor, completions, closestTo, coverage } = await import('../site/js/compat.js');
+  const { topics, positions } = loadData();
+  const ctx = contextFor({ meta: { ...meta, mode: 'results' }, parties, topics, positions, results });
+  for (const p of parties) {
+    const r = closestTo(ctx, p.id);
+    if (!ctx.passed(p.id)) { assert.equal(r.total, 0, p.id); continue; }
+    assert.equal(r.full.length + r.partial.length, completions(ctx, [p.id]).total, p.id);
+    for (const c of [...r.full, ...r.partial]) {
+      const sum = (ids) => ids.reduce((n, id) => n + ctx.seatsOf(id), 0);
+      assert.equal(c.members[0], p.id);
+      assert.ok(sum(c.members) >= 61, `${c.members} reaches 61`);
+      assert.ok(c.add.every((id) => sum(c.members) - ctx.seatsOf(id) < 61), `${c.members} is minimal`);
+      assert.ok(c.add.every((id) => ctx.passed(id)));
+    }
+    assert.ok(r.full.every((c) => c.add.every((id) => topics.length - coverage(ctx, id) < 3)), `${p.id}: a silent partner in the main list`);
+    assert.ok(r.partial.every((c) => c.add.some((id) => topics.length - coverage(ctx, id) >= 3)), p.id);
+  }
+});
+
 test('media scenarios: valid, at most 4, and their investiture math on the CEC results', async () => {
   const { contextFor, investiture } = await import('../site/js/compat.js');
   const { topics, positions, scenarios } = loadData();
