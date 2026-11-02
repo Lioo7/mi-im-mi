@@ -731,9 +731,8 @@ function syncResbarHeight() {
 
 // Under the snapshot: a pointer to the supporters/abstainers card, whose clashes the snapshot does not count.
 function peripheryLink() {
-  const rows = C.periphery(ctx, state);
-  if (!rows.length) return '';
-  const n = rows.reduce((k, row) => k + row.items.filter((i) => i.level === 'CLASH').length, 0);
+  const n = C.peripheryClashes(ctx, state);
+  if (n == null) return '';
   return `<p class="periphery-link"><button type="button" class="link-btn" data-act="to-periphery" data-key="to-periphery">${esc(S.results.peripheryLink(n))}</button></p>`;
 }
 
@@ -811,8 +810,12 @@ function shareUrl() {
   return location.origin + location.pathname + C.locationFor(ctx, state, 'results', '', lang);
 }
 
+// The members' head-on clash topics, plus the supporters' and abstainers' clashes when there are any (the same N as
+// the snapshot's pointer).
+const shareText = (r) => S.share.text(coalitionTags().join(' + '), r.clashTopics, C.peripheryClashes(ctx, state));
+
 function shareCard(r) {
-  const text = S.share.text(coalitionTags().join(' + '), r.clashTopics);
+  const text = shareText(r);
   const wa = `https://wa.me/?text=${encodeURIComponent(`${text}\n${shareUrl()}`)}`;
   return `<p class="share-row"><a class="btn btn-ghost" href="${esc(wa)}" target="_blank" rel="noopener">${esc(S.share.whatsapp)}</a></p>`;
 }
@@ -840,8 +843,7 @@ function pollInfoSheet() {
 }
 
 async function share() {
-  const r = C.analyze(ctx, state);
-  const text = S.share.text(coalitionTags().join(' + '), r.clashTopics);
+  const text = shareText(C.analyze(ctx, state));
   const url = shareUrl();
   if (navigator.share) {
     try { await navigator.share({ title: S.appName, text, url }); return; } catch (e) { if (e.name === 'AbortError') return; }

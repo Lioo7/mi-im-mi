@@ -331,7 +331,9 @@ export const S = {
     button: 'Share',
     copied: 'Link copied',
     whatsapp: 'Send on WhatsApp',
-    text: (names, clashes) => `The coalition I built: ${names} · ${topicsN(clashes)} in a head-on clash`,
+    // periphery: head-on clashes with the supporters and abstainers, or null when there are none (text unchanged).
+    text: (names, clashes, periphery = null) => `The coalition I built: ${names} · ${topicsN(clashes)} in a head-on clash${periphery == null ? ''
+      : ` · ${periphery === 0 ? 'no head-on clashes' : periphery === 1 ? '1 head-on clash' : `${periphery} head-on clashes`} with the supporters and abstainers`}`,
   },
 
   method: {

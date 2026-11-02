@@ -404,6 +404,13 @@ try {
         const wa = await evaluate("document.querySelector('#results a[href^=\"https://wa.me/\"]')?.href || ''");
         const wantShare = `${baseUrl}#results${serializeState(ctx, parseLocation(splitSuffix(suffix), passedIds).state)}`;
         if (wa && !new URL(wa).searchParams.get('text').endsWith(`\n${wantShare}`)) errors.push(`[${current}] WhatsApp link should end with ${wantShare} (${new URL(wa).searchParams.get('text')})`);
+        // #1: the supporters' and abstainers' head-on clashes, the same N and words as the snapshot pointer; nothing without them.
+        if (wa) {
+          const text = new URL(wa).searchParams.get('text');
+          const pointer = await evaluate("document.querySelector('#results .overall [data-act=\"to-periphery\"]')?.innerText || ''");
+          const tail = pointer.replace(/^↓ (ועוד )?/, '');
+          if (pointer ? !text.includes(` · ${tail}\n`) : text.includes('מול התומכות')) errors.push(`[${current}] share text and snapshot pointer disagree (${pointer || 'no pointer'}): ${text}`);
+        }
       }
       if (expectView === 'method') {
         const secs = await evaluate("(() => { const p = document.querySelector('#privacy'), a = document.querySelector('#accessibility'); const f = [...document.querySelectorAll('#footer a')].map((x) => x.getAttribute('href')); return [p?.innerText.includes('GoatCounter') && p.innerText.includes('lioz.akirav@gmail.com'), a?.innerText.includes('5568') && a.innerText.includes('1.11.2026'), f.includes('#privacy'), f.includes('#accessibility')].join(','); })()");
@@ -995,6 +1002,11 @@ try {
         const wantShare = baseUrl + locationFor(ctx, exp.state, 'results', '', 'en');
         const text = wa ? new URL(wa).searchParams.get('text') : '';
         if (wa && (!text.endsWith(`\n${wantShare}`) || !text.startsWith('The coalition I built: '))) errors.push(`[${current}] English WhatsApp text should start "The coalition I built:" and end with ${wantShare} (${text})`);
+        if (wa) {
+          const pointer = await evaluate("document.querySelector('#results .overall [data-act=\"to-periphery\"]')?.innerText || ''");
+          const tail = pointer.replace(/^↓ /, '').replace(' more ', ' ').replace(/^No /, 'no ');
+          if (pointer ? !text.includes(` · ${tail}\n`) : text.includes('supporters and abstainers')) errors.push(`[${current}] English share text and snapshot pointer disagree (${pointer || 'no pointer'}): ${text}`);
+        }
       }
       await shoot(z2, `${name}-${z2.tag}-en.png`);
     }

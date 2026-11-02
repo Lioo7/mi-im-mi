@@ -5,6 +5,7 @@ import {
   matrixCell, pairSummary, investiture, periphery, analyze, without, presets, parseState, serializeState,
   parseLocation, locationFor, moveLegacyState, localize, contextFor,
   withLinked, lowCoverage, addImpact, breakdown, ballotOrder, selected, completions, redLinesCrossed, closestTo,
+  peripheryClashes,
 } from '../site/js/compat.js';
 
 const P = (partyId, topicId, position, redLine = false) => ({ partyId, topicId, position, redLine });
@@ -191,6 +192,18 @@ test('analyze counts clashes among members only; supporters and abstainers go to
   // d (0) vs a/b (-2): MAJOR on t1.
   assert.deepEqual(per[1].items.map((i) => [i.topicId, i.level]), [['t1', 'MAJOR']]);
   assert.deepEqual(periphery(ctx, { members: ['a', 'b'] }), []);
+});
+
+test('peripheryClashes: null without supporters or abstainers, else the CLASH items of periphery()', () => {
+  const ctx = fixture([P('a', 't1', -2), P('b', 't1', -2), P('c', 't1', 2), P('d', 't1', 0), P('a', 't2', 0), P('c', 't2', 2), P('d', 't2', 2)]);
+  assert.equal(peripheryClashes(ctx, { members: ['a', 'b'] }), null);
+  // d: MAJOR on t1 (0 vs -2) and t2 (2 vs 0), no clash.
+  assert.equal(peripheryClashes(ctx, { members: ['a', 'b'], abstainers: ['d'] }), 0);
+  // c: CLASH on t1 only (t2 is MAJOR); d adds none.
+  const state = { members: ['a', 'b'], supporters: ['c'], abstainers: ['d'] };
+  assert.equal(peripheryClashes(ctx, state), 1);
+  const n = periphery(ctx, state).flatMap((row) => row.items).filter((i) => i.level === 'CLASH').length;
+  assert.equal(peripheryClashes(ctx, state), n);
 });
 
 test('without() removes a party from any role', () => {

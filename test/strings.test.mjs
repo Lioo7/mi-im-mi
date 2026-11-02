@@ -72,6 +72,10 @@ test('English formatting: dates, counts and the share text', () => {
   assert.equal(EN.nav.partyCount(1), '1 party selected');
   assert.equal(EN.results.breakdown(3, 0, 0, 0, 0)[0][0], '3 topics in agreement');
   assert.equal(EN.share.text('A + B', 1), 'The coalition I built: A + B · 1 topic in a head-on clash');
+  assert.equal(EN.share.text('A + B', 1, null), 'The coalition I built: A + B · 1 topic in a head-on clash');
+  assert.equal(EN.share.text('A + B', 0, 0), 'The coalition I built: A + B · 0 topics in a head-on clash · no head-on clashes with the supporters and abstainers');
+  assert.equal(EN.share.text('A + B', 2, 1), 'The coalition I built: A + B · 2 topics in a head-on clash · 1 head-on clash with the supporters and abstainers');
+  assert.equal(EN.share.text('A + B', 2, 7), 'The coalition I built: A + B · 2 topics in a head-on clash · 7 head-on clashes with the supporters and abstainers');
   assert.equal(EN.results.withoutPreview({ kind: 'clash', before: 2, after: 0 }, 52, true), 'Without it: no topic in a head-on clash instead of 2 · 52 seats');
 });
 
@@ -91,4 +95,17 @@ test('closest coalitions (#22): "closest to the stated positions", never best or
   assert.equal(EN.closest.showPartial(117, 'A or B'), 'Also show 117 coalitions that include A or B');
   assert.match(S.method.closestRule, /זו לא המלצה/);
   assert.match(EN.method.closestRule, /not a recommendation/);
+});
+
+test('share text (#1): the supporters\' and abstainers\' clashes are added only when there are any, worded like the snapshot pointer', () => {
+  assert.equal(S.share.text('א + ב', 1), 'הקואליציה שבניתי: א + ב · נושא אחד בסתירה חזיתית');
+  assert.equal(S.share.text('א + ב', 1, null), 'הקואליציה שבניתי: א + ב · נושא אחד בסתירה חזיתית');
+  assert.equal(S.share.text('א + ב', 0, 0), 'הקואליציה שבניתי: א + ב · 0 נושאים בסתירה חזיתית · אין סתירות חזיתיות מול התומכות והנמנעות');
+  assert.equal(S.share.text('א + ב', 2, 1), 'הקואליציה שבניתי: א + ב · 2 נושאים בסתירה חזיתית · סתירה חזיתית אחת מול התומכות והנמנעות');
+  assert.equal(S.share.text('א + ב', 2, 7), 'הקואליציה שבניתי: א + ב · 2 נושאים בסתירה חזיתית · 7 סתירות חזיתיות מול התומכות והנמנעות');
+  // The same N and wording as "↓ ועוד N סתירות חזיתיות מול התומכות והנמנעות".
+  for (const n of [0, 1, 7]) {
+    const tail = S.results.peripheryLink(n).replace(/^↓ (ועוד )?/, '');
+    assert.ok(S.share.text('א', 0, n).endsWith(` · ${tail}`), `N=${n}`);
+  }
 });

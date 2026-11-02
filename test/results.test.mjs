@@ -130,6 +130,17 @@ test('media scenarios: valid, at most 4, and their investiture math on the CEC r
   assert.deepEqual(vote('segal-unity'), [66, 54, 0, true, 66]);
 });
 
+test('media scenarios, share text (#1): the supporters\' and abstainers\' clashes on the real data', async () => {
+  const { contextFor, peripheryClashes } = await import('../site/js/compat.js');
+  const { topics, positions, scenarios } = loadData();
+  const ctx = contextFor({ meta: { ...meta, mode: 'results' }, parties, topics, positions, results });
+  const sc = (id) => scenarios.scenarios.find((x) => x.id === id);
+  // הרשימה המשותפת 4 + רע״ם 3; the two scenarios without supporters or abstainers keep today's text.
+  assert.equal(peripheryClashes(ctx, sc('change-arab-not-opposing')), 7);
+  assert.equal(peripheryClashes(ctx, sc('likud-yashar-right')), null);
+  assert.equal(peripheryClashes(ctx, sc('segal-unity')), null);
+});
+
 test('validateScenarios rejects a fifth scenario, double roles, seatless lists and undated sources', () => {
   const { scenarios } = loadData();
   const m = { ...meta, mode: 'results' };

@@ -335,7 +335,9 @@ export const S = {
     button: 'שתפו',
     copied: 'הקישור הועתק',
     whatsapp: 'שלחו בוואטסאפ',
-    text: (names, clashes) => `הקואליציה שבניתי: ${names} · ${topicsN(clashes)} בסתירה חזיתית`,
+    // periphery: head-on clashes with the supporters and abstainers, or null when there are none (text unchanged).
+    text: (names, clashes, periphery = null) => `הקואליציה שבניתי: ${names} · ${topicsN(clashes)} בסתירה חזיתית${periphery == null ? ''
+      : ` · ${periphery === 0 ? 'אין סתירות חזיתיות' : periphery === 1 ? 'סתירה חזיתית אחת' : `${periphery} סתירות חזיתיות`} מול התומכות והנמנעות`}`,
   },
 
   method: {

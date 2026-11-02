@@ -317,6 +317,13 @@ export function periphery(ctx, { members, supporters = [], abstainers = [] }) {
   return rows;
 }
 
+// Head-on clashes of supporters and abstainers with the members (the snapshot's "↓ ועוד N…" and the share text),
+// or null when there are no supporters or abstainers.
+export function peripheryClashes(ctx, state) {
+  const rows = periphery(ctx, state);
+  return rows.length ? rows.reduce((k, row) => k + row.items.filter((i) => i.level === 'CLASH').length, 0) : null;
+}
+
 // Parties that ran on one list but announced a split are soft-linked: adding one adds the other.
 export function withLinked(ctx, members, added) {
   const partner = ctx.linkedOf(added);
