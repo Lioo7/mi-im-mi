@@ -19,6 +19,8 @@
   --clash-bg: #f7c9c9; --clash-fg: #7f1d1d;
   --none-bg: #eceef1; --none-fg: #4b5563;
   --ref-bg: #e3eafb; --ref-fg: #0a2a7a;
+  /* Missing data, not distance: neutral, with a dashed edge and the ⚠ icon. */
+  --warn-bg: #f1f2f5; --warn-fg: #3d4048;
 }
 
 * { box-sizing: border-box; }
@@ -66,6 +68,7 @@ button, select { font: inherit; color: inherit; }
 .tag { display: inline-block; font-size: .72rem; padding: 1px 7px; border-radius: 999px; background: var(--chip); color: var(--fg); font-weight: 500; vertical-align: middle; }
 .tag-red { background: var(--clash-bg); color: var(--clash-fg); }
 .tag-src { background: var(--ref-bg); color: var(--ref-fg); }
+.tag-warn { background: var(--warn-bg); color: var(--warn-fg); border: 1px dashed var(--muted); white-space: normal; }
 .tag-split { background: #ece4f5; color: #4c2a7a; }
 .note-soft { font-weight: 500; border-inline-start-color: var(--muted); font-size: .9rem; }
 .footnote { margin-block-start: 12px; font-size: .85rem; color: var(--muted); }
@@ -136,6 +139,9 @@ blockquote { margin: .4em 0 .6em; padding-inline-start: 12px; border-inline-star
 .sheet-close { position: absolute; inset-inline-end: 8px; inset-block-start: 8px; }
 .why { margin: .2em 0 .6em; padding-inline-start: 1.2em; }
 .compare { display: grid; gap: 4px; margin-block: 8px 12px; font-weight: 600; }
+.closest-open { text-align: start; }
+.closest-partial { margin-block-start: 12px; }
+.closest-toggle, .closest-only { text-align: start; font-weight: 600; }
 .compare select { min-block-size: 44px; padding: 6px 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); }
 .axis-list { padding-inline-start: 1.2em; }
 .axis-list li { margin-block-end: .5em; }

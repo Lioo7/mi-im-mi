@@ -26,6 +26,10 @@ let undoState = null;
 // "מה חסר לרוב": rows shown before "הציגו את כל N"; the toggle resets whenever the coalition changes.
 const COMPLETIONS_SHOWN = 6;
 let showAllCompletions = false;
+// "הקואליציות הקרובות לעמדות של X" in the party sheet: rows shown before "הציגו את כל N", and the collapsed list of
+// coalitions with a partner silent on 3+ topics. Reset whenever the list opens for a party.
+const CLOSEST_SHOWN = 5;
+let closestView = { pid: null, fullAll: false, partialOpen: false, partialAll: false };
 let toastTimer;
 
 // ---------- data helpers ----------
@@ -200,6 +204,7 @@ function renderMethod() {
     <p>${esc(M.resultsRule(showSeats()))}</p>
     <p>${esc(M.impactRule)}</p>
     <p>${esc(M.breakdownRule)}</p>
+    ${isResults() ? `<h3 id="closest-rule">${esc(M.closestTitle)}</h3><p>${esc(M.closestRule)}</p>` : ''}
 
     <h3>${esc(M.axesTitle)}</h3>
     ${ctx.topics.map((t) => `
@@ -306,8 +311,17 @@ function renderScenarios() {
     <p class="muted small">${esc(P.scenariosNote)}</p>`;
 }
 
+// Results mode: a party picker that opens the party's closest coalitions. Nothing is preselected.
+function closestPicker() {
+  if (!isResults()) return '';
+  const K = S.closest;
+  return `<label class="compare closest-picker">${esc(K.pickerLabel)}
+    <select data-act="closest-pick" data-key="closest-pick"><option value="">${esc(K.pickerChoose)}</option>${ctx.parties.filter((p) => ctx.passed(p.id)).map((p) => `<option value="${p.id}">${esc(p.name)}</option>`).join('')}</select>
+  </label>`;
+}
+
 function renderPresets() {
-  if (isResults() && scenarioData) { renderScenarios(); return; }
+  if (isResults() && scenarioData) { renderScenarios(); $('#presets').insertAdjacentHTML('beforeend', closestPicker()); return; }
   $('#presets').innerHTML = `
     <h2>${esc(S.presets.title)}</h2>
     <div class="preset-grid" role="group" aria-label="${esc(S.presets.title)}">
@@ -914,6 +928,66 @@ function partyNotes(p) {
   return notes.map((n) => `<p class="note note-soft">${bidi(n)}</p>`).join('') + (seatNote ? pollLegalLine() : '');
 }
 
+// One coalition from closestTo(): every number on the row is a sort key, in sort order of importance.
+function closestRow(x, c) {
+  const K = S.closest;
+  const partners = c.add.map(name).join(' + ');
+  const counts = [K.agree(c.agree), K.xClash(c.xClash, name(x)), K.wholeClash(c.wholeClash)];
+  const red = K.redLines(c.redLines.length, c.redLines.map((r) => topic(r.topicId).short).join(', '));
+  const warn = c.low.length ? K.warn(c.low.map((l, i) => K.warnItem(name(l.partyId), l.missing, i === 0)).join(', ')) : '';
+  return `<li><button type="button" class="row-btn closest-row" data-act="closest-apply" data-id="${x}" data-ids="${c.add.join(',')}" data-key="closest-${c.add.join('-')}"
+    aria-label="${esc(K.aria(partners, [...counts, red, K.seats(c.seats), warn].filter(Boolean).join(', ')))}">
+    <span class="row-title">+ ${esc(partners)}</span>
+    <span class="row-meta muted small">${esc(counts.join(' · '))}</span>
+    <span class="row-meta small">${c.redLines.length ? `<span class="tag tag-red"><span aria-hidden="true">🚩</span> ${esc(red)}</span><span class="muted">· ${esc(K.seats(c.seats))}</span>` : `<span class="muted">${esc(red)} · ${esc(K.seats(c.seats))}</span>`}</span>
+    ${warn ? `<span class="row-meta small"><span class="tag tag-warn"><span aria-hidden="true">⚠</span> ${esc(warn)}</span></span>` : ''}
+  </button></li>`;
+}
+
+// The party sheet's "closest coalitions" mode. Coalitions with a silent partner sit behind a toggle that names those
+// parties (from the data), unless there is nothing else to show.
+function closestHtml(x) {
+  const K = S.closest;
+  const p = party(x);
+  const r = C.closestTo(ctx, x);
+  const v = closestView;
+  const list = (rows, all, act) => `<ol class="list closest-list">${(all ? rows : rows.slice(0, CLOSEST_SHOWN)).map((c) => closestRow(x, c)).join('')}</ol>
+    ${rows.length > CLOSEST_SHOWN ? `<button type="button" class="link-btn" data-act="${act}" data-key="${act}" aria-expanded="${all}">${esc(all ? S.completions.showFewer : S.completions.showAll(rows.length))}</button>` : ''}`;
+  const silent = K.orList(ordered([...new Set(r.partial.flatMap((c) => c.low.map((l) => l.partyId)))]).map(name));
+  const open = v.partialOpen || !r.full.length;
+  const partial = !r.partial.length ? '' : `<div class="closest-partial">
+    ${r.full.length ? `<button type="button" class="link-btn closest-toggle" data-act="closest-partial" data-key="closest-partial" aria-expanded="${open}" aria-controls="closest-partial-list"><span aria-hidden="true">${open ? '▾' : '▸'}</span> ${esc(open ? K.hidePartial(silent) : K.showPartial(r.partial.length, silent))}</button>`
+      : `<p class="closest-only">${esc(K.onlyPartial(silent))}</p>`}
+    <p class="muted small">${esc(K.partialNote)}</p>
+    <div id="closest-partial-list"${open ? '' : ' hidden'}>${open ? list(r.partial, v.partialAll, 'closest-partial-all') : ''}</div>
+  </div>`;
+  const notes = [
+    r.ownCoverage < ctx.topics.length ? K.ownCoverage(S.toParty(p.name), r.ownCoverage) : '',
+    r.ownRedLines === 0 ? K.noRedLines(S.toParty(p.name)) : '',
+  ].filter(Boolean);
+  return `<p class="closest-back"><button type="button" class="link-btn" data-act="closest-back" data-id="${x}" data-key="closest-back">${esc(K.back(p.name))}</button></p>
+    <h2 tabindex="-1">${esc(K.title(p.name))}</h2>
+    ${seatSourceLine()}${positionsAsOfLine()}
+    <p class="muted small">${esc(K.intro(p.name))}</p>
+    ${notes.map((n) => `<p class="note note-soft">${esc(n)}</p>`).join('')}
+    ${r.total ? (r.full.length ? list(r.full, v.fullAll, 'closest-all') : '') + partial : `<p>${esc(K.none)}</p>`}`;
+}
+
+function closestSheet(pid) {
+  closestView = { pid, fullAll: false, partialOpen: false, partialAll: false };
+  openSheet(closestHtml(pid));
+  $('#sheet h2').focus();
+}
+
+// Re-renders the closest list in place (a toggle): keeps the scroll position and the focused control.
+function refreshClosest(key) {
+  const d = $('#sheet');
+  const top = d.scrollTop;
+  openSheet(closestHtml(closestView.pid));
+  d.scrollTop = top;
+  d.querySelector(`[data-key="${CSS.escape(key)}"]`)?.focus();
+}
+
 function partySheet(pid, compareWith = '') {
   const p = party(pid);
   const options = ctx.parties.filter((x) => x.id !== pid)
@@ -925,6 +999,7 @@ function partySheet(pid, compareWith = '') {
     <label class="compare">${esc(S.pair.compareWith)}
       <select data-act="compare" data-id="${pid}"><option value="">${esc(S.pair.choose)}</option>${options}</select>
     </label>
+    ${isResults() && ctx.passed(pid) ? `<p><button type="button" class="btn btn-ghost closest-open" data-act="closest" data-id="${pid}" data-key="closest-open">${esc(S.closest.button(p.name))}</button></p>` : ''}
     ${compareWith ? pairHtml(pid, compareWith) : `<h3>${esc(S.sheet.partyProfile)}</h3>${profileHtml(pid)}`}`);
 }
 
@@ -1044,6 +1119,34 @@ function onClick(e) {
       showAllCompletions = !showAllCompletions;
       render();
       break;
+    case 'closest':
+      closestSheet(id);
+      break;
+    case 'closest-back':
+      partySheet(id);
+      $('#sheet [data-act="closest"]').focus();
+      break;
+    case 'closest-all':
+    case 'closest-partial':
+    case 'closest-partial-all': {
+      const flag = { 'closest-all': 'fullAll', 'closest-partial': 'partialOpen', 'closest-partial-all': 'partialAll' }[act];
+      closestView = { ...closestView, [flag]: !closestView[flag] };
+      refreshClosest(el.dataset.key);
+      break;
+    }
+    case 'closest-apply': {
+      // The coalition replaces the current one, with the party as the base (the map is colored by distance from it).
+      const members = [id, ...el.dataset.ids.split(',')];
+      undoState = { ...state };
+      lastPreset = null;
+      $('#sheet').close();
+      setState({ base: id, members, supporters: [], abstainers: [] });
+      if (view !== 'results') location.hash = 'results';
+      const names = ordered(members).map(name).join(' + ');
+      announce(S.closest.applied(names));
+      toast(`${esc(S.closest.applied(names))} <button type="button" class="link-btn" data-act="undo">${esc(S.results.undo)}</button>`, 8000);
+      break;
+    }
     case 'undo':
       if (undoState) setState(undoState);
       undoState = null;
@@ -1080,6 +1183,12 @@ function bind() {
   document.addEventListener('change', (e) => {
     const el = e.target.closest('select[data-act="compare"]');
     if (el) partySheet(el.dataset.id, el.value);
+    const pick = e.target.closest('select[data-act="closest-pick"]');
+    if (pick?.value) {
+      const id = pick.value;
+      pick.value = '';
+      closestSheet(id);
+    }
   });
   // Close the sheet when tapping the backdrop.
   $('#sheet').addEventListener('click', (e) => { if (e.target.id === 'sheet') e.target.close(); });

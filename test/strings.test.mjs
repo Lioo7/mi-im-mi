@@ -74,3 +74,21 @@ test('English formatting: dates, counts and the share text', () => {
   assert.equal(EN.share.text('A + B', 1), 'The coalition I built: A + B · 1 topic in a head-on clash');
   assert.equal(EN.results.withoutPreview({ kind: 'clash', before: 2, after: 0 }, 52, true), 'Without it: no topic in a head-on clash instead of 2 · 52 seats');
 });
+
+test('closest coalitions (#22): "closest to the stated positions", never best or recommended, in both languages', () => {
+  const texts = (K, M) => [
+    ...Object.entries(K).map(([k, v]) => (k === 'orList' ? v(['X', 'Y']) : typeof v === 'function' ? v('X', 2, 'Y') : v)),
+    K.showPartial(1, 'X'), K.redLines(0, ''), K.redLines(1, 'Y'), M.closestTitle, M.closestRule,
+  ];
+  for (const [K, M] of [[S.closest, S.method], [EN.closest, EN.method]]) {
+    const bad = texts(K, M).filter((t) => /הטוב|מומלצ|מועדפ|האידיאלי|\bbest\b|\brecommended\b|\bpreferred\b|\bideal\b/i.test(t));
+    assert.deepEqual(bad, []);
+  }
+  assert.equal(S.closest.orList(['א', 'ב', 'ג']), 'א, ב או ג');
+  assert.equal(EN.closest.orList(['A', 'B', 'C']), 'A, B or C');
+  assert.equal(EN.closest.orList(['A']), 'A');
+  assert.equal(S.closest.showPartial(1, 'ש״ס'), 'הציגו גם קואליציה אחת שכוללת את ש״ס');
+  assert.equal(EN.closest.showPartial(117, 'A or B'), 'Also show 117 coalitions that include A or B');
+  assert.match(S.method.closestRule, /זו לא המלצה/);
+  assert.match(EN.method.closestRule, /not a recommendation/);
+});
