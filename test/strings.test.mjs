@@ -53,7 +53,9 @@ test('the English strings have exactly the shape of the Hebrew ones', () => {
 });
 
 test('the English strings contain no Hebrew, except the switch to Hebrew and a ballot letter', () => {
-  const lines = readFileSync(new URL('../site/js/strings.en.js', import.meta.url), 'utf8').split('\n');
+  // The NAMES map is keyed by the Hebrew names in the data; its English values are checked in english.test.mjs.
+  const src = readFileSync(new URL('../site/js/strings.en.js', import.meta.url), 'utf8').replace(/export const NAMES = \{[^}]*\};/, '');
+  const lines = src.split('\n');
   const hebrew = lines.filter((l) => /[֐-׿]/.test(l) && !/langToggle:|\(ט\)/.test(l) && !/^\s*\/\//.test(l));
   assert.deepEqual(hebrew, []);
   assert.equal(EN.lang, 'en');

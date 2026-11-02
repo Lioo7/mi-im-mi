@@ -7,8 +7,8 @@
       "supporters": ["joint-list"],
       "abstainers": ["raam"],
       "sources": [
-        { "outlet": "mako", "date": "2026-10-28", "url": "https://www.mako.co.il/news-israel-elections/2026/Article-9b8beb9041f71a1027.htm" },
-        { "outlet": "זמן ישראל", "date": "2026-10-31", "url": "https://www.zman.co.il/live/738237/", "by": "אחמד טיבי" }
+        { "outlet": "mako", "date": "2026-10-28", "url": "https://www.mako.co.il/news-israel-elections/2026/Article-9b8beb9041f71a1027.htm", "en": { "outlet": "N12 (Mako)" } },
+        { "outlet": "זמן ישראל", "date": "2026-10-31", "url": "https://www.zman.co.il/live/738237/", "by": "אחמד טיבי", "en": { "outlet": "Zman Yisrael", "by": "Ahmad Tibi" } }
       ]
     },
     {
@@ -17,7 +17,7 @@
       "supporters": [],
       "abstainers": [],
       "sources": [
-        { "outlet": "ג׳רוזלם פוסט", "date": "2026-10-29", "url": "https://www.jpost.com/israel-election-2026/article-913185" }
+        { "outlet": "ג׳רוזלם פוסט", "date": "2026-10-29", "url": "https://www.jpost.com/israel-election-2026/article-913185", "en": { "outlet": "The Jerusalem Post" } }
       ]
     },
     {
@@ -26,8 +26,8 @@
       "supporters": [],
       "abstainers": [],
       "sources": [
-        { "outlet": "mako", "date": "2026-10-28", "url": "https://www.mako.co.il/news-israel-elections/2026/Article-9b8beb9041f71a1027.htm" },
-        { "outlet": "כיפה", "date": "2026-10-31", "url": "https://www.kipa.co.il/%D7%97%D7%93%D7%A9%D7%95%D7%AA/1235161-0/", "by": "עמית סגל" }
+        { "outlet": "mako", "date": "2026-10-28", "url": "https://www.mako.co.il/news-israel-elections/2026/Article-9b8beb9041f71a1027.htm", "en": { "outlet": "N12 (Mako)" } },
+        { "outlet": "כיפה", "date": "2026-10-31", "url": "https://www.kipa.co.il/%D7%97%D7%93%D7%A9%D7%95%D7%AA/1235161-0/", "by": "עמית סגל", "en": { "outlet": "Kipa", "by": "Amit Segal" } }
       ]
     }
   ]

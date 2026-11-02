@@ -11,7 +11,12 @@
     "bloc": "coalition",
     "platformStatus": "none",
     "bakalpiUrl": "https://www.bakalpi.co.il/he/parties/likud",
-    "platformUrl": "https://www.likud.org.il/"
+    "platformUrl": "https://www.likud.org.il/",
+    "en": {
+      "name": "Likud",
+      "officialName": "Likud, led by Benjamin Netanyahu, for Prime Minister",
+      "leader": "Benjamin Netanyahu"
+    }
   },
   {
     "id": "yashar",
@@ -25,7 +30,12 @@
     "bloc": "opposition",
     "platformStatus": "full",
     "bakalpiUrl": "https://www.bakalpi.co.il/he/parties/yashar",
-    "platformUrl": null
+    "platformUrl": null,
+    "en": {
+      "name": "Yashar!",
+      "officialName": "Yashar! With Eisenkot for Prime Minister, uniting Israel",
+      "leader": "Gadi Eisenkot"
+    }
   },
   {
     "id": "together",
@@ -43,7 +53,16 @@
     "components": [
       "בנט 2026",
       "יש עתיד"
-    ]
+    ],
+    "en": {
+      "name": "Beyachad",
+      "officialName": "Beyachad, headed by Naftali Bennett",
+      "leader": "Naftali Bennett",
+      "components": [
+        "Bennett 2026",
+        "Yesh Atid"
+      ]
+    }
   },
   {
     "id": "democrats",
@@ -57,7 +76,12 @@
     "bloc": "opposition",
     "platformStatus": "full",
     "bakalpiUrl": "https://www.bakalpi.co.il/he/parties/democrats",
-    "platformUrl": null
+    "platformUrl": null,
+    "en": {
+      "name": "The Democrats",
+      "officialName": "The Democrats, headed by Yair Golan",
+      "leader": "Yair Golan"
+    }
   },
   {
     "id": "joint-list",
@@ -76,7 +100,17 @@
       "חד״ש",
       "תע״ל",
       "בל״ד"
-    ]
+    ],
+    "en": {
+      "name": "The Joint List",
+      "officialName": "The Joint List",
+      "leader": "Yousef Jabareen",
+      "components": [
+        "Hadash",
+        "Ta'al",
+        "Balad"
+      ]
+    }
   },
   {
     "id": "otzma-yehudit",
@@ -90,7 +124,12 @@
     "bloc": "coalition",
     "platformStatus": "none",
     "bakalpiUrl": "https://www.bakalpi.co.il/he/parties/otzma-yehudit",
-    "platformUrl": null
+    "platformUrl": null,
+    "en": {
+      "name": "Otzma Yehudit",
+      "officialName": "Otzma Yehudit, headed by Itamar Ben-Gvir",
+      "leader": "Itamar Ben-Gvir"
+    }
   },
   {
     "id": "shas",
@@ -104,7 +143,12 @@
     "bloc": "coalition",
     "platformStatus": "none",
     "bakalpiUrl": "https://www.bakalpi.co.il/he/parties/shas",
-    "platformUrl": null
+    "platformUrl": null,
+    "en": {
+      "name": "Shas",
+      "officialName": "The Association of Torah-Observant Sephardim, the movement of Maran Rabbi Ovadia Yosef, of blessed memory",
+      "leader": "Aryeh Deri"
+    }
   },
   {
     "id": "utj",
@@ -122,7 +166,16 @@
     "components": [
       "דגל התורה",
       "אגודת ישראל"
-    ]
+    ],
+    "en": {
+      "name": "United Torah Judaism",
+      "officialName": "Torah and Sabbath Judaism, Agudat Yisrael – Degel HaTorah",
+      "leader": "Yaakov Asher",
+      "components": [
+        "Degel HaTorah",
+        "Agudat Yisrael"
+      ]
+    }
   },
   {
     "id": "yisrael-beiteinu",
@@ -136,7 +189,12 @@
     "bloc": "opposition",
     "platformStatus": "full",
     "bakalpiUrl": "https://www.bakalpi.co.il/he/parties/yisrael-beiteinu",
-    "platformUrl": null
+    "platformUrl": null,
+    "en": {
+      "name": "Yisrael Beytenu",
+      "officialName": "Yisrael Beytenu, headed by Avigdor Liberman",
+      "leader": "Avigdor Liberman"
+    }
   },
   {
     "id": "religious-zionism",
@@ -152,7 +210,13 @@
     "bakalpiUrl": "https://www.bakalpi.co.il/he/parties/religious-zionism",
     "platformUrl": "https://zionutdatit.org.il/",
     "linkedWith": "zehut",
-    "seatNote": "חלוקה של ממוצע הרשימה המשותפת (7) לפי מיקומי זהות ברשימה (2, 8, 10, 11)"
+    "seatNote": "חלוקה של ממוצע הרשימה המשותפת (7) לפי מיקומי זהות ברשימה (2, 8, 10, 11)",
+    "en": {
+      "name": "Religious Zionism",
+      "officialName": "Religious Zionism, headed by Bezalel Smotrich, and Zehut, headed by Moshe Feiglin",
+      "leader": "Bezalel Smotrich",
+      "seatNote": "A split of the joint list's average (7) according to Zehut's places on the list (2, 8, 10, 11)"
+    }
   },
   {
     "id": "raam",
@@ -166,7 +230,12 @@
     "bloc": "arab",
     "platformStatus": "none",
     "bakalpiUrl": "https://www.bakalpi.co.il/he/parties/raam",
-    "platformUrl": null
+    "platformUrl": null,
+    "en": {
+      "name": "Ra'am",
+      "officialName": "Ra'am – the United Arab List",
+      "leader": "Mansour Abbas"
+    }
   },
   {
     "id": "kalkalit",
@@ -184,7 +253,16 @@
     "components": [
       "המילואימניקים",
       "המפלגה הכלכלית החדשה"
-    ]
+    ],
+    "en": {
+      "name": "The Reservists and the Economic Party",
+      "officialName": "The Reservists and the Economic Party, headed by Yoaz Hendel and Yaron Zelekha",
+      "leader": "Yoaz Hendel and Yaron Zelekha",
+      "components": [
+        "The Reservists",
+        "The New Economic Party"
+      ]
+    }
   },
   {
     "id": "zehut",
@@ -200,7 +278,13 @@
     "bakalpiUrl": "https://www.bakalpi.co.il/he/parties/religious-zionism",
     "platformUrl": "https://www.zehut.org.il/",
     "linkedWith": "religious-zionism",
-    "seatNote": "חלוקה של ממוצע הרשימה המשותפת (7) לפי מיקומי זהות ברשימה (2, 8, 10, 11)"
+    "seatNote": "חלוקה של ממוצע הרשימה המשותפת (7) לפי מיקומי זהות ברשימה (2, 8, 10, 11)",
+    "en": {
+      "name": "Zehut",
+      "officialName": "Religious Zionism, headed by Bezalel Smotrich, and Zehut, headed by Moshe Feiglin",
+      "leader": "Moshe Feiglin",
+      "seatNote": "A split of the joint list's average (7) according to Zehut's places on the list (2, 8, 10, 11)"
+    }
   },
   {
     "id": "amcha-yisrael",
@@ -214,6 +298,11 @@
     "bloc": null,
     "platformStatus": "full",
     "bakalpiUrl": "https://www.bakalpi.co.il/he/parties/amcha-yisrael",
-    "platformUrl": null
+    "platformUrl": null,
+    "en": {
+      "name": "Amcha Yisrael",
+      "officialName": "Amcha Yisrael, headed by Ofer Winter",
+      "leader": "Ofer Winter"
+    }
   }
 ]

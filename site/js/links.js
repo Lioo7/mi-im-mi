@@ -23,6 +23,6 @@ export const SITE_TRANSLATOR = 'האתר';
 
 // A translated quote says so: "<speaker>, <original channel>, <date> (תרגום: <translator>)".
 export function quoteAttribution({ quoteBy, quoteChannel: channel, quoteTranslatedBy, sourceUrl, sourceType, sourceDate }, partyName, S = HE) {
-  const line = [quoteBy || partyName, channel || quoteChannel({ sourceUrl, sourceType }, S), S.fmtDate(sourceDate)].filter(Boolean).join(', ');
-  return quoteTranslatedBy && quoteTranslatedBy !== SITE_TRANSLATOR ? `${line} ${S.links.translatedBy(quoteTranslatedBy)}` : line;
+  const line = [quoteBy ? S.nameOf(quoteBy) : partyName, channel ? S.nameOf(channel) : quoteChannel({ sourceUrl, sourceType }, S), S.fmtDate(sourceDate)].filter(Boolean).join(', ');
+  return quoteTranslatedBy && quoteTranslatedBy !== SITE_TRANSLATOR ? `${line} ${S.links.translatedBy(S.nameOf(quoteTranslatedBy))}` : line;
 }

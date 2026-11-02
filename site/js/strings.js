@@ -22,6 +22,8 @@ export const S = {
   langToggle: { to: 'en', label: 'English', aria: 'Switch to English', lang: 'en' },
   // Shown only on a translation (the Hebrew is the original).
   translatedNote: '',
+  // A person or channel named in the data, in the reader's language (the data is in Hebrew).
+  nameOf: (n) => n,
 
   nav: {
     method: 'איך זה עובד',

@@ -11,5 +11,9 @@
   "mode": "results",
   "resultsAsOf": "2026-10-30",
   "resultsStatus": "לפי תוצאות ועדת הבחירות המרכזית, נכון ל-30.10.2026, לפני הגשה לנשיא",
-  "resultsSourceUrl": "https://votes26.bechirot.gov.il/"
+  "resultsSourceUrl": "https://votes26.bechirot.gov.il/",
+  "en": {
+    "pollNote": "Average of polls published up to 23 Oct 2026. The polls are not current, and nothing should be inferred from them about voting patterns or public opinion today.",
+    "resultsStatus": "According to the Central Elections Committee's results, as of 30 Oct 2026, before submission to the President"
+  }
 }

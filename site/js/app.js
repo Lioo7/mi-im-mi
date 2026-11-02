@@ -432,6 +432,13 @@ function quoteHtml(p) {
   return original + (p.quoteTranslationEn ? `<p class="q-text q-trans">“${esc(p.quoteTranslationEn)}” ${esc(S.sheet.siteTranslation)}</p>` : '');
 }
 
+// The official list name is a legal name: in English it stays verbatim in Hebrew, followed by our translation.
+function officialNameHtml(p) {
+  if (lang === 'he') return esc(p.officialName);
+  const he = data.parties.find((x) => x.id === p.id).officialName;
+  return `<span lang="he" dir="rtl">${esc(he)}</span> (${esc(p.officialName)})`;
+}
+
 // First sentence of a position's summary, shown under its axis label in the pair view.
 function pairSentence(pid, tid) {
   const p = posOf(pid, tid);
@@ -861,7 +868,7 @@ function cellSheet(pid, tid) {
   const p = party(pid);
   openSheet(`
     <h2>${esc(p.name)} · ${esc(topic(tid).name)}</h2>
-    <p class="muted small">${esc(S.sheet.officialName)}: ${esc(p.officialName)}</p>
+    <p class="muted small">${esc(S.sheet.officialName)}: ${officialNameHtml(p)}</p>
     ${positionBlock(pid, tid)}
     <h3>${esc(S.sheet.why)}</h3>
     ${whyHtml(cell, pid, tid)}
@@ -895,11 +902,11 @@ function partyNotes(p) {
       ? S.elected.partyResult(ctx.seatsOf(p.id), l.pct.toFixed(2), fmtNum(l.votes), l.parties.length > 1)
       : S.elected.partyBelow(l.pct.toFixed(2), electionResults.threshold);
     if (l.splitNote) notes.push(l.splitNote);
-    return seatSourceLine() + `<p class="note">${esc(result)}</p>` + notes.map((n) => `<p class="note note-soft">${esc(n)}</p>`).join('');
+    return seatSourceLine() + `<p class="note">${esc(result)}</p>` + notes.map((n) => `<p class="note note-soft">${bidi(n)}</p>`).join('');
   }
   const seatNote = p.seatNote && showSeats();
   if (seatNote) notes.push(p.seatNote);
-  return notes.map((n) => `<p class="note note-soft">${esc(n)}</p>`).join('') + (seatNote ? pollLegalLine() : '');
+  return notes.map((n) => `<p class="note note-soft">${bidi(n)}</p>`).join('') + (seatNote ? pollLegalLine() : '');
 }
 
 function partySheet(pid, compareWith = '') {
@@ -908,7 +915,7 @@ function partySheet(pid, compareWith = '') {
     .map((x) => `<option value="${x.id}"${x.id === compareWith ? ' selected' : ''}>${esc(x.name)}</option>`).join('');
   openSheet(`
     <h2>${esc(p.name)}</h2>
-    <p class="muted small">${esc(S.sheet.officialName)}: ${esc(p.officialName)}</p>
+    <p class="muted small">${esc(S.sheet.officialName)}: ${officialNameHtml(p)}</p>
     ${partyNotes(p)}
     <label class="compare">${esc(S.pair.compareWith)}
       <select data-act="compare" data-id="${pid}"><option value="">${esc(S.pair.choose)}</option>${options}</select>

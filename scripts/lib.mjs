@@ -167,6 +167,26 @@ export function validateTopics(topics) {
   return errors;
 }
 
+// The English version (#3): every Hebrew text field in parties, meta, results and scenarios has an `en` twin, and
+// an English text carries no Hebrew except a ballot letter in parentheses.
+export function validateEnglish({ parties, meta, results, scenarios }) {
+  const errors = [];
+  const text = (v) => typeof v === 'string' && v.trim() !== '' && !/[\u0590-\u05FF]/.test(v.replace(/\([\u0590-\u05FF]{1,3}\)/g, ''));
+  const need = (at, rec, fields) => {
+    for (const f of fields) {
+      if (rec[f] == null) continue;
+      const en = rec.en?.[f];
+      const ok = Array.isArray(rec[f]) ? Array.isArray(en) && en.length === rec[f].length && en.every(text) : text(en);
+      if (!ok) errors.push(`${at}: missing or non-English en.${f}`);
+    }
+  };
+  for (const p of parties) need(`party ${p.id}`, p, ['name', 'officialName', 'leader', 'components', 'seatNote']);
+  need('meta', meta, ['pollNote', 'resultsStatus']);
+  for (const l of results?.lists ?? []) need(`results list ${l.parties.join('+')}`, l, ['splitNote']);
+  for (const sc of scenarios?.scenarios ?? []) for (const src of sc.sources ?? []) need(`scenario ${sc.id} source ${src.url}`, src, ['outlet', 'by']);
+  return errors;
+}
+
 // `where(p)` labels an error (e.g. a CSV row number).
 export function validatePositions(positions, parties, topics, where = (p) => key(p)) {
   const errors = [];

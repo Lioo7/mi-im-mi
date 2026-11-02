@@ -4,6 +4,14 @@ export const plural = (n, one, many) => (n === 1 ? one : `${n} ${many}`);
 const topicsN = (n) => plural(n, '1 topic', 'topics');
 const inTopics = (n) => `on ${topicsN(n)}`;
 const seatsN = (n) => plural(n, '1 seat', 'seats');
+// People and channels named in the data (quote speakers, where a quote was published, who translated it). The source
+// of each English spelling is in docs/research/decisions.md; test/strings.test.mjs checks every value has an entry.
+export const NAMES = {
+  'בנימין נתניהו': 'Benjamin Netanyahu', 'גדי איזנקוט': 'Gadi Eisenkot', 'נפתלי בנט': 'Naftali Bennett',
+  'איתמר בן גביר': 'Itamar Ben-Gvir', 'אריה דרעי': 'Aryeh Deri', 'בצלאל סמוטריץ׳': 'Bezalel Smotrich',
+  'מנסור עבאס': 'Mansour Abbas', 'יריב לוין': 'Yariv Levin',
+  'פייסבוק': 'Facebook', 'כיפה': 'Kipa',
+};
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const dayMonth = (iso) => { const [, m, d] = iso.split('-').map(Number); return `${d} ${MONTHS[m - 1]}`; };
 
@@ -23,6 +31,7 @@ export const S = {
   // The switch to the other language: its label and aria-label are in that language.
   langToggle: { to: 'he', label: 'עברית', aria: 'מעבר לעברית', lang: 'he' },
   translatedNote: 'Translated from Hebrew. The Hebrew version is authoritative.',
+  nameOf: (n) => NAMES[n] ?? n,
 
   nav: {
     method: 'How it works',
@@ -55,7 +64,7 @@ export const S = {
     unity: 'Unity',
     opposition: 'Opposition bloc',
     coalition: 'Coalition bloc',
-    blocNote: 'Blocs as defined by Bakalpi and Channel 12 News.',
+    blocNote: 'Blocs as defined by Bakalpi and N12.',
     scenariosTitle: (d) => `Scenarios raised in the media · as of ${d}`,
     scenariosNote: 'Tapping a scenario fills in the selection, and you can change it. A party not named in it counts as opposed.',
     scenarioLabel: (members, supporters, abstainers) => [
@@ -300,7 +309,7 @@ export const S = {
     colorRule: 'Red = the parties are 3 or more steps apart on the scale, or 2 steps when one of them has declared it a red line.',
     disclaimer: 'This is not a voting recommendation.',
     independent: 'The site is independent and not affiliated with Bakalpi or with any party.',
-    names: 'List names as published by the Central Elections Committee.',
+    names: 'List names as published by the Central Elections Committee. English names follow the Government Press Office\'s English list or the party\'s own English, and are otherwise transliterated.',
     intro: (n) => `For each of the ${n} parties we set a position on a 5-point scale on each of 8 topics, based on what the party itself said or wrote. The match between parties is computed automatically from the distance on the scale, with no manual judgment of pairs.`,
     levelsTitle: 'How the color is set',
     levelRules: [
@@ -348,7 +357,7 @@ export const S = {
     nullRule: 'When we found no source that meets the rules, the position is marked "No stated position". We do not guess.',
     bakalpi: 'The research started from the independent site Bakalpi, which collects the parties\' positions. The summaries were rewritten, and every position links to its primary source.',
     sourceMixTitle: 'Source types by bloc',
-    sourceMixIntro: 'Not every party has a platform for the 2026 election, so the type of source varies between parties and blocs. The table shows how many of the set positions rest on each type of source, and how many topics were left without a position. Blocs as defined by Bakalpi (Channel 12 News).',
+    sourceMixIntro: 'Not every party has a platform for the 2026 election, so the type of source varies between parties and blocs. The table shows how many of the set positions rest on each type of source, and how many topics were left without a position. Blocs as defined by Bakalpi (N12).',
     sourceMixCols: ['Bloc', 'Platform', 'Statement', 'Record', 'No position'],
     blocNames: { coalition: 'Coalition bloc', opposition: 'Opposition bloc', arab: 'Arab parties', none: 'Not in a bloc' },
     undatedNote: 'Sources with no date are shown without one.',
@@ -364,7 +373,7 @@ export const S = {
     orderRules: (order, unityPartner) => [
       { polls: 'The parties are ordered by poll average. All parties have the same color.', ballot: 'The parties are ordered by their ballot letters, in Hebrew alphabetical order. All parties have the same color.' }[order],
       'The ready-made scenarios are in alphabetical order.',
-      'Blocs as defined by Bakalpi and Channel 12 News. Parties not in a bloc are not included in any scenario, but you can add them.',
+      'Blocs as defined by Bakalpi and N12. Parties not in a bloc are not included in any scenario, but you can add them.',
       { polls: 'Unity = Likud plus the largest party in the opposition bloc by poll average. You pick the rest.', ballot: `Unity = Likud plus ${unityPartner} (you pick the rest).` }[order],
       'The scale numbers are not shown, and the direction of the scale (who is "right" and who is "left") carries no meaning.',
     ],
@@ -436,7 +445,7 @@ export const S = {
     media: {
       'x.com': 'X', 'www.ynet.co.il': 'ynet', 'www.mako.co.il': 'N12 (Mako)', 'www.maariv.co.il': 'Maariv', 'www.walla.co.il': 'Walla',
       'www.i24news.tv': 'i24NEWS', 'www.inn.co.il': 'Arutz Sheva (Israel National News)', 'www.israelnationalnews.com': 'Arutz Sheva (Israel National News)', 'www.kipa.co.il': 'Kipa',
-      '13tv.co.il': 'Channel 13 News', 'www.arab48.com': 'Arab48', 'bokra.net': 'Bokra', 'www.hakalkalit.org': 'HaKalkalit', // the party's own site: its English name is set with the step-3 party list
+      '13tv.co.il': 'Channel 13 News', 'www.arab48.com': 'Arab48', 'bokra.net': 'Bokra', 'www.hakalkalit.org': 'The New Economic Party',
       'main.knesset.gov.il': 'Bill in the Knesset',
     },
     platform: 'Party platform',

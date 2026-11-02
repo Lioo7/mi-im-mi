@@ -168,3 +168,33 @@
 - **מדיניות אבטחת תוכן (CSP) מלאה ב-`netlify.toml`:** סקריפטים רק מהאתר, בלי סקריפטים בתוך הדף, ובלי מאפייני `style` (רוחב מד המנדטים נקבע עכשיו מ-JavaScript). חריג אחד לסקריפטים: ה-hash של הסקריפט שבתג "Powered by Netlify", ש-Netlify מוסיפה לאתר במסלול החינמי. התג רץ ב-iframe מסוג srcdoc, שיורש את המדיניות שלנו.
 - **למה מותרים בלוקי `<style>` בתוך הדף:** הסגנון של התג מכיל את גודל המסך של המבקר (`--nl-vw`, `--nl-vh`), ולכן אין לו hash יציב. הוחלט לאפשר בלוקי `<style>` (`style-src-elem 'unsafe-inline'`), ולהמשיך לחסום מאפייני `style` (`style-src-attr 'none'`). בדפדפנים בלי CSP3 (ספארי לפני 15.4) התג יופיע בלי עיצוב. אם Netlify תשנה את הסקריפט של התג, בדיקת ה-smoke תדווח על ה-hash החדש.
 - **CSS:** הוסרו כללים שלא היו בשימוש, מבורר המפלגות הישן. בדיקה של הסגנון המחושב של כל רכיב ב-8 תצוגות, ברוחב 390 וברוחב 1280, הראתה שלא השתנה כלום.
+
+## גרסה באנגלית: שמות המפלגות והמקורות (02.11.2026)
+לקראת הגרסה באנגלית ([#3](https://github.com/Lioo7/mi-im-mi/issues/3)). הטקסט בעברית הוא הנוסח המחייב.
+- **סדר המקורות לשם באנגלית:**
+  1. ועדת הבחירות המרכזית באנגלית: לא פורסמו שמות באנגלית לבחירות לכנסת ה-26 (אתר התוצאות בעברית בלבד).
+  2. רשימת לשכת העיתונות הממשלתית (GPO) באנגלית מ-10.9.2026: ["Elections for the 26th Knesset: Party Spokespersons"](https://www.gov.il/BlobFolder/generalpage/file-gpo/en/file_Party%20Spokespersons%20-%2010%20September%202026.pdf). ברשימה 13 מפלגות ומנהיגיהן.
+  3. האתר או הערוצים של המפלגה או של האדם עצמו באנגלית.
+  4. תעתיק.
+- **כלל השמות:**
+  - שם מפלגה בעברית מתועתק (Beyachad, Yashar!, Otzma Yehudit, Yisrael Beytenu, Ra'am, Zehut, Shas).
+  - הוא מתורגם רק כשיש לו שם מקובל באנגלית (Religious Zionism, The Democrats, United Torah Judaism).
+  - העיתונות באנגלית לא אחידה: ב-GPO כתוב "Beyachad (Together)", ובטיימס אוף ישראל "B'Yachad".
+  - שמות מנהיגים כמו שהם כותבים אותם בעצמם.
+  - אותיות הפתק נשארות בעברית, כמו בפתק.
+- **החלטות לגבי שמות מסוימים:**
+  - **Yashar!:** עם סימן הקריאה, כמו בשם ובלוגו. ב-GPO כתוב "Yashar (Straight)".
+  - **The Joint List:** השם באתר האנגלי של הרשימה (jointlist.org.il/en). ב-GPO כתוב "The United List".
+  - **The Reservists and the Economic Party:** לפי GPO. המרכיבים: The Reservists, The New Economic Party. אתר המפלגה הכלכלית בעברית בלבד.
+  - **Zehut, Moshe Feiglin:** לפי אתר המפלגה באנגלית (zehut.org.il/en). זהות לא מופיעה ברשימת ה-GPO.
+  - **Yaakov Asher:** האיות המקובל. ב-GPO כתוב "Jacob Asher".
+  - **Yaron Zelekha:** האיות המקובל בעיתונות באנגלית. ב-GPO כתוב "Zilicha".
+  - **Avigdor Liberman:** האיות בחשבון ה-X שלו (@AvigdorLiberman), ובטיימס אוף ישראל, בג'רוזלם פוסט ובערוץ 7. ב-GPO כתוב "Lieberman".
+  - **Aryeh Deri:** בלי השם האמצעי "Makhlouf" שמופיע ב-GPO, כמו בנתונים בעברית.
+- **השם הרשמי של הרשימה** (כפי שפורסם בוועדת הבחירות) מוצג באנגלית בעברית, כלשונו, ואחריו התרגום שלנו בסוגריים.
+- **כלי תקשורת:**
+  - N12 (Mako): כל הקישורים ל-mako בנתונים הם כתבות חדשות של N12. "N12" גם במקום "Channel 12".
+  - Arutz Sheva (Israel National News)
+  - Kipa
+  - The Jerusalem Post
+  - Zman Yisrael (אתר האחות בעברית של טיימס אוף ישראל)

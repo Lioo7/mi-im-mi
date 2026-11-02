@@ -21,7 +21,8 @@
     {
       "parties": ["religious-zionism", "zehut"], "votes": 290451, "pct": 5.10, "seats": 6,
       "split": { "religious-zionism": 5, "zehut": 1 },
-      "splitNote": "חלוקת 6 המנדטים של הרשימה (ט) לפי מיקומי זהות ברשימה (2, 8, 10, 11): 5 להציונות הדתית ו-1 לזהות."
+      "splitNote": "חלוקת 6 המנדטים של הרשימה (ט) לפי מיקומי זהות ברשימה (2, 8, 10, 11): 5 להציונות הדתית ו-1 לזהות.",
+      "en": { "splitNote": "The list's (ט) 6 seats are split according to Zehut's places on the list (2, 8, 10, 11): 5 to Religious Zionism and 1 to Zehut." }
     },
     { "parties": ["kalkalit"], "votes": 154995, "pct": 2.72, "seats": 0 },
     { "parties": ["amcha-yisrael"], "votes": 95663, "pct": 1.68, "seats": 0 }
