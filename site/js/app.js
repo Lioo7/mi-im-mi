@@ -185,6 +185,7 @@ function renderMethod() {
     </section>
     <h1 class="page-title">${esc(M.title)}</h1>
     <p>${esc(M.intro(ctx.parties.length))}</p>
+    ${M.translation ? `<h3>${esc(M.translationTitle)}</h3><p>${esc(M.translation)}</p>` : ''}
     <ol>${S.how.lines.map((l) => `<li>${esc(l)}</li>`).join('')}</ol>
     <h3>${esc(M.rolesTitle)}</h3>
     <ul>${M.rolesRules(showSeats(), !isResults()).map((r) => `<li>${esc(r)}</li>`).join('')}</ul>

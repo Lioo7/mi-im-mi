@@ -306,6 +306,8 @@ export const S = {
 
   method: {
     title: 'Methodology, sources and clarifications',
+    translationTitle: 'About this translation',
+    translation: 'This English version was translated from the Hebrew, which is authoritative. The summaries, the translations of quotes and the topic and scale labels were translated by the site, then checked by an independent reviewer: first a blind back-translation into Hebrew, then a comparison with the original. Quotes stay in their original language. Party and leader names follow the Government Press Office\'s English list or the party\'s own English, and are otherwise transliterated.',
     colorRule: 'Red = the parties are 3 or more steps apart on the scale, or 2 steps when one of them has declared it a red line.',
     disclaimer: 'This is not a voting recommendation.',
     independent: 'The site is independent and not affiliated with Bakalpi or with any party.',

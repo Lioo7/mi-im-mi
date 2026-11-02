@@ -307,6 +307,9 @@ export const S = {
 
   method: {
     title: 'מתודולוגיה, מקורות והבהרות',
+    // On a translation only: what was translated and how it was checked (the Hebrew is the original).
+    translationTitle: '',
+    translation: '',
     colorRule: 'אדום = המפלגות רחוקות 3 דרגות או יותר בסולם, או 2 דרגות כשאחת מהן הצהירה שזה קו אדום שלה.',
     disclaimer: 'זה לא המלצת הצבעה.',
     independent: 'האתר עצמאי ואינו קשור לבקלפי או לאף מפלגה.',
