@@ -13,7 +13,7 @@ const topic = new Map(topics.map((t) => [t.id, t]));
 
 const COLUMNS = [
   'flagged', 'flag_reason', 'red_line', 'components_disagree', 'position', 'position_label', 'topic', 'party', 'summary', 'summary_en', 'quote', 'quote_by', 'quote_translation', 'quote_translation_en', 'quote_translated_by', 'quote_channel',
-  'source_type', 'source_url', 'archive_url', 'via_url', 'source_date', 'confidence', 'party_id', 'topic_id',
+  'source_type', 'source_url', 'extra_source_url', 'archive_url', 'via_url', 'source_date', 'confidence', 'party_id', 'topic_id',
   'evidence_note', 'red_line_evidence',
 ];
 
@@ -36,6 +36,7 @@ const rows = reviewSort(records, parties, topics).map((r) => ({
   quote_channel: r.quoteChannel ?? '',
   source_type: r.sourceType ?? '',
   source_url: r.sourceUrl ?? '',
+  extra_source_url: r.extraSourceUrl ?? '',
   archive_url: r.archiveUrl ?? '',
   via_url: r.viaUrl ?? '',
   source_date: r.sourceDate ?? '',

@@ -268,6 +268,7 @@ export const S = {
     translationBy: (n) => `(תרגום: ${n})`,
     close: 'סגירה',
     source: 'מקור',
+    extraSource: 'מקור נוסף',
     via: 'דרך בקלפי',
     sourceTypes: { platform: 'מצע', statement: 'הצהרה', record: 'רקורד חקיקתי' },
     date: (d) => `מתאריך ${d}`,

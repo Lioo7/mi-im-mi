@@ -418,6 +418,7 @@ function positionBlock(pid, tid, { heading = true } = {}) {
       <span class="tag tag-src">${esc(T.sourceTypes[p.sourceType] ?? '')}</span>
       ${p.sourceDate ? `<span class="muted">${esc(T.date(fmtDate(p.sourceDate)))}</span>` : ''}
       <a href="${esc(p.sourceUrl)}" rel="noopener" target="_blank">${esc(T.source)}</a>
+      ${p.extraSourceUrl ? `· <a href="${esc(p.extraSourceUrl)}" rel="noopener" target="_blank">${esc(T.extraSource)}</a>` : ''}
       ${p.archiveUrl ? `· <a href="${esc(p.archiveUrl)}" rel="noopener" target="_blank">${esc(T.archive)}</a>` : ''}
       ${p.viaUrl ? `· <a href="${esc(p.viaUrl)}" rel="noopener" target="_blank">${esc(T.via)}</a>` : ''}
     </p>

@@ -32,6 +32,7 @@ const rows = readJson(MERGED)
     components_disagree: r.componentsDisagree ? 'TRUE' : 'FALSE',
     source_type: r.sourceType ?? '',
     source_url: r.sourceUrl ?? '',
+    extra_source_url: r.extraSourceUrl ?? '',
     archive_url: r.archiveUrl ?? '',
     source_date: r.sourceDate ?? '',
     confidence: r.confidence ?? '',

@@ -266,6 +266,7 @@ export const S = {
     translationBy: (n) => `(translation: ${n})`,
     close: 'Close',
     source: 'Source',
+    extraSource: 'Additional source',
     via: 'via Bakalpi',
     sourceTypes: { platform: 'Platform', statement: 'Statement', record: 'Legislative record' },
     date: (d) => `dated ${d}`,

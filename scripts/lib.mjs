@@ -28,7 +28,7 @@ export function loadData() {
 // Fields published in site/data/positions.json, in output order.
 export const PUBLIC_FIELDS = [
   'partyId', 'topicId', 'position', 'redLine', 'summary', 'summaryEn', 'quote', 'quoteBy', 'quoteTranslation', 'quoteTranslationEn', 'quoteTranslatedBy', 'quoteChannel',
-  'sourceUrl', 'sourceType', 'sourceDate', 'viaUrl', 'archiveUrl', 'confidence', 'componentsDisagree',
+  'sourceUrl', 'extraSourceUrl', 'sourceType', 'sourceDate', 'viaUrl', 'archiveUrl', 'confidence', 'componentsDisagree',
 ];
 
 export const SOURCE_TYPES = ['platform', 'statement', 'record'];
@@ -219,6 +219,8 @@ export function validatePositions(positions, parties, topics, where = (p) => key
       if (p.sourceDate != null && !isDate(p.sourceDate)) errors.push(`${at}: bad sourceDate "${p.sourceDate}"`);
     }
     if (p.viaUrl && !isHttps(p.viaUrl)) errors.push(`${at}: invalid viaUrl`);
+    // A second primary source, when the placement rests on two documents of the party (shown as "additional source").
+    if (p.extraSourceUrl != null && (!isHttps(p.extraSourceUrl) || p.position === null)) errors.push(`${at}: extraSourceUrl must be a URL, on a row with a position`);
     if (p.archiveUrl && !/^https:\/\/web\.archive\.org\/web\/\d{14}\//.test(p.archiveUrl)) errors.push(`${at}: archiveUrl must be a Wayback Machine snapshot`);
     if (p.archiveUrl && p.position === null) errors.push(`${at}: archiveUrl on a row without a position`);
     if (p.confidence && !CONFIDENCE.includes(p.confidence)) errors.push(`${at}: bad confidence "${p.confidence}"`);

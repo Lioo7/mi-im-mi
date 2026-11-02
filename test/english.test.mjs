@@ -78,3 +78,15 @@ test('every position has an English summary, and every non-English quote an Engl
   assert.equal(run({ quote: 'We are staying', quoteTranslationEn: null }), '');
   assert.match(run({ quote: 'We are staying', quoteTranslationEn: 'We are staying' }), /quoteTranslationEn/);
 });
+
+test('an additional source is a URL, and only on a row with a position', () => {
+  const parties = [{ id: 'p' }];
+  const topics = [{ id: 't' }];
+  const row = (extra) => ({ partyId: 'p', topicId: 't', position: -2, redLine: false, summary: 'תקציר', summaryEn: 'Summary', quote: null,
+    sourceUrl: 'https://a.example/', sourceType: 'platform', ...extra });
+  const run = (extra) => validatePositions([row(extra)], parties, topics).join();
+  assert.equal(run({ extraSourceUrl: 'https://b.example/plan' }), '');
+  assert.equal(run({ extraSourceUrl: null }), '');
+  assert.match(run({ extraSourceUrl: 'not a url' }), /extraSourceUrl/);
+  assert.match(run({ position: null, sourceUrl: null, sourceType: null, extraSourceUrl: 'https://b.example/' }), /extraSourceUrl/);
+});
