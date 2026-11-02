@@ -13,7 +13,19 @@
       "1": "חובת שירות לבני ישיבות, עם סנקציות כלכליות אישיות",
       "2": "חובת שירות צבאי או אזרחי לכל האזרחים, כולל ערבים"
     },
-    "axisNote": "הציר מודד את היקף חובת השירות. המיקום נקבע לפי העמדה המוצהרת לגבי שירות חרדים, ו-+2 רק למפלגה שתומכת במפורש בחובת שירות לכל האזרחים כולל ערבים. העמדה לגבי שירות אזרחים ערבים מופיעה תמיד בתקציר; מפלגה שהביעה עמדה רק לגבי שירות ערבים – אין עמדה מוצהרת. התנגדות לשירות חובה בכלל ממוקמת ב-−2, והנימוק של המפלגה מופיע בתקציר."
+    "axisNote": "הציר מודד את היקף חובת השירות. המיקום נקבע לפי העמדה המוצהרת לגבי שירות חרדים, ו-+2 רק למפלגה שתומכת במפורש בחובת שירות לכל האזרחים כולל ערבים. העמדה לגבי שירות אזרחים ערבים מופיעה תמיד בתקציר; מפלגה שהביעה עמדה רק לגבי שירות ערבים – אין עמדה מוצהרת. התנגדות לשירות חובה בכלל ממוקמת ב-−2, והנימוק של המפלגה מופיע בתקציר.",
+    "en": {
+      "name": "Enlistment and sharing the burden equally",
+      "short": "Draft",
+      "axis": {
+        "-2": "No compulsory service for yeshiva students: an exemption anchored in law / Torah study as service, or opposition to compulsory service altogether",
+        "-1": "A gradual arrangement by agreement, adapted tracks, no personal sanctions",
+        "0": "Binding enlistment targets with institutional sanctions",
+        "1": "Compulsory service for yeshiva students, with personal economic sanctions",
+        "2": "Compulsory military or civil service for all citizens, including Arab citizens"
+      },
+      "axisNote": "The axis measures the scope of the service obligation. The placement follows the stated position on Haredi (ultra-Orthodox) service, and +2 goes only to a party that explicitly supports compulsory service for all citizens, including Arab citizens. The position on service by Arab citizens always appears in the summary; a party that stated a position only on service by Arab citizens has no stated position. Opposition to compulsory service altogether is placed at −2, and the party's reasoning appears in the summary."
+    }
   },
   {
     "id": "judiciary",
@@ -29,7 +41,19 @@
       "1": "עצמאות מערכת המשפט; הסדרה חוקתית בהסכמה רחבה (חוקה או חוק יסוד: החקיקה)",
       "2": "ביטול השינויים שנחקקו בקדנציה האחרונה, כולל בוועדה לבחירת שופטים, ועיגון זכויות וביקורת שיפוטית בחוקי יסוד"
     },
-    "axisNote": "הציר מודד את היחס בין הדרג הנבחר למערכת המשפט."
+    "axisNote": "הציר מודד את היחס בין הדרג הנבחר למערכת המשפט.",
+    "en": {
+      "name": "The judicial system and the rule of law",
+      "short": "Judi­ciary",
+      "axis": {
+        "-2": "Elected officials have decisive influence over the selection of judges, an override by a simple majority, non-binding legal counsel",
+        "-1": "Changes in the same direction on a smaller scale, for example splitting the Attorney General's role or a court of appeal over the High Court of Justice",
+        "0": "Limited changes only by broad agreement, for example an override clause with a large majority or regulating judicial review by agreement",
+        "1": "Independence of the judicial system; constitutional regulation by broad agreement (a constitution or a Basic Law: Legislation)",
+        "2": "Repealing the changes enacted in the last Knesset term, including to the Judicial Selection Committee, and anchoring rights and judicial review in Basic Laws"
+      },
+      "axisNote": "The axis measures the relationship between elected officials and the judicial system."
+    }
   },
   {
     "id": "inquiry",
@@ -46,7 +70,19 @@
       "1": "ועדת חקירה ממלכתית לפי חוק ועדות חקירה",
       "2": "ועדה ממלכתית מיידית שחוקרת גם את הדרג המדיני, עם התחייבות ליישם את מסקנותיה"
     },
-    "axisNote": "הציר מודד את סוג החקירה שהמפלגה תומכת בה, לא את עמדתה לגבי אירועי 7 באוקטובר."
+    "axisNote": "הציר מודד את סוג החקירה שהמפלגה תומכת בה, לא את עמדתה לגבי אירועי 7 באוקטובר.",
+    "en": {
+      "name": "A state commission of inquiry into October 7",
+      "short": "In­quiry",
+      "axis": {
+        "-2": "Opposes establishing an external commission of inquiry at this stage",
+        "-1": "A commission of inquiry whose composition is set by the political leadership (the government or the Knesset), not a state commission",
+        "0": "A mixed composition: judges or professionals chosen by the Knesset, with no commitment to the mechanism of a state commission",
+        "1": "A state commission of inquiry under the Commissions of Inquiry Law",
+        "2": "An immediate state commission that also investigates the political leadership, with a commitment to implement its conclusions"
+      },
+      "axisNote": "The axis measures the type of inquiry the party supports, not its position on the events of October 7."
+    }
   },
   {
     "id": "religion",
@@ -62,7 +98,19 @@
       "1": "פירוק המונופול של הרבנות: נישואין אזרחיים, כשרות וגיור גם מחוץ לרבנות, תחבורה ציבורית בשבת לפי החלטה מקומית",
       "2": "הפרדת דת ממדינה: ביטול המועצות הדתיות ותקצוב הישיבות, ונישואין וגירושין אזרחיים מלאים"
     },
-    "axisNote": "הציר מודד את הצביון הדתי של המדינה. העמדה לגבי חוק הלאום וזהות המדינה מופיעה בתקציר בלבד, כי זה ציר אחר."
+    "axisNote": "הציר מודד את הצביון הדתי של המדינה. העמדה לגבי חוק הלאום וזהות המדינה מופיעה בתקציר בלבד, כי זה ציר אחר.",
+    "en": {
+      "name": "Religion, state and identity",
+      "short": "Reli­gion",
+      "axis": {
+        "-2": "Strengthening the religious character in law: expanding the powers of the Rabbinate and the rabbinical courts, and legislation in the spirit of halacha in the public sphere",
+        "-1": "Keeping the status quo and the Rabbinate's status in marriage, conversion and kashrut",
+        "0": "The status quo with specific relief, for example a partnership covenant for those who cannot marry",
+        "1": "Ending the Rabbinate's monopoly: civil marriage, kashrut and conversion also outside the Rabbinate, public transportation on the Sabbath by local decision",
+        "2": "Separating religion and state: abolishing the religious councils and the funding of yeshivas, and full civil marriage and divorce"
+      },
+      "axisNote": "The axis measures the religious character of the state. The position on the Nation-State Law and the state's identity appears only in the summary, because that is a different axis."
+    }
   },
   {
     "id": "palestinian",
@@ -78,7 +126,19 @@
       "1": "הסדר מדיני אזורי שיכול לכלול ישות או מדינה פלסטינית מפורזת, בתנאים ביטחוניים",
       "2": "מדינה פלסטינית על בסיס קווי 1967, עם הקפאה או פינוי של התנחלויות"
     },
-    "axisNote": "הציר מודד ריבונות ושליטה בגדה (הסדר הקבע). עזה נמדדת בציר נפרד. הגירה או גירוש כמדיניות מדינה פעילה ממוקמים ב-−2; תמיכה ב\"לאפשר למי שרוצה לצאת\" אינה משנה מיקום ומופיעה בתקציר, במונחי המפלגה."
+    "axisNote": "הציר מודד ריבונות ושליטה בגדה (הסדר הקבע). עזה נמדדת בציר נפרד. הגירה או גירוש כמדיניות מדינה פעילה ממוקמים ב-−2; תמיכה ב\"לאפשר למי שרוצה לצאת\" אינה משנה מיקום ומופיעה בתקציר, במונחי המפלגה.",
+    "en": {
+      "name": "The Palestinian issue",
+      "short": "Pales­tin­ian",
+      "axis": {
+        "-2": "Full Israeli sovereignty over Judea and Samaria / the West Bank and never a Palestinian state, or emigration/expulsion as active state policy",
+        "-1": "Opposition to a Palestinian state and to any withdrawal, strengthening settlement; partial sovereignty or dismantling the Palestinian Authority",
+        "0": "No Palestinian state in the foreseeable future, and also no applying sovereignty / annexation: managing the conflict and civil separation",
+        "1": "A regional diplomatic settlement that could include a demilitarized Palestinian entity or state, under security conditions",
+        "2": "A Palestinian state based on the 1967 lines, with a freeze on settlements or their evacuation"
+      },
+      "axisNote": "The axis measures sovereignty and control in Judea and Samaria / the West Bank (the permanent status). Gaza is measured on a separate axis. Emigration or expulsion as active state policy is placed at −2; support for \"allowing those who want to leave\" does not change the placement and appears in the summary, in the party's terms."
+    }
   },
   {
     "id": "gaza",
@@ -94,7 +154,19 @@
       "1": "הסדר אזורי בהובלת ארה״ב ומדינות ערב, כולל תפקיד לרשות פלסטינית מחודשת, ונסיגה הדרגתית",
       "2": "סיום המלחמה, נסיגה מלאה והסדר מדיני כמסגרת לביטחון"
     },
-    "axisNote": "הציר מודד שליטה ברצועה והגישה למלחמה. הגירה או גירוש כמדיניות מדינה פעילה ממוקמים ב-−2; תמיכה ב\"לאפשר למי שרוצה לצאת\" אינה משנה מיקום ומופיעה בתקציר, במונחי המפלגה. עמדות על תקציב הביטחון, איראן ולבנון מופיעות בתקציר."
+    "axisNote": "הציר מודד שליטה ברצועה והגישה למלחמה. הגירה או גירוש כמדיניות מדינה פעילה ממוקמים ב-−2; תמיכה ב\"לאפשר למי שרוצה לצאת\" אינה משנה מיקום ומופיעה בתקציר, במונחי המפלגה. עמדות על תקציב הביטחון, איראן ולבנון מופיעות בתקציר.",
+    "en": {
+      "name": "Security, Gaza and the day after",
+      "short": "Gaza",
+      "axis": {
+        "-2": "Continued Israeli control of the Strip and settlement, or emigration/expulsion as active state policy",
+        "-1": "Military decisive victory and full freedom of action, Israeli security control with no role for the Palestinian Authority",
+        "0": "Demilitarization and Israeli security control alongside an Arab or international civilian administration",
+        "1": "A regional arrangement led by the US and Arab states, including a role for a revitalized Palestinian Authority, and gradual withdrawal",
+        "2": "Ending the war, full withdrawal and a diplomatic settlement as the framework for security"
+      },
+      "axisNote": "The axis measures control of the Strip and the approach to the war. Emigration or expulsion as active state policy is placed at −2; support for \"allowing those who want to leave\" does not change the placement and appears in the summary, in the party's terms. Positions on the defense budget, Iran and Lebanon appear in the summary."
+    }
   },
   {
     "id": "economy",
@@ -111,7 +183,19 @@
       "1": "הרחבת השירותים הציבוריים והתמיכות: העלאת שכר המינימום, מס הכנסה שלילי, דיור ציבורי",
       "2": "כלכלת רווחה: חלוקה מחדש של משאבים, הרחבה משמעותית של קצבאות וזכויות עובדים ופיקוח על מחירים"
     },
-    "axisNote": "הציר מודד את תפקיד המדינה בכלכלה, כולל דיור. רוב המפלגות מדברות על תחרות, ולכן הפערים בנושא הזה קטנים יחסית."
+    "axisNote": "הציר מודד את תפקיד המדינה בכלכלה, כולל דיור. רוב המפלגות מדברות על תחרות, ולכן הפערים בנושא הזה קטנים יחסית.",
+    "en": {
+      "name": "The economy and the cost of living",
+      "short": "Econ­omy",
+      "axis": {
+        "-2": "A clear free market: broad tax cuts (VAT, income tax and corporate tax) and shrinking government spending and regulation",
+        "-1": "Competition and opening the market as the main way to lower the cost of living (breaking up monopolies, imports), with a targeted safety net",
+        "0": "Competition alongside proactive government intervention in selected areas, such as housing and food",
+        "1": "Expanding public services and support: raising the minimum wage, a negative income tax, public housing",
+        "2": "A welfare economy: redistribution of resources, a significant expansion of allowances and workers' rights, and price controls"
+      },
+      "axisNote": "The axis measures the role of the state in the economy, including housing. Most parties talk about competition, so the gaps on this topic are relatively small."
+    }
   },
   {
     "id": "crime",
@@ -127,6 +211,18 @@
       "1": "דגש על מניעה וטיפול בגורמים המבניים (תעסוקה, חינוך, תשתיות), עם אכיפה אזרחית רגילה",
       "2": "שמירה על זכויות האזרח, בלי אמצעים חריגים, ופיקוח חיצוני על המשטרה"
     },
-    "axisNote": "כל המפלגות רוצות פחות פשיעה. הציר מודד את האמצעים: אמצעים חריגים מול טיפול בגורמים. תמיכה במעורבות שב״כ לבדה = −1; −2 דורש שב״כ ועוד לפחות אמצעי חריג אחד מהרשימה."
+    "axisNote": "כל המפלגות רוצות פחות פשיעה. הציר מודד את האמצעים: אמצעים חריגים מול טיפול בגורמים. תמיכה במעורבות שב״כ לבדה = −1; −2 דורש שב״כ ועוד לפחות אמצעי חריג אחד מהרשימה.",
+    "en": {
+      "name": "Personal security and crime",
+      "short": "Crime",
+      "axis": {
+        "-2": "Shin Bet involvement, administrative detention, defining crime (illegal weapons, protection rackets) as terrorism, expanding police powers",
+        "-1": "Tougher sentencing, a significant expansion of the police and its powers, and dedicated courts",
+        "0": "Stepped-up enforcement alongside investment in the community and in prevention",
+        "1": "An emphasis on prevention and on addressing structural causes (employment, education, infrastructure), with regular civil enforcement",
+        "2": "Protecting civil rights, with no exceptional measures, and external oversight of the police"
+      },
+      "axisNote": "All parties want less crime. The axis measures the means: exceptional measures versus addressing causes. Support for Shin Bet involvement alone = −1; −2 requires the Shin Bet plus at least one other exceptional measure from the list."
+    }
   }
 ]

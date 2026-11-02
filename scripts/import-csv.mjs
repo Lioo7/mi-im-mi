@@ -33,9 +33,11 @@ const records = rows.map((r) => {
     redLine: bool(r.red_line),
     componentsDisagree: bool(r.components_disagree),
     summary: textOrNull(r.summary),
+    summaryEn: textOrNull(r.summary_en),
     quote: textOrNull(r.quote),
     quoteBy: textOrNull(r.quote_by),
     quoteTranslation: textOrNull(r.quote_translation),
+    quoteTranslationEn: textOrNull(r.quote_translation_en),
     quoteTranslatedBy: textOrNull(r.quote_translated_by),
     quoteChannel: textOrNull(r.quote_channel),
     sourceUrl: textOrNull(r.source_url),
@@ -67,7 +69,7 @@ const changes = [];
 for (const r of out) {
   const old = prev.get(key(r));
   if (!old) { changes.push(`+ ${key(r)}`); continue; }
-  for (const f of ['position', 'redLine', 'componentsDisagree', 'summary', 'quote', 'quoteBy', 'quoteTranslation', 'quoteTranslatedBy', 'quoteChannel', 'sourceUrl', 'sourceType', 'sourceDate', 'archiveUrl']) {
+  for (const f of ['position', 'redLine', 'componentsDisagree', 'summary', 'summaryEn', 'quote', 'quoteBy', 'quoteTranslation', 'quoteTranslationEn', 'quoteTranslatedBy', 'quoteChannel', 'sourceUrl', 'sourceType', 'sourceDate', 'archiveUrl']) {
     if (JSON.stringify(old[f]) !== JSON.stringify(r[f])) {
       const show = (v) => (typeof v === 'string' && v.length > 60 ? v.slice(0, 57) + '…' : JSON.stringify(v));
       changes.push(`~ ${key(r)} ${f}: ${show(old[f])} → ${show(r[f])}`);

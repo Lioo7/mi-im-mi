@@ -27,7 +27,7 @@ export function loadData() {
 
 // Fields published in site/data/positions.json, in output order.
 export const PUBLIC_FIELDS = [
-  'partyId', 'topicId', 'position', 'redLine', 'summary', 'quote', 'quoteBy', 'quoteTranslation', 'quoteTranslatedBy', 'quoteChannel',
+  'partyId', 'topicId', 'position', 'redLine', 'summary', 'summaryEn', 'quote', 'quoteBy', 'quoteTranslation', 'quoteTranslationEn', 'quoteTranslatedBy', 'quoteChannel',
   'sourceUrl', 'sourceType', 'sourceDate', 'viaUrl', 'archiveUrl', 'confidence', 'componentsDisagree',
 ];
 
@@ -69,6 +69,8 @@ export function toCsv(columns, records) {
 
 // ---------- validation ----------
 const isHttps = (u) => typeof u === 'string' && /^https?:\/\/[^\s]+$/.test(u);
+// Non-empty English text: no Hebrew or Arabic letters.
+const isEnglish = (v) => typeof v === 'string' && v.trim() !== '' && !/[\u0590-\u06FF]/.test(v);
 const isDate = (d) => typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d);
 
 export function validateParties(parties) {
@@ -163,6 +165,8 @@ export function validateTopics(topics) {
   for (const t of topics) {
     for (const k of ['-2', '-1', '0', '1', '2']) if (!t.axis?.[k]) errors.push(`topic ${t.id}: missing axis label ${k}`);
     if (!t.short || !t.name) errors.push(`topic ${t.id}: missing name/short`);
+    for (const f of ['name', 'short', 'axisNote']) if (!isEnglish(t.en?.[f])) errors.push(`topic ${t.id}: missing or non-English en.${f}`);
+    for (const k of ['-2', '-1', '0', '1', '2']) if (!isEnglish(t.en?.axis?.[k])) errors.push(`topic ${t.id}: missing or non-English en.axis ${k}`);
   }
   return errors;
 }
@@ -203,6 +207,11 @@ export function validatePositions(positions, parties, topics, where = (p) => key
     if (typeof p.redLine !== 'boolean') errors.push(`${at}: redLine must be true/false`);
     if (p.redLine && p.position === null) errors.push(`${at}: redLine without a position`);
     if (!p.summary || !p.summary.trim()) errors.push(`${at}: empty summary`);
+    // English (#3): every summary has a translation, and so does every quote not already in English.
+    if (!isEnglish(p.summaryEn)) errors.push(`${at}: missing or non-English summaryEn`);
+    if (p.quote && /[\u0590-\u06FF]/.test(p.quote) ? !isEnglish(p.quoteTranslationEn) : p.quoteTranslationEn != null) {
+      errors.push(`${at}: quoteTranslationEn must translate a non-English quote, and only one`);
+    }
     if (p.position !== null) {
       if (!isHttps(p.sourceUrl)) errors.push(`${at}: missing or invalid sourceUrl`);
       if (!SOURCE_TYPES.includes(p.sourceType)) errors.push(`${at}: bad sourceType "${p.sourceType}"`);

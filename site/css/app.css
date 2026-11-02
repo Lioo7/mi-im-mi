@@ -184,6 +184,12 @@ details.axis summary { cursor: pointer; font-weight: 600; min-block-size: 32px; 
 [dir="ltr"] .seat-src a, [dir="ltr"] .voter-info a { white-space: normal; }
 /* English pages show the required Hebrew poll sentence verbatim, on its own line, before the translation. */
 .legal-he { display: block; margin-block-end: 2px; }
+/* English short topic names carry soft hyphens (Judi·ciary): a matrix header breaks there, onto two or three lines. */
+[dir="ltr"] .topic-btn { hyphens: manual; -webkit-hyphens: manual; line-height: 1.15; }
+/* On phones the English names are wider than a matrix column: set them vertically, read bottom to top. */
+@media (max-width: 480px) {
+  [dir="ltr"] .topic-btn { writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap; inline-size: auto; min-inline-size: 6.8em; block-size: 100%; min-block-size: 0; padding: 6px 0; text-align: start; }
+}
 @media (max-width: 420px) {
   [dir="ltr"] .brand { font-size: 1.05rem; }
   [dir="ltr"] .navlink { font-size: .9rem; }

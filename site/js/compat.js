@@ -81,7 +81,8 @@ export function contextFor({ meta, parties, topics, positions, results }, lang =
   const src = seatSource(meta, parties, results);
   const L = (rec) => localize(rec, lang);
   if (src.lists) src.lists = new Map([...src.lists].map(([id, l]) => [id, L(l)]));
-  const loc = { topics: topics.map(L), positions };
+  // A position's summary in English; its quote stays as said (the app shows quoteTranslationEn under it).
+  const loc = { topics: topics.map(L), positions: lang === 'he' ? positions : positions.map((p) => ({ ...p, summary: p.summaryEn ?? p.summary })) };
   if (src.mode === 'results') return makeContext({ parties: resultsOrder(parties, src).map(L), ...loc, ...src });
   return meta.showSeats !== false
     ? makeContext({ parties: parties.map(L), ...loc })

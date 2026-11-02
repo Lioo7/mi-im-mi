@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { loadData, validateEnglish } from '../scripts/lib.mjs';
+import { loadData, validateEnglish, validatePositions } from '../scripts/lib.mjs';
 import { S as EN, NAMES } from '../site/js/strings.en.js';
 import { quoteAttribution, correctionMailto, SITE_TRANSLATOR } from '../site/js/links.js';
 
@@ -61,4 +61,20 @@ test('English quote attribution and correction mail', () => {
   const q = new URL(correctionMailto({ party: 'Shas', topic: 'Draft', url: 'https://x.example/#results?l=en' }, EN)).searchParams;
   assert.equal(q.get('subject'), 'Correction: Shas · Draft');
   assert.ok(q.get('body').startsWith('Link to the page: https://x.example/'));
+});
+
+test('every position has an English summary, and every non-English quote an English translation', () => {
+  const parties = [{ id: 'p' }];
+  const topics = [{ id: 't' }];
+  const row = (extra) => ({ partyId: 'p', topicId: 't', position: null, redLine: false, summary: 'תקציר', summaryEn: 'Summary', quote: null, ...extra });
+  const run = (extra) => validatePositions([row(extra)], parties, topics).join();
+  assert.equal(run({}), '');
+  assert.match(run({ summaryEn: null }), /summaryEn/);
+  assert.match(run({ summaryEn: 'תקציר' }), /summaryEn/);
+  assert.match(run({ quote: 'ציטוט', quoteTranslationEn: null }), /quoteTranslationEn/);
+  assert.equal(run({ quote: 'ציטוט', quoteTranslationEn: 'A quote' }), '');
+  assert.equal(run({ quote: 'دولة فلسطين', quoteTranslationEn: 'The State of Palestine' }), '');
+  // A quote already in English needs no translation, and must not get one.
+  assert.equal(run({ quote: 'We are staying', quoteTranslationEn: null }), '');
+  assert.match(run({ quote: 'We are staying', quoteTranslationEn: 'We are staying' }), /quoteTranslationEn/);
 });
