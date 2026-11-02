@@ -197,6 +197,9 @@ export const S = {
     peripheryNone: 'No topic with a substantial gap or a head-on clash with the coalition members.',
     roleName: { supporter: 'Supports from outside', abstainer: 'Abstains' },
     versus: (n) => `vs. ${n}`,
+    // Red lines crossed among the members (#14): one line in the snapshot, also shown when there are none.
+    redLinesCrossed: (n, list) => `${n === 1 ? '1 red line is' : `${n} red lines are`} crossed within the coalition: ${list}`,
+    noRedLinesCrossed: 'No red line is crossed within the coalition',
     peripheryLink: (n) => `↓ ${n === 0 ? 'No head-on clashes' : n === 1 ? '1 more head-on clash' : `${n} more head-on clashes`} with the supporters and abstainers`,
     glueCoverage: (k, n) => `(${k} of ${n} partners stated a position)`,
     frictionTitle: 'The partner that creates the most friction',
@@ -371,6 +374,7 @@ export const S = {
     researchDocsNote: 'Every position has a record of the evidence and of the review decisions, including red lines and considerations that came up.',
     redLineRule: 'A red line is marked only when the party or its leader said explicitly, in their own words and in public, that the topic is a condition for joining a coalition. Not from media reports.',
     redLineTest: 'The wording test: it takes a statement that without X the party will not join or support a government ("we will not be partners in any government that…", "a threshold condition"), or that X is not up for negotiation ("no concession", "we will not give in"). A list of priorities ("at the top of our demands") is not a red line. The test is by wording only, regardless of the bloc.',
+    redLinesCrossedRule: 'The status summary has one line on red lines: a member\'s red line is crossed when another member is 2 or more steps away on that topic (the same rule that turns a 2-step gap into a head-on clash). Only stated red lines count, and a topic with no stated position is not counted. When none is crossed, the line says so. It is the same list as in the "what is missing for 61" card.',
     rolesTitle: 'Roles and the confidence vote',
     rolesRules: (seats, linked) => [
       'Each party has one of four roles: in the coalition, supporter from outside, abstainer, or opposed. Opposed is the default for any party not picked.',

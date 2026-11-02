@@ -10,7 +10,7 @@ import { mkdirSync, mkdtempSync, writeFileSync, rmSync, readFileSync, existsSync
 import { tmpdir } from 'node:os';
 import { join, extname, normalize } from 'node:path';
 import { ROOT, loadData } from './lib.mjs';
-import { contextFor, presets, serializeState, ballotOrder, completions, parseLocation, stateKeysIn, selected, locationFor, closestTo } from '../site/js/compat.js';
+import { contextFor, presets, serializeState, ballotOrder, completions, parseLocation, stateKeysIn, selected, locationFor, closestTo, redLinesCrossed } from '../site/js/compat.js';
 import { PROD_HOST } from '../site/js/stats.js';
 import { S } from '../site/js/strings.js';
 import { S as EN } from '../site/js/strings.en.js';
@@ -108,6 +108,15 @@ const SEATS_HIDDEN = !RESULTS && meta.showSeats === false;
 const passedIds = ctx.parties.filter((p) => ctx.passed(p.id)).map((p) => p.id);
 const pr = presets(ctx);
 const coalitionQs = serializeState(ctx, { base: null, ...pr.coalition });
+// The snapshot's red-line line (#14) as each language should render it, from contexts that carry the positions.
+const posCtx = Object.fromEntries(['he', 'en'].map((l) => [l, contextFor({ meta, parties, topics, positions: loadData().positions, results }, l)]));
+function redLinesText(lng, members) {
+  const c = posCtx[lng];
+  const T = lng === 'he' ? S : EN;
+  const r = redLinesCrossed(c, members);
+  return r.length ? `🚩 ${T.results.redLinesCrossed(r.length, r.map((x) => `${c.byId.get(x.partyId).name} · ${c.topics.find((t) => t.id === x.topicId).short}`).join(', '))}` : T.results.noRedLinesCrossed;
+}
+const REDLINES_JS = "[...document.querySelectorAll('#results .overall .redlines-line')].map((e) => e.innerText.replace(/\\s+/g, ' ').trim()).join('|')";
 const oppositionQs = serializeState(ctx, { base: null, ...pr.opposition });
 
 // name, url suffix, expected view after load. The coalition lives in the fragment: `#<view>?m=…`.
@@ -404,6 +413,18 @@ try {
         const wa = await evaluate("document.querySelector('#results a[href^=\"https://wa.me/\"]')?.href || ''");
         const wantShare = `${baseUrl}#results${serializeState(ctx, parseLocation(splitSuffix(suffix), passedIds).state)}`;
         if (wa && !new URL(wa).searchParams.get('text').endsWith(`\n${wantShare}`)) errors.push(`[${current}] WhatsApp link should end with ${wantShare} (${new URL(wa).searchParams.get('text')})`);
+        // #14: one red-line line in the snapshot (also when none is crossed), the same list as the completions card.
+        if (exp.state.members.length >= 2) {
+          const got = await evaluate(REDLINES_JS);
+          const want = redLinesText('he', exp.state.members);
+          if (got !== want) errors.push(`[${current}] red-line line should be "${want}", got "${got}"`);
+          if (RESULTS && name === 'results-coalition' && !got.startsWith('🚩 2 קווים אדומים נחצים')) errors.push(`[${current}] expected 2 red lines crossed, got "${got}"`);
+          if (name === 'results-opposition' && got !== S.results.noRedLinesCrossed) errors.push(`[${current}] expected no red line crossed, got "${got}"`);
+          const card = await evaluate(`(() => { const c = document.querySelector('#results .completions'); if (!c) return null;
+            const t = [...c.querySelectorAll('.tag-red')].map((e) => e.innerText.replace(/\\s+/g, ' ').trim()).find((x) => x.includes('כבר חוצה')); return t ? t.slice(t.indexOf(': ') + 2) : ''; })()`);
+          const list = got.startsWith('🚩') ? got.slice(got.indexOf(': ') + 2) : '';
+          if (card !== null && card !== list) errors.push(`[${current}] red-line line and completions card disagree ("${list}" vs "${card}")`);
+        }
         // #1: the supporters' and abstainers' head-on clashes, the same N and words as the snapshot pointer; nothing without them.
         if (wa) {
           const text = new URL(wa).searchParams.get('text');
@@ -1002,6 +1023,11 @@ try {
         const wantShare = baseUrl + locationFor(ctx, exp.state, 'results', '', 'en');
         const text = wa ? new URL(wa).searchParams.get('text') : '';
         if (wa && (!text.endsWith(`\n${wantShare}`) || !text.startsWith('The coalition I built: '))) errors.push(`[${current}] English WhatsApp text should start "The coalition I built:" and end with ${wantShare} (${text})`);
+        if (exp.state.members.length >= 2) {
+          const got = await evaluate(REDLINES_JS);
+          const want = redLinesText('en', exp.state.members);
+          if (got !== want) errors.push(`[${current}] English red-line line should be "${want}", got "${got}"`);
+        }
         if (wa) {
           const pointer = await evaluate("document.querySelector('#results .overall [data-act=\"to-periphery\"]')?.innerText || ''");
           const tail = pointer.replace(/^↓ /, '').replace(' more ', ' ').replace(/^No /, 'no ');

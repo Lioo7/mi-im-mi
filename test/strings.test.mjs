@@ -109,3 +109,12 @@ test('share text (#1): the supporters\' and abstainers\' clashes are added only 
     assert.ok(S.share.text('א', 0, n).endsWith(` · ${tail}`), `N=${n}`);
   }
 });
+
+test('red-line summary (#14): singular, plural and none, in both languages', () => {
+  assert.equal(S.results.redLinesCrossed(1, 'ש״ס · גיוס'), 'קו אדום אחד נחצה בתוך הקואליציה: ש״ס · גיוס');
+  assert.equal(S.results.redLinesCrossed(2, 'א · ב, ג · ד'), '2 קווים אדומים נחצים בתוך הקואליציה: א · ב, ג · ד');
+  assert.equal(S.results.noRedLinesCrossed, 'אין קו אדום שנחצה בתוך הקואליציה');
+  assert.equal(EN.results.redLinesCrossed(1, 'Shas · Draft'), '1 red line is crossed within the coalition: Shas · Draft');
+  assert.equal(EN.results.redLinesCrossed(2, 'A · B, C · D'), '2 red lines are crossed within the coalition: A · B, C · D');
+  assert.equal(EN.results.noRedLinesCrossed, 'No red line is crossed within the coalition');
+});

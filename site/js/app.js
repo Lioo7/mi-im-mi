@@ -44,6 +44,8 @@ const isResults = () => ctx.mode === 'results';
 // Official results are always shown; poll averages only while showSeats is on.
 const showSeats = () => isResults() || meta.showSeats !== false;
 const fmtNum = (n) => n.toLocaleString('en-US');
+// Red lines as "<party> · <topic>", comma-separated (the overview line and the completions card).
+const redList = (lines) => lines.map((x) => `${name(x.partyId)} · ${topic(x.topicId).short}`).join(', ');
 const passedIds = () => ctx.parties.filter((p) => ctx.passed(p.id)).map((p) => p.id);
 
 function levelBadge(level, extraClass = '') {
@@ -218,6 +220,7 @@ function renderMethod() {
     <ul>${M.sourceRules.map(([, txt]) => `<li>${esc(txt)}</li>`).join('')}</ul>
     <p>${esc(M.redLineRule)}</p>
     <p>${esc(M.redLineTest)}</p>
+    <p>${esc(M.redLinesCrossedRule)}</p>
     <p>${esc(M.nullRule)}</p>
     <p>${esc(M.bakalpi)} <a href="https://www.bakalpi.co.il/he" rel="noopener"><bdi>bakalpi.co.il</bdi></a></p>
     <p>${esc(M.names)} <a href="${esc(meta.partyNamesSourceUrl)}" rel="noopener">gov.il</a></p>
@@ -572,6 +575,7 @@ function overallBar(r, { statuses = true } = {}) {
     <h2 class="card-title">${esc(S.results.summaryTitle)}</h2>
     <ol class="segs">${segs}</ol>
     <ul class="breakdown">${parts.map(([text, cls]) => `<li class="${cls}">${esc(text)}</li>`).join('')}</ul>
+    ${redLinesLine()}
     ${peripheryLink()}
     ${seatsLine()}
   </section>`;
@@ -697,7 +701,6 @@ function completionsCard() {
   const { list, total, currentRedLines } = C.completions(ctx, state.members);
   const K = S.completions;
   const n = (x) => S.seats.num(x, isResults());
-  const redList = (lines) => lines.map((x) => `${name(x.partyId)} · ${topic(x.topicId).short}`).join(', ');
   const shown = showAllCompletions ? list : list.slice(0, COMPLETIONS_SHOWN);
   const items = shown.map((c) => {
     // A party that is now a supporter or abstainer would become a member.
@@ -727,6 +730,14 @@ function completionsCard() {
 function syncResbarHeight() {
   const h = $('#results-bar').getBoundingClientRect().height;
   if (h) document.documentElement.style.setProperty('--resbar-h', `${Math.ceil(h)}px`);
+}
+
+// Red lines crossed among the members, in one line (the completions card's "already crosses" is the same list).
+function redLinesLine() {
+  const crossed = C.redLinesCrossed(ctx, state.members);
+  return crossed.length
+    ? `<p class="small redlines-line"><span class="tag tag-red"><span aria-hidden="true">🚩</span> ${esc(S.results.redLinesCrossed(crossed.length, redList(crossed)))}</span></p>`
+    : `<p class="muted small redlines-line">${esc(S.results.noRedLinesCrossed)}</p>`;
 }
 
 // Under the snapshot: a pointer to the supporters/abstainers card, whose clashes the snapshot does not count.

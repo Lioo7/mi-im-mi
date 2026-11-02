@@ -206,6 +206,16 @@ test('peripheryClashes: null without supporters or abstainers, else the CLASH it
   assert.equal(peripheryClashes(ctx, state), n);
 });
 
+test('redLinesCrossed (#14): the same list as completions().currentRedLines; empty with one member or no crossing', () => {
+  // a's red line on t1 is crossed by c (2 steps); b's on t2 is not (1 step); d's red line has no other member on t3.
+  const ctx = fixture([P('a', 't1', -1, true), P('c', 't1', 1), P('b', 't2', 0, true), P('c', 't2', 1), P('d', 't3', 2, true)]);
+  const crossed = redLinesCrossed(ctx, ['a', 'b', 'c']);
+  assert.deepEqual(crossed, [{ partyId: 'a', topicId: 't1' }]);
+  assert.deepEqual(completions(ctx, ['a', 'b', 'c']).currentRedLines, crossed);
+  assert.deepEqual(redLinesCrossed(ctx, ['a']), []);
+  assert.deepEqual(redLinesCrossed(ctx, ['b', 'c', 'd']), []);
+});
+
 test('without() removes a party from any role', () => {
   const ctx = fixture([P('a', 't1', -2), P('b', 't1', 2), P('c', 't1', -2)]);
   const r = without(ctx, { members: ['a', 'b', 'c'], base: 'b' }, 'b');

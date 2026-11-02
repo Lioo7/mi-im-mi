@@ -141,6 +141,17 @@ test('media scenarios, share text (#1): the supporters\' and abstainers\' clashe
   assert.equal(peripheryClashes(ctx, sc('segal-unity')), null);
 });
 
+test('red-line summary (#14) on the real data: none in the media scenarios, two in the coalition bloc, as in the completions card', async () => {
+  const { contextFor, redLinesCrossed, completions, presets } = await import('../site/js/compat.js');
+  const { topics, positions, scenarios } = loadData();
+  const ctx = contextFor({ meta: { ...meta, mode: 'results' }, parties, topics, positions, results });
+  for (const sc of scenarios.scenarios) assert.deepEqual(redLinesCrossed(ctx, sc.members), [], sc.id);
+  const bloc = presets(ctx).coalition.members;
+  const crossed = redLinesCrossed(ctx, bloc);
+  assert.deepEqual(crossed, [{ partyId: 'utj', topicId: 'draft' }, { partyId: 'shas', topicId: 'draft' }]);
+  assert.deepEqual(completions(ctx, bloc).currentRedLines, crossed);
+});
+
 test('validateScenarios rejects a fifth scenario, double roles, seatless lists and undated sources', () => {
   const { scenarios } = loadData();
   const m = { ...meta, mode: 'results' };
