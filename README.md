@@ -80,7 +80,7 @@
 
 ## מצאתם טעות?
 
-לכל תא באתר יש קישור "מצאתם טעות בעמדה הזו?". אפשר גם לכתוב ל-lioz.akirav@gmail.com או לפתוח [issue](https://github.com/Lioo7/mi-im-mi/issues) עם קישור למקור. הנתונים פתוחים בכוונה, כדי שכל אחד יוכל לבדוק אותם, ושהכלי יתעדכן וישתפר.
+לכל תא באתר יש קישור "מצאתם טעות בעמדה הזו?". אפשר גם לכתוב ל-lioz.akirav@gmail.com או למלא את [הטופס לדיווח על טעות](https://github.com/Lioo7/mi-im-mi/issues/new?template=data-correction.yml) עם קישור למקור. הנתונים פתוחים בכוונה, כדי שכל אחד יוכל לבדוק אותם, ושהכלי יתעדכן וישתפר.
 
 ## איך זה נבנה
 
@@ -192,7 +192,7 @@ node scripts/smoke.mjs [baseUrl]      # בדיקת smoke עם צילומי מס�
 
 **Stack.** Static vanilla JS with no build step (<60KB gzipped including all data), JSON data, Netlify, `node --test` (80 tests, including mirror-symmetry tests, a 120-seat check, a brute-force check of the completions to 61, a test that fails on any missing translation, and a glossary test for both languages), bilingual with no i18n library (two string files with the same shape, `en` fields next to the Hebrew data), a full Content-Security-Policy, and a headless-Chrome smoke test that also checks that the page-view beacon and every request to the site carry no coalition data, that the CSP blocks nothing (including Netlify's injected badge), and that the line explaining the seat numbers comes before them: the results source line in results mode, the legally required poll disclaimer in polls mode. Every view is also checked in English: direction and language, no untranslated Hebrew, and the same numbers.
 
-**Corrections.** Every cell has a "found an error?" link. You can also email lioz.akirav@gmail.com or open an issue.
+**Corrections.** Every cell has a "found an error?" link. You can also email lioz.akirav@gmail.com or use the [data-correction form](https://github.com/Lioo7/mi-im-mi/issues/new?template=data-correction.yml).
 
 **License.** Code: MIT. Our data: CC BY 4.0. Quotes and linked sources belong to their owners. Not a voting recommendation; not affiliated with any party.
 

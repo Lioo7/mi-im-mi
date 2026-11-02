@@ -1,0 +1,41 @@
+name: טעות בנתונים / Data error
+description: עמדה או מקור שנראים שגויים / A position or source that looks wrong
+title: "[data] "
+labels: ["data"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        תודה! כל תיקון נבדק מול המקור לפני שהוא נכנס לאתר.
+        Thanks! Every correction is checked against its source before it goes on the site.
+  - type: input
+    id: party
+    attributes:
+      label: מפלגה / Party
+    validations:
+      required: true
+  - type: input
+    id: topic
+    attributes:
+      label: נושא / Topic
+    validations:
+      required: true
+  - type: textarea
+    id: wrong
+    attributes:
+      label: מה שגוי? / What is wrong?
+    validations:
+      required: true
+  - type: input
+    id: source
+    attributes:
+      label: קישור למקור שתומך בתיקון / A source link that supports the correction
+      placeholder: https://
+    validations:
+      required: true
+  - type: textarea
+    id: other
+    attributes:
+      label: עוד משהו? / Anything else?
+    validations:
+      required: false

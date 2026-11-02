@@ -5,6 +5,7 @@ Static, Hebrew, RTL web app showing where possible coalition partners clash or a
 The site is no longer frozen (1.11): changes under `site/` are allowed as part of agreed work. **A production deploy still needs the user's explicit OK**, always after a draft deploy, smoke against the draft URL and the user's phone check. If you find a critical bug (wrong data shown, a broken core flow, a privacy leak, a missing legal disclaimer), report it first and wait. Open findings: GitHub Issues (`tech-debt`); the original review is `docs/review-2026-10-26.md`.
 
 Backlog: GitHub Issues. Run `gh issue list` before starting new work. Reference issues in commits (closes #N).
+Issue format: a one-sentence goal, short bullets, a "Done when" line. Labels: enhancement, tech-debt, research, data, priority:high.
 
 ### Follow-up on 4.11: CEC submits the results to the President
 Update `meta.json → resultsStatus` to the official wording, and update `results-26.json` seats **only if the CEC corrected them** (keep the as-published values otherwise). Then validate, test, smoke, draft deploy, get the user's OK, and only then deploy to production. Note the change in `docs/research/decisions.md`.
