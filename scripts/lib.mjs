@@ -217,6 +217,13 @@ export function validatePositions(positions, parties, topics, where = (p) => key
       if (!SOURCE_TYPES.includes(p.sourceType)) errors.push(`${at}: bad sourceType "${p.sourceType}"`);
       // Undated source pages keep sourceDate null rather than an invented date.
       if (p.sourceDate != null && !isDate(p.sourceDate)) errors.push(`${at}: bad sourceDate "${p.sourceDate}"`);
+    } else {
+      // A null row may show what was found, with its source: a valid URL and date when present, a quote only with a
+      // source, and no source type (it is not placed, so it is not counted as a platform, statement or record).
+      if (p.sourceUrl != null && !isHttps(p.sourceUrl)) errors.push(`${at}: invalid sourceUrl`);
+      if (p.sourceDate != null && !isDate(p.sourceDate)) errors.push(`${at}: bad sourceDate "${p.sourceDate}"`);
+      if (p.sourceType != null) errors.push(`${at}: sourceType on a row without a position`);
+      if (p.quote && p.sourceUrl == null) errors.push(`${at}: quote without a sourceUrl`);
     }
     if (p.viaUrl && !isHttps(p.viaUrl)) errors.push(`${at}: invalid viaUrl`);
     // A second primary source, when the placement rests on two documents of the party (shown as "additional source").

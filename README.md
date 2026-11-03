@@ -37,7 +37,7 @@
   - **מצע** (59 עמדות)
   - **הצהרה רשמית** בלשון המפלגה או מנהיגה (30)
   - **רקורד בפועל**: הצעות חוק שהמפלגה יזמה או קידמה (7)
-- **כשאין מקור שעומד בכללים, התא מסומן "אין עמדה מוצהרת"** (16 תאים). לא מנחשים.
+- **כשאין מקור שעומד בכללים, התא מסומן "אין עמדה מוצהרת"** (16 תאים). לא מנחשים. כשנמצאו דברים שאינם עמדה על הציר, הם מוצגים עם המקור, בלי למקם את העמדה.
 - **ההתאמה מחושבת אוטומטית מהמרחק על הציר,** בלי שיפוט ידני של זוגות:
 
   | מרחק | רמה |
@@ -99,7 +99,7 @@
 | HTML, CSS ו-JavaScript (ES modules), בלי framework ובלי build | עמוד אחד עם כמה תצוגות. פחות מ-60KB דחוס, כולל כל הנתונים, נטען מהר בטלפון, ואין שלב בנייה שיכול להישבר ביום הבחירות |
 | נתונים ב-JSON סטטי | אין שרת ואין מסד נתונים שיכולים ליפול. תיקון הוא עריכת קובץ ופריסה |
 | Netlify | פריסה בפקודה אחת, CDN, וכתובות טיוטה לבדיקה לפני פרודקשן |
-| `node --test` | 106 בדיקות לאלגוריתם ולנתונים, כולל בדיקת סימטריה (היפוך כיוון הציר חייב לתת תוצאה זהה), בדיקה שהמנדטים מסתכמים ב-120, בדיקה מול חיפוש ממצה של הצירופים ל-61 ושל הקואליציות הקרובות למפלגה, ובדיקות לשתי השפות |
+| `node --test` | 109 בדיקות לאלגוריתם ולנתונים, כולל בדיקת סימטריה (היפוך כיוון הציר חייב לתת תוצאה זהה), בדיקה שהמנדטים מסתכמים ב-120, בדיקה מול חיפוש ממצה של הצירופים ל-61 ושל הקואליציות הקרובות למפלגה, ובדיקות לשתי השפות |
 | שתי שפות בלי ספרייה | `strings.js` ו-`strings.en.js` באותו מבנה, ושדות `en` ליד העברית בנתונים. בדיקה נכשלת אם חסר תרגום לאחת המחרוזות, `validate.mjs` נכשל אם חסר תרגום בנתונים, ובדיקת מילון מונחים רצה על שתי השפות |
 | בדיקת smoke עם Chrome headless | צילומי מסך ב-390 וב-1280 פיקסלים, בדיקת שגיאות, בדיקה ששורת המקור של המנדטים גלויה לפני המספרים (בתצוגת התוצאות: שורת ועדת הבחירות; בתצוגת סקרים: ההסתייגות שנדרשת בחוק), בדיקה שמונה הכניסות לא מקבל נתוני קואליציה ושאף בקשה לשרת לא נושאת אותה, ובדיקה שמדיניות האבטחה (CSP) לא חוסמת כלום, כולל התג ש-Netlify מוסיף לאתר. כל התצוגות נבדקות גם באנגלית: כיוון ושפה, שאין טקסט עברי שלא תורגם, ואותם מספרים |
 
@@ -191,7 +191,7 @@ node scripts/smoke.mjs [baseUrl]      # בדיקת smoke עם צילומי מס�
 - human checkpoints throughout
 - about 40 commits
 
-**Stack.** Static vanilla JS with no build step (<60KB gzipped including all data), JSON data, Netlify, `node --test` (106 tests, including mirror-symmetry tests, a 120-seat check, brute-force checks of the completions to 61 and of the closest coalitions to a party, a test that fails on any missing translation, and a glossary test for both languages), bilingual with no i18n library (two string files with the same shape, `en` fields next to the Hebrew data), a full Content-Security-Policy, and a headless-Chrome smoke test that also checks that the page-view beacon and every request to the site carry no coalition data, that the CSP blocks nothing (including Netlify's injected badge), and that the line explaining the seat numbers comes before them: the results source line in results mode, the legally required poll disclaimer in polls mode. Every view is also checked in English: direction and language, no untranslated Hebrew, and the same numbers.
+**Stack.** Static vanilla JS with no build step (<60KB gzipped including all data), JSON data, Netlify, `node --test` (109 tests, including mirror-symmetry tests, a 120-seat check, brute-force checks of the completions to 61 and of the closest coalitions to a party, a test that fails on any missing translation, and a glossary test for both languages), bilingual with no i18n library (two string files with the same shape, `en` fields next to the Hebrew data), a full Content-Security-Policy, and a headless-Chrome smoke test that also checks that the page-view beacon and every request to the site carry no coalition data, that the CSP blocks nothing (including Netlify's injected badge), and that the line explaining the seat numbers comes before them: the results source line in results mode, the legally required poll disclaimer in polls mode. Every view is also checked in English: direction and language, no untranslated Hebrew, and the same numbers.
 
 **Corrections.** Every cell has a "found an error?" link. You can also email lioz.akirav@gmail.com or use the [data-correction form](https://github.com/Lioo7/mi-im-mi/issues/new?template=data-correction.yml).
 

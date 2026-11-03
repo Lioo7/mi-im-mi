@@ -66,7 +66,9 @@ test('English quote attribution and correction mail', () => {
 test('every position has an English summary, and every non-English quote an English translation', () => {
   const parties = [{ id: 'p' }];
   const topics = [{ id: 't' }];
-  const row = (extra) => ({ partyId: 'p', topicId: 't', position: null, redLine: false, summary: 'תקציר', summaryEn: 'Summary', quote: null, ...extra });
+  // A null row with a source (a quote needs one).
+  const row = (extra) => ({ partyId: 'p', topicId: 't', position: null, redLine: false, summary: 'תקציר', summaryEn: 'Summary', quote: null,
+    sourceUrl: 'https://a.example/', ...extra });
   const run = (extra) => validatePositions([row(extra)], parties, topics).join();
   assert.equal(run({}), '');
   assert.match(run({ summaryEn: null }), /summaryEn/);
@@ -89,4 +91,29 @@ test('an additional source is a URL, and only on a row with a position', () => {
   assert.equal(run({ extraSourceUrl: null }), '');
   assert.match(run({ extraSourceUrl: 'not a url' }), /extraSourceUrl/);
   assert.match(run({ position: null, sourceUrl: null, sourceType: null, extraSourceUrl: 'https://b.example/' }), /extraSourceUrl/);
+});
+
+test('a null row may carry what was found: a valid source and date, a quote only with a source, and no source type', () => {
+  const parties = [{ id: 'p' }];
+  const topics = [{ id: 't' }];
+  const row = (extra) => ({ partyId: 'p', topicId: 't', position: null, redLine: false, summary: 'תקציר', summaryEn: 'Summary', quote: null, ...extra });
+  const run = (extra) => validatePositions([row(extra)], parties, topics).join();
+  assert.equal(run({ sourceUrl: 'https://a.example/', sourceDate: '2026-07-02', quote: 'ציטוט', quoteTranslationEn: 'A quote' }), '');
+  assert.equal(run({ sourceUrl: 'https://a.example/', sourceDate: null }), '');
+  assert.match(run({ sourceUrl: 'not a url' }), /sourceUrl/);
+  assert.match(run({ sourceUrl: 'https://a.example/', sourceDate: '25.10.2026' }), /sourceDate/);
+  assert.match(run({ sourceUrl: 'https://a.example/', sourceType: 'statement' }), /sourceType/);
+  assert.match(run({ quote: 'ציטוט', quoteTranslationEn: 'A quote' }), /quote without a sourceUrl/);
+});
+
+test('null rows shown with their source: the speaker, outlet and date in both languages', () => {
+  const pos = (k) => data.positions.find((p) => `${p.partyId}|${p.topicId}` === k);
+  const zehut = pos('zehut|inquiry');
+  assert.equal(zehut.position, null);
+  assert.equal(quoteAttribution(zehut, 'זהות'), 'משה פייגלין, ערוץ 7, 02.07.2026');
+  assert.equal(quoteAttribution(zehut, 'Zehut', EN), 'Moshe Feiglin, Arutz Sheva (Israel National News), 2 Jul 2026');
+  assert.equal(quoteAttribution(pos('raam|draft'), 'רע״ם'), 'מנסור עבאס, ynet, 27.07.2026');
+  // Undated party pages: no date in the line (25.10 was the check date).
+  assert.equal(quoteAttribution(pos('otzma-yehudit|religion'), 'עוצמה יהודית'), 'עוצמה יהודית, אתר המפלגה');
+  assert.equal(quoteAttribution(pos('amcha-yisrael|religion'), 'Amcha Yisrael', EN), 'Amcha Yisrael, Party website');
 });

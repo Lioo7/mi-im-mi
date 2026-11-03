@@ -417,6 +417,9 @@ function belowThreshold() {
 }
 
 // ---------- results ----------
+// Null rows whose quote and source wait for review before they are shown (decisions.md); their summary shows as before.
+const EVIDENCE_HELD = new Set(['raam|religion']);
+
 function positionBlock(pid, tid, { heading = true } = {}) {
   const p = posOf(pid, tid);
   const T = S.sheet;
@@ -424,22 +427,30 @@ function positionBlock(pid, tid, { heading = true } = {}) {
     return `<div class="pos">
       ${heading ? `<p class="pos-label none">${esc(T.noPositionLabel)}</p>` : ''}
       <p>${esc(p?.summary ?? T.noPosition)}</p>
+      ${p && !EVIDENCE_HELD.has(`${pid}|${tid}`) ? evidenceHtml(p, pid) : ''}
     </div>`;
   }
   return `<div class="pos">
     ${heading ? `<p class="pos-label">${esc(axisLabel(tid, p.position))}</p>` : ''}
     ${p.redLine || p.componentsDisagree ? `<p>${p.redLine ? `<span class="tag tag-red"><span aria-hidden="true">🚩</span> ${esc(S.redLine)}</span> ` : ''}${p.componentsDisagree ? `<span class="tag tag-split"><span aria-hidden="true">${S.componentsIcon}</span> ${esc(S.componentsDisagree)}</span>` : ''}</p>` : ''}
     <p>${esc(p.summary)}</p>
-    ${p.quote ? `<blockquote>${quoteHtml(p)}<footer class="q-by">${esc(quoteAttribution(p, name(pid), S))}</footer></blockquote>` : ''}
-    <p class="source">
-      <span class="tag tag-src">${esc(T.sourceTypes[p.sourceType] ?? '')}</span>
+    ${evidenceHtml(p, pid)}
+  </div>`;
+}
+
+// The quote with its attribution, and the source line. Shared by placed positions and by null ones, which show what
+// was found even though it is not placed on the axis (a null row has no source type, so no type tag).
+function evidenceHtml(p, pid) {
+  const T = S.sheet;
+  return `${p.quote ? `<blockquote>${quoteHtml(p)}<footer class="q-by">${esc(quoteAttribution(p, name(pid), S))}</footer></blockquote>` : ''}
+    ${p.sourceUrl ? `<p class="source">
+      ${p.sourceType ? `<span class="tag tag-src">${esc(T.sourceTypes[p.sourceType] ?? '')}</span>` : ''}
       ${p.sourceDate ? `<span class="muted">${esc(T.date(fmtDate(p.sourceDate)))}</span>` : ''}
       <a href="${esc(p.sourceUrl)}" rel="noopener" target="_blank">${esc(T.source)}</a>
       ${p.extraSourceUrl ? `· <a href="${esc(p.extraSourceUrl)}" rel="noopener" target="_blank">${esc(T.extraSource)}</a>` : ''}
       ${p.archiveUrl ? `· <a href="${esc(p.archiveUrl)}" rel="noopener" target="_blank">${esc(T.archive)}</a>` : ''}
       ${p.viaUrl ? `· <a href="${esc(p.viaUrl)}" rel="noopener" target="_blank">${esc(T.via)}</a>` : ''}
-    </p>
-  </div>`;
+    </p>` : ''}`;
 }
 
 // A quote stays verbatim in its own language. In Hebrew, an Arabic quote carries our Hebrew translation (or an outlet's);

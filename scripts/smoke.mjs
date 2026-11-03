@@ -977,6 +977,28 @@ try {
   if (!q || !/^״.+״$/.test(q.text ?? '')) errors.push(`[interaction] quote must be wrapped in quotation marks (${JSON.stringify(q)})`);
   if (!q || !q.by.startsWith(withQuote.quoteBy) || !/\d{2}\.\d{2}\.\d{4}$/.test(q.by)) errors.push(`[interaction] quote attribution should read "<speaker>, <channel>, <date>" (${q?.by})`);
   await shoot(z, 'interaction-cell-quote-m.png', false);
+  // Null rows show what was found: the "no stated position" label, the quote with its attribution, and the source. A row
+  // held for review (רע״ם × דת) shows its summary only.
+  for (const [lng, T, by] of [['he', S, 'משה פייגלין, ערוץ 7, 02.07.2026'], ['en', EN, 'Moshe Feiglin, Arutz Sheva (Israel National News), 2 Jul 2026']]) {
+    const l = lng === 'he' ? '' : '&l=en';
+    await go(`${baseUrl}#results?m=likud,zehut${l}`);
+    await waitFor(() => evaluate("document.body.dataset.view === 'results' && document.querySelectorAll('.cell').length > 0"));
+    await evaluate("document.querySelector('.cell[data-party=\"zehut\"][data-topic=\"inquiry\"]').click()");
+    await sleep(300);
+    const nr = await evaluate("(() => { const s = document.querySelector('#sheet'); return { label: s.querySelector('.pos-label')?.textContent.trim() ?? '', quote: s.querySelector('blockquote .q-text')?.textContent ?? '', by: s.querySelector('blockquote .q-by')?.textContent.trim() ?? '', src: s.querySelector('.pos .source a')?.href ?? '', tag: s.querySelector('.pos .tag-src') !== null }; })()");
+    if (nr.label !== T.sheet.noPositionLabel || !nr.quote.includes('אני כלל לא מרגיש צורך בוועדת חקירה') || nr.by !== by || nr.src !== 'https://www.inn.co.il/news/700562' || nr.tag) {
+      errors.push(`[interaction-${lng}] zehut × inquiry sheet should show the label, quote, "${by}" and the source, with no type tag (${JSON.stringify(nr)})`);
+    }
+    await shoot(z, `interaction-null-quote-m${lng === 'he' ? '' : '-en'}.png`, false);
+    await evaluate("document.querySelector('#sheet').close()");
+    await go(`${baseUrl}#results?m=raam,likud${l}`);
+    await waitFor(() => evaluate("document.body.dataset.view === 'results' && document.querySelectorAll('.cell').length > 0"));
+    await evaluate("document.querySelector('.cell[data-party=\"raam\"][data-topic=\"religion\"]').click()");
+    await sleep(300);
+    const held = await evaluate("(() => { const p = document.querySelector('#sheet .pos'); return p ? (p.querySelector('blockquote, .source') ? 'shown' : 'held') : 'no position block'; })()");
+    if (held !== 'held') errors.push(`[interaction-${lng}] רע״ם × דת is held for review: no quote or source yet (${held})`);
+    await evaluate("document.querySelector('#sheet').close()");
+  }
   // Arabic quotes keep the original and add a marked Hebrew translation under it.
   await go(`${baseUrl}#results?m=raam,together`);
   await waitFor(() => evaluate("document.body.dataset.view === 'results' && document.querySelectorAll('.cell').length > 0"));
