@@ -146,3 +146,8 @@ test('#1, #13, #14: no verdict words (best, recommended, kingmaker, risk…) in 
     assert.deepEqual(texts.filter((t) => VERDICT.test(t)), []);
   }
 });
+
+test('snapshot scope caption: among the members, supporters and abstainers separately, in both languages', () => {
+  assert.equal(S.results.summaryScope(4), 'בין 4 חברות הקואליציה · התומכות והנמנעות בנפרד');
+  assert.equal(EN.results.summaryScope(4), 'Among the 4 coalition members · supporters and abstainers separately');
+});

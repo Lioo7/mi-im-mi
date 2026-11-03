@@ -181,6 +181,8 @@ export const S = {
   results: {
     pickOne: 'Pick at least one party, or a ready-made scenario.',
     summaryTitle: 'Overview',
+    // Under the snapshot title when there are supporters or abstainers: what the counts below cover.
+    summaryScope: (n) => `Among the ${n} coalition members · supporters and abstainers separately`,
     addPartner: 'Add a partner to see clashes',
     crisesTitle: (n) => (n === 1 ? 'The crisis waiting for this coalition' : `The ${n} crises waiting for this coalition`),
     gapsTitle: 'The topics with the largest gaps',

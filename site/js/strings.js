@@ -181,6 +181,8 @@ export const S = {
   results: {
     pickOne: 'בחרו מפלגה אחת לפחות, או תרחיש מוכן.',
     summaryTitle: 'תמונת מצב',
+    // Under the snapshot title when there are supporters or abstainers: what the counts below cover.
+    summaryScope: (n) => `בין ${n} חברות הקואליציה · התומכות והנמנעות בנפרד`,
     addPartner: 'הוסיפו שותפה כדי לראות התנגשויות',
     crisesTitle: (n) => n === 1 ? 'המשבר שמחכה לקואליציה הזו' : `${n} המשברים שמחכים לקואליציה הזו`,
     gapsTitle: 'הנושאים עם הפערים הגדולים ביותר',

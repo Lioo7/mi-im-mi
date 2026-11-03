@@ -116,6 +116,21 @@ function redLinesText(lng, members) {
   const r = redLinesCrossed(c, members);
   return r.length ? `🚩 ${T.results.redLinesCrossed(r.length, r.map((x) => `${c.byId.get(x.partyId).name} · ${c.topics.find((t) => t.id === x.topicId).short}`).join(', '))}` : T.results.noRedLinesCrossed;
 }
+// The snapshot's top: the scope caption right under the title (only with supporters or abstainers), then the breakdown,
+// the pointer to the supporters/abstainers card, and the red-line line, in that order.
+const OVERVIEW_JS = `(() => { const o = document.querySelector('#results .overall'); if (!o) return null; const cap = o.querySelector('.overall-scope');
+  const bd = o.querySelector('.breakdown'); const a = bd?.nextElementSibling; const b = a?.nextElementSibling;
+  return { cap: cap ? cap.innerText.trim() : null, capFirst: !cap || cap.previousElementSibling?.tagName === 'H2', next: [a?.className ?? '', b?.className ?? ''] }; })()`;
+function overviewErrors(T, state, ov) {
+  const side = state.supporters.length + state.abstainers.length > 0;
+  const want = side ? T.results.summaryScope(state.members.length) : null;
+  const out = [];
+  if (ov.cap !== want) out.push(`scope caption should be ${JSON.stringify(want)}, got ${JSON.stringify(ov.cap)}`);
+  if (!ov.capFirst) out.push('scope caption must come right after the title');
+  const [a, b] = ov.next;
+  if (side ? !(a.includes('periphery-link') && b.includes('redlines-line')) : !a.includes('redlines-line')) out.push(`after the breakdown: expected ${side ? 'pointer, then red-line line' : 'red-line line'}, got ${a} | ${b}`);
+  return out;
+}
 const REDLINES_JS = "[...document.querySelectorAll('#results .overall .redlines-line')].map((e) => e.innerText.replace(/\\s+/g, ' ').trim()).join('|')";
 const oppositionQs = serializeState(ctx, { base: null, ...pr.opposition });
 
@@ -437,6 +452,10 @@ try {
         const wa = await evaluate("document.querySelector('#results a[href^=\"https://wa.me/\"]')?.href || ''");
         const wantShare = `${baseUrl}#results${serializeState(ctx, parseLocation(splitSuffix(suffix), passedIds).state)}`;
         if (wa && !new URL(wa).searchParams.get('text').endsWith(`\n${wantShare}`)) errors.push(`[${current}] WhatsApp link should end with ${wantShare} (${new URL(wa).searchParams.get('text')})`);
+        if (exp.state.members.length >= 2) {
+          const ov = await evaluate(OVERVIEW_JS);
+          for (const e of ov ? overviewErrors(S, exp.state, ov) : ['no snapshot']) errors.push(`[${current}] ${e}`);
+        }
         // #14: one red-line line in the snapshot (also when none is crossed), the same list as the completions card.
         if (exp.state.members.length >= 2) {
           const got = await evaluate(REDLINES_JS);
@@ -1053,6 +1072,10 @@ try {
           if (JSON.stringify(got) !== JSON.stringify(want)) errors.push(`[${current}] English pivotal rows: expected ${JSON.stringify(want)}, got ${JSON.stringify(got)}`);
           if (RESULTS && name === 'results-scenario-arab' && !got?.includes("If Ra'am votes against: 59 vs 61")) errors.push(`[${current}] expected "If Ra'am votes against: 59 vs 61"`);
         } else if (await evaluate("document.querySelector('.pivotal') !== null")) errors.push(`[${current}] showSeats is off but the pivotal rows are shown`);
+        if (exp.state.members.length >= 2) {
+          const ov = await evaluate(OVERVIEW_JS);
+          for (const e of ov ? overviewErrors(EN, exp.state, ov) : ['no snapshot']) errors.push(`[${current}] English: ${e}`);
+        }
         if (exp.state.members.length >= 2) {
           const got = await evaluate(REDLINES_JS);
           const want = redLinesText('en', exp.state.members);
