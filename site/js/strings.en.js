@@ -19,8 +19,8 @@ export const S = {
   lang: 'en',
   dir: 'ltr',
   locale: 'en',
-  // 2026-10-30 -> 30 Oct 2026
-  fmtDate: (iso) => (iso ? `${dayMonth(iso)} ${iso.slice(0, 4)}` : ''),
+  // 2026-10-30 -> 30 Oct 2026; a year alone (an older platform with no exact date) stays as is.
+  fmtDate: (iso) => (!iso ? '' : /^\d{4}$/.test(iso) ? iso : `${dayMonth(iso)} ${iso.slice(0, 4)}`),
   appName: 'Mi Im Mi',
   pageTitle: 'Mi Im Mi · Who With Whom',
   tagline: 'Build a coalition and see where the parties agree and where they clash',
@@ -309,7 +309,7 @@ export const S = {
     extraSource: 'Additional source',
     via: 'via Bakalpi',
     sourceTypes: { platform: 'Platform', statement: 'Statement', record: 'Legislative record' },
-    date: (d) => `dated ${d}`,
+    date: (d) => (/^\d{4}$/.test(d) ? `from ${d}` : `dated ${d}`),
     why: 'Why this color?',
     noPosition: 'We found no stated position of the party on this topic in a source that meets our rules.',
     gap: (a, b, d, la, lb) => `${a} ↔ ${b}: ${d} steps (${la} ↔ ${lb})`,

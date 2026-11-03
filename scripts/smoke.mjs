@@ -1006,6 +1006,27 @@ try {
     if (!note.text.includes(year) || !note.links.includes('https://www.idi.org.il/media/16883/%D7%A8%D7%A2%D7%9E-1999.pdf')) errors.push(`[interaction-${lng}] רע״ם × גיוס should carry the dated 1999 note and link the IDI copy (${JSON.stringify(note.links)})`);
     await shoot(z, `interaction-dated-note-m${lng === 'he' ? '' : '-en'}.png`, false);
     await evaluate("document.querySelector('#sheet').close()");
+    // The four dated notes from older platforms (approved 3.11): the year and document type, and the IDI copy linked.
+    // Cells with no current source take the IDI copy as their source, dated by the year alone.
+    const IDI = { otzma: 'https://www.idi.org.il/media/13907/', utj: 'https://www.idi.org.il/media/16889/', shas: 'https://www.idi.org.il/media/6856/' };
+    for (const [pid, tid, he, en, idi, year] of [
+      ['otzma-yehudit', 'religion', 'במסמך העקרונות של עוצמה יהודית מ-2020 נכתב:', "Otzma Yehudit's 2020 statement of principles says:", IDI.otzma, null],
+      ['utj', 'palestinian', 'במצע יהדות התורה מ-1999 נכתב:', "United Torah Judaism's 1999 platform says:", IDI.utj, '1999'],
+      ['shas', 'economy', 'במסמך העקרונות של ש״ס מ-2006 נכתב:', "Shas's 2006 statement of principles says:", IDI.shas, '2006'],
+      ['utj', 'economy', 'במצע יהדות התורה מ-1999 נכתב:', "United Torah Judaism's 1999 platform says:", IDI.utj, '1999'],
+    ]) {
+      await go(`${baseUrl}#results?m=${pid},likud${l}`);
+      await waitFor(() => evaluate("document.body.dataset.view === 'results' && document.querySelectorAll('.cell').length > 0"));
+      await evaluate(`document.querySelector('.cell[data-party="${pid}"][data-topic="${tid}"]').click()`);
+      await sleep(300);
+      const d = await evaluate("(() => { const p = document.querySelector('#sheet .pos'); return { label: p?.querySelector('.pos-label')?.textContent.trim() ?? '', text: p?.innerText ?? '', links: [...(p?.querySelectorAll('.source a') ?? [])].map((a) => a.href), date: p?.querySelector('.source .muted')?.textContent.trim() ?? '' }; })()");
+      const wantDate = year ? (lng === 'he' ? `משנת ${year}` : `from ${year}`) : '';
+      if (d.label !== T.sheet.noPositionLabel || !d.text.includes(lng === 'he' ? he : en) || !d.links.some((h) => h.startsWith(idi)) || (year && d.date !== wantDate)) {
+        errors.push(`[interaction-${lng}] ${pid} × ${tid}: expected the dated note, the IDI link${year ? ` and "${wantDate}"` : ''} (${JSON.stringify({ ...d, text: d.text.slice(-160) })})`);
+      }
+      if (pid === 'utj' && tid === 'palestinian') await shoot(z, `interaction-dated-platform-m${lng === 'he' ? '' : '-en'}.png`, false);
+      await evaluate("document.querySelector('#sheet').close()");
+    }
   }
   // Arabic quotes keep the original and add a marked Hebrew translation under it.
   await go(`${baseUrl}#results?m=raam,together`);

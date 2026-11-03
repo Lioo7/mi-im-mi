@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { loadData, validateEnglish, validatePositions } from '../scripts/lib.mjs';
 import { S as EN, NAMES } from '../site/js/strings.en.js';
+import { S as HE } from '../site/js/strings.js';
 import { quoteAttribution, correctionMailto, SITE_TRANSLATOR } from '../site/js/links.js';
 
 const data = loadData();
@@ -103,6 +104,9 @@ test('a null row may carry what was found: a valid source and date, a quote only
   assert.equal(run({ sourceUrl: 'https://a.example/', sourceDate: null }), '');
   assert.match(run({ sourceUrl: 'not a url' }), /sourceUrl/);
   assert.match(run({ sourceUrl: 'https://a.example/', sourceDate: '25.10.2026' }), /sourceDate/);
+  // An older platform with no exact date: the year alone, on a null row only.
+  assert.equal(run({ sourceUrl: 'https://a.example/', sourceDate: '1999' }), '');
+  assert.match(validatePositions([row({ position: 1, sourceType: 'platform', sourceUrl: 'https://a.example/', sourceDate: '1999' })], parties, topics).join(), /sourceDate/);
   assert.match(run({ sourceUrl: 'https://a.example/', sourceType: 'statement' }), /sourceType/);
   assert.match(run({ quote: 'ציטוט', quoteTranslationEn: 'A quote' }), /quote without a sourceUrl/);
 });
@@ -117,4 +121,12 @@ test('null rows shown with their source: the speaker, outlet and date in both la
   // Undated party pages: no date in the line (25.10 was the check date).
   assert.equal(quoteAttribution(pos('otzma-yehudit|religion'), 'עוצמה יהודית'), 'עוצמה יהודית, אתר המפלגה');
   assert.equal(quoteAttribution(pos('amcha-yisrael|religion'), 'Amcha Yisrael', EN), 'Amcha Yisrael, Party website');
+});
+
+test('a year-only source date reads as a year in both languages', () => {
+  assert.equal(EN.fmtDate('1999'), '1999');
+  assert.equal(EN.sheet.date(EN.fmtDate('1999')), 'from 1999');
+  assert.equal(EN.sheet.date(EN.fmtDate('2026-07-02')), 'dated 2 Jul 2026');
+  assert.equal(HE.sheet.date(HE.fmtDate('2006')), 'משנת 2006');
+  assert.equal(HE.sheet.date(HE.fmtDate('2026-07-02')), 'מתאריך 02.07.2026');
 });

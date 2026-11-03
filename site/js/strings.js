@@ -313,7 +313,8 @@ export const S = {
     extraSource: 'מקור נוסף',
     via: 'דרך בקלפי',
     sourceTypes: { platform: 'מצע', statement: 'הצהרה', record: 'רקורד חקיקתי' },
-    date: (d) => `מתאריך ${d}`,
+    // A year alone: an older platform whose exact date is not known.
+    date: (d) => (/^\d{4}$/.test(d) ? `משנת ${d}` : `מתאריך ${d}`),
     why: 'למה בצבע הזה?',
     noPosition: 'לא מצאנו עמדה מוצהרת של המפלגה בנושא הזה במקור שעומד בכללים שלנו.',
     gap: (a, b, d, la, lb) => `${a} ↔ ${b}: ${d} דרגות (${la} ↔ ${lb})`,

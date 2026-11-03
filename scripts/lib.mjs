@@ -72,6 +72,8 @@ const isHttps = (u) => typeof u === 'string' && /^https?:\/\/[^\s]+$/.test(u);
 // Non-empty English text: no Hebrew or Arabic letters.
 const isEnglish = (v) => typeof v === 'string' && v.trim() !== '' && !/[\u0590-\u06FF]/.test(v);
 const isDate = (d) => typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d);
+// A year alone, for an older platform whose exact date is not known (null rows only).
+const isYear = (d) => typeof d === 'string' && /^(19|20)\d{2}$/.test(d);
 
 export function validateParties(parties) {
   const errors = [];
@@ -221,7 +223,7 @@ export function validatePositions(positions, parties, topics, where = (p) => key
       // A null row may show what was found, with its source: a valid URL and date when present, a quote only with a
       // source, and no source type (it is not placed, so it is not counted as a platform, statement or record).
       if (p.sourceUrl != null && !isHttps(p.sourceUrl)) errors.push(`${at}: invalid sourceUrl`);
-      if (p.sourceDate != null && !isDate(p.sourceDate)) errors.push(`${at}: bad sourceDate "${p.sourceDate}"`);
+      if (p.sourceDate != null && !isDate(p.sourceDate) && !isYear(p.sourceDate)) errors.push(`${at}: bad sourceDate "${p.sourceDate}"`);
       if (p.sourceType != null) errors.push(`${at}: sourceType on a row without a position`);
       if (p.quote && p.sourceUrl == null) errors.push(`${at}: quote without a sourceUrl`);
     }
