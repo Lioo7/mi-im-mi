@@ -226,8 +226,9 @@ export function validatePositions(positions, parties, topics, where = (p) => key
       if (p.quote && p.sourceUrl == null) errors.push(`${at}: quote without a sourceUrl`);
     }
     if (p.viaUrl && !isHttps(p.viaUrl)) errors.push(`${at}: invalid viaUrl`);
-    // A second primary source, when the placement rests on two documents of the party (shown as "additional source").
-    if (p.extraSourceUrl != null && (!isHttps(p.extraSourceUrl) || p.position === null)) errors.push(`${at}: extraSourceUrl must be a URL, on a row with a position`);
+    // A second source (shown as "additional source"): on a placed row, the second document the placement rests on; on a
+    // null row, the source of a dated note from an older official platform (never used for placement).
+    if (p.extraSourceUrl != null && (!isHttps(p.extraSourceUrl) || p.sourceUrl == null)) errors.push(`${at}: extraSourceUrl must be a URL, next to a sourceUrl`);
     if (p.archiveUrl && !/^https:\/\/web\.archive\.org\/web\/\d{14}\//.test(p.archiveUrl)) errors.push(`${at}: archiveUrl must be a Wayback Machine snapshot`);
     if (p.archiveUrl && p.position === null) errors.push(`${at}: archiveUrl on a row without a position`);
     if (p.confidence && !CONFIDENCE.includes(p.confidence)) errors.push(`${at}: bad confidence "${p.confidence}"`);

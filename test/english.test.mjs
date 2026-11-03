@@ -81,7 +81,7 @@ test('every position has an English summary, and every non-English quote an Engl
   assert.match(run({ quote: 'We are staying', quoteTranslationEn: 'We are staying' }), /quoteTranslationEn/);
 });
 
-test('an additional source is a URL, and only on a row with a position', () => {
+test('an additional source is a URL, and only next to a main source (a null row\'s dated note included)', () => {
   const parties = [{ id: 'p' }];
   const topics = [{ id: 't' }];
   const row = (extra) => ({ partyId: 'p', topicId: 't', position: -2, redLine: false, summary: 'תקציר', summaryEn: 'Summary', quote: null,
@@ -91,6 +91,7 @@ test('an additional source is a URL, and only on a row with a position', () => {
   assert.equal(run({ extraSourceUrl: null }), '');
   assert.match(run({ extraSourceUrl: 'not a url' }), /extraSourceUrl/);
   assert.match(run({ position: null, sourceUrl: null, sourceType: null, extraSourceUrl: 'https://b.example/' }), /extraSourceUrl/);
+  assert.equal(run({ position: null, sourceType: null, extraSourceUrl: 'https://b.example/platform-1999.pdf' }), '');
 });
 
 test('a null row may carry what was found: a valid source and date, a quote only with a source, and no source type', () => {

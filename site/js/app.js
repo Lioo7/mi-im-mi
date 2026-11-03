@@ -417,9 +417,6 @@ function belowThreshold() {
 }
 
 // ---------- results ----------
-// Null rows whose quote and source wait for review before they are shown (decisions.md); their summary shows as before.
-const EVIDENCE_HELD = new Set(['raam|religion']);
-
 function positionBlock(pid, tid, { heading = true } = {}) {
   const p = posOf(pid, tid);
   const T = S.sheet;
@@ -427,7 +424,7 @@ function positionBlock(pid, tid, { heading = true } = {}) {
     return `<div class="pos">
       ${heading ? `<p class="pos-label none">${esc(T.noPositionLabel)}</p>` : ''}
       <p>${esc(p?.summary ?? T.noPosition)}</p>
-      ${p && !EVIDENCE_HELD.has(`${pid}|${tid}`) ? evidenceHtml(p, pid) : ''}
+      ${p ? evidenceHtml(p, pid) : ''}
     </div>`;
   }
   return `<div class="pos">

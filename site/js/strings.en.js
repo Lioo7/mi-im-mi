@@ -403,7 +403,7 @@ export const S = {
     ],
     jointSeats: 'Their seats are a split of the joint list\'s average (about 7) according to Zehut\'s places on the list (2, 8, 10, 11): about 1 for Zehut and about 6 for Religious Zionism. This is our estimate, not a poll result.',
     jointSource: 'Source on the split (Hebrew)',
-    nullRule: 'When we found no source that meets the rules, the position is marked "No stated position". We do not guess. When we found words of the party that are not a position on the axis (for example a general statement, or one about another part of the topic), they are shown with their source, but the position is not placed and not counted.',
+    nullRule: 'When we found no source that meets the rules, the position is marked "No stated position". We do not guess. When we found words of the party that are not a position on the axis (for example a general statement, or one about another part of the topic), they are shown with their source, but the position is not placed and not counted. When there is no current position, an item from an official platform of a previous election may also be shown, as a note with its year and its source. It is never used for placement, and the rule is the same for every party.',
     bakalpi: 'The research started from the independent site Bakalpi, which collects the parties\' positions. The summaries were rewritten, and every position links to its primary source.',
     sourceMixTitle: 'Source types by bloc',
     sourceMixIntro: 'Not every party has a platform for the 2026 election, so the type of source varies between parties and blocs. The table shows how many of the set positions rest on each type of source, and how many topics were left without a position. Blocs as defined by Bakalpi (N12).',

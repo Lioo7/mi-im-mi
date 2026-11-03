@@ -977,8 +977,8 @@ try {
   if (!q || !/^״.+״$/.test(q.text ?? '')) errors.push(`[interaction] quote must be wrapped in quotation marks (${JSON.stringify(q)})`);
   if (!q || !q.by.startsWith(withQuote.quoteBy) || !/\d{2}\.\d{2}\.\d{4}$/.test(q.by)) errors.push(`[interaction] quote attribution should read "<speaker>, <channel>, <date>" (${q?.by})`);
   await shoot(z, 'interaction-cell-quote-m.png', false);
-  // Null rows show what was found: the "no stated position" label, the quote with its attribution, and the source. A row
-  // held for review (רע״ם × דת) shows its summary only.
+  // Null rows show what was found: the "no stated position" label, the quote with its attribution, and the source; a dated
+  // note from an older platform links its source as the additional source.
   for (const [lng, T, by] of [['he', S, 'משה פייגלין, ערוץ 7, 02.07.2026'], ['en', EN, 'Moshe Feiglin, Arutz Sheva (Israel National News), 2 Jul 2026']]) {
     const l = lng === 'he' ? '' : '&l=en';
     await go(`${baseUrl}#results?m=likud,zehut${l}`);
@@ -995,8 +995,16 @@ try {
     await waitFor(() => evaluate("document.body.dataset.view === 'results' && document.querySelectorAll('.cell').length > 0"));
     await evaluate("document.querySelector('.cell[data-party=\"raam\"][data-topic=\"religion\"]').click()");
     await sleep(300);
-    const held = await evaluate("(() => { const p = document.querySelector('#sheet .pos'); return p ? (p.querySelector('blockquote, .source') ? 'shown' : 'held') : 'no position block'; })()");
-    if (held !== 'held') errors.push(`[interaction-${lng}] רע״ם × דת is held for review: no quote or source yet (${held})`);
+    const rel = await evaluate("(() => { const p = document.querySelector('#sheet .pos'); return { quote: p?.querySelector('blockquote .q-text')?.textContent ?? '', by: p?.querySelector('blockquote .q-by')?.textContent.trim() ?? '', tag: p?.querySelector('.tag-src') !== null }; })()");
+    const relBy = lng === 'he' ? 'מנסור עבאס, פייסבוק, 26.08.2026 (תרגום: כיפה)' : 'Mansour Abbas, Facebook, 26 Aug 2026 (Hebrew translation: Kipa)';
+    if (!rel.quote.includes('נאלצו לקבל זאת מבחינה מעשית') || rel.by !== relBy || rel.tag) errors.push(`[interaction-${lng}] רע״ם × דת should show the full quote (with the practical acceptance) and "${relBy}", with no type tag (${JSON.stringify(rel)})`);
+    await evaluate("document.querySelector('#sheet').close()");
+    await evaluate("document.querySelector('.cell[data-party=\"raam\"][data-topic=\"draft\"]').click()");
+    await sleep(300);
+    const note = await evaluate("(() => { const p = document.querySelector('#sheet .pos'); return { text: p?.innerText ?? '', links: [...(p?.querySelectorAll('.source a') ?? [])].map((a) => a.href) }; })()");
+    const year = lng === 'he' ? "במצע הרשימה מ-1999 נכתב: 'דחיית גיוסם של הערבים בצה״ל'." : "The list's 1999 platform says: 'rejection of the conscription of Arabs into the IDF'.";
+    if (!note.text.includes(year) || !note.links.includes('https://www.idi.org.il/media/16883/%D7%A8%D7%A2%D7%9E-1999.pdf')) errors.push(`[interaction-${lng}] רע״ם × גיוס should carry the dated 1999 note and link the IDI copy (${JSON.stringify(note.links)})`);
+    await shoot(z, `interaction-dated-note-m${lng === 'he' ? '' : '-en'}.png`, false);
     await evaluate("document.querySelector('#sheet').close()");
   }
   // Arabic quotes keep the original and add a marked Hebrew translation under it.

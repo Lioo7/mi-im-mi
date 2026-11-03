@@ -49,6 +49,8 @@ Update `meta.json → resultsStatus` to the official wording, and update `result
 - `sourceType`: `platform` | `statement` (party/leader's own words: site, X, recorded interview, direct quote) | `record` (a bill the party initiated or advanced). Votes breaking from the bloc were planned as evidence, but no position uses one; plain bloc-discipline votes never count. A journalist's characterization is never a source.
 - `redLine=true` only when the party or its leader said in its own words, on the record, that this is a coalition condition. Never from news reports.
 - No source means `position: null`. Never guess. Summaries are in our own words; quotes are verbatim.
+- A null cell shows what was found (quote, attribution, source) without placing it. When no current position exists, an older official platform from a previous election may appear as a dated note in the null cell: the year is always in the text, its source goes in `extraSourceUrl`, it is never used for placement, and the rule applies to every party the same way.
+- The Ra'am disqualification annex (`research/cec/`) is a partisan compilation, not a source. Anything in it is taken only from the primary source (e.g. the 1999 platform, from the IDI archive).
 
 ## Glossary (our voice; quotes stay verbatim)
 | Hebrew | English | Never (outside quotes) |
