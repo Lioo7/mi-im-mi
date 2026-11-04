@@ -13,7 +13,7 @@ The CEC submitted the results to the President on 4.11.2026 (#2). `results-26.js
 ## Layout
 - `site/`: everything that is deployed.
   - `index.html`, `css/app.css`
-  - `js/app.js`: DOM, routing (`#build`, `#results`, `#method`, `#why`), rendering
+  - `js/app.js`: DOM, routing (`#build`, `#results`, `#pair`, `#method`, `#why`), rendering
   - `js/compat.js`: pure compatibility logic, seat source per mode, roles and investiture, completions to 61, and URL state (`#<view>?b=&m=&o=&a=`), unit-tested
   - `js/strings.js`: all UI strings (Hebrew); `js/strings.en.js`: the same shape in English, plus `NAMES` (people and channels named in the data)
   - `js/links.js`: correction mailto and quote attribution
@@ -81,7 +81,7 @@ Loaded terms appear only inside attributed quotes. `test/glossary.test.mjs` enfo
 - **Roles:** member / supporter (`o=`) / abstainer (`a=`); unselected = opponent. Clash analysis is members only; supporters' and abstainers' gaps have their own card. Investiture: for = members + supporters, against = all others except abstainers, approved when for > against. Old `o=` links mean supporters.
 
 ## URL and security
-- **URL state lives in the fragment:** `#<view>?b=&m=&o=&a=` (plus `l=en` for English), with the views and method anchors as routes. Never put coalition state in the query: the server, and the Referer of every same-origin request, would see it. Old `?m=` links: `moveLegacyState` moves the query state into the fragment verbatim before any request, then the ids are checked. Other query params (e.g. `?s=wa`) stay. Share links are `/#results?…`.
+- **URL state lives in the fragment:** `#<view>?b=&m=&o=&a=` (plus `l=en` for English), with the views and method anchors as routes. The pair view adds `p=<a>,<b>` on `#pair` only; it is not coalition state, and its share link carries only `p` and `l`. Never put coalition state in the query: the server, and the Referer of every same-origin request, would see it. Old `?m=` links: `moveLegacyState` moves the query state into the fragment verbatim before any request, then the ids are checked. Other query params (e.g. `?s=wa`) stay. Share links are `/#results?…`.
 - **CSP (`netlify.toml`):** no inline scripts, no `style=""` attributes (set styles through the CSSOM), and no new hosts without updating the policy. The one script hash is the inline script of Netlify's badge, which runs in a srcdoc iframe that inherits our CSP; if smoke reports a new hash, update it there. Inline `<style>` elements are allowed (`style-src-elem 'unsafe-inline'`) only because the badge's style embeds the visitor's viewport size, so it has no stable hash.
 
 ## English version
