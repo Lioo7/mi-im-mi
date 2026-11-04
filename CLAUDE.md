@@ -7,8 +7,8 @@ The site is no longer frozen (1.11): changes under `site/` are allowed as part o
 Backlog: GitHub Issues. Run `gh issue list` before starting new work. Reference issues in commits (closes #N).
 Issue format: a one-sentence goal, short bullets, a "Done when" line. Labels: enhancement, tech-debt, research, data, priority:high.
 
-### Follow-up on 4.11: CEC submits the results to the President
-Update `meta.json → resultsStatus` to the official wording, and update `results-26.json` seats **only if the CEC corrected them** (keep the as-published values otherwise). Then validate, test, smoke, draft deploy, get the user's OK, and only then deploy to production. Note the change in `docs/research/decisions.md`.
+### Results: official since 4.11
+The CEC submitted the results to the President on 4.11.2026 (#2). `results-26.json` holds the final official votes; the seats did not change. See `docs/research/decisions.md`.
 
 ## Layout
 - `site/`: everything that is deployed.

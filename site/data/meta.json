@@ -1,5 +1,5 @@
 {
-  "dataUpdated": "2026-11-01",
+  "dataUpdated": "2026-11-04",
   "pollsAsOf": "2026-10-23",
   "pollNote": "ממוצע סקרים שפורסמו עד 23.10.2026. הסקרים אינם עדכניים, ואין ללמוד מהם על דפוסי הצבעה או עמדות הציבור כיום.",
   "pollSourceUrl": "https://www.bakalpi.co.il/he",
@@ -9,11 +9,11 @@
   "stub": false,
   "pollGuidanceUrl": "https://www.gov.il/BlobFolder/guide/knesset25-elections-info/he/survey_section16_acces.pdf",
   "mode": "results",
-  "resultsAsOf": "2026-10-30",
-  "resultsStatus": "לפי תוצאות ועדת הבחירות המרכזית, נכון ל-30.10.2026, לפני הגשה לנשיא",
+  "resultsAsOf": "2026-11-04",
+  "resultsStatus": "התוצאות הרשמיות של ועדת הבחירות המרכזית, שהוגשו לנשיא ב-4.11.2026",
   "resultsSourceUrl": "https://votes26.bechirot.gov.il/",
   "en": {
     "pollNote": "Average of polls published up to 23 Oct 2026. The polls are not current, and nothing should be inferred from them about voting patterns or public opinion today.",
-    "resultsStatus": "According to the Central Elections Committee's results, as of 30 Oct 2026, before submission to the President"
+    "resultsStatus": "Official results of the Central Elections Committee, submitted to the President on 4 Nov 2026"
   }
 }

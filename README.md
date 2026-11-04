@@ -4,7 +4,7 @@
 
 כלי ניטרלי לבחירות לכנסת ה-26 (27.10.2026): בוחרים מפלגות שעשויות לשבת יחד בקואליציה, ורואים באילו נושאים העמדות שלהן קרובות ובאילו הן רחוקות. כל עמדה מגובה במקור.
 
-**מאז 1.11: לפי תוצאות הבחירות.** מספרי המנדטים הם התוצאות שפרסמה ועדת הבחירות המרכזית (נכון ל-30.10, לפני הגשה לנשיא). לכל מפלגה אפשר לסמן תפקיד (בקואליציה, תומכת מבחוץ, נמנעת; מי שלא נבחרה מתנגדת), ולראות אם הממשלה הייתה זוכה באמון ומה חסר לחברות הקואליציה כדי להגיע ל-61. במקום התרחישים לפי גושים יש שלושה תרחישים שעלו בתקשורת, כל אחד עם מקור ותאריך. העמדות עצמן מתועדות לפי ערב הבחירות.
+**מאז 1.11: לפי תוצאות הבחירות.** מספרי המנדטים הם התוצאות הרשמיות של ועדת הבחירות המרכזית, שהוגשו לנשיא ב-4.11.2026. לכל מפלגה אפשר לסמן תפקיד (בקואליציה, תומכת מבחוץ, נמנעת; מי שלא נבחרה מתנגדת), ולראות אם הממשלה הייתה זוכה באמון ומה חסר לחברות הקואליציה כדי להגיע ל-61. במקום התרחישים לפי גושים יש שלושה תרחישים שעלו בתקשורת, כל אחד עם מקור ותאריך. העמדות עצמן מתועדות לפי ערב הבחירות.
 
 🔗 **האתר:** https://mi-im-mi-2026.netlify.app · **באנגלית:** [mi-im-mi-2026.netlify.app/#build?l=en](https://mi-im-mi-2026.netlify.app/#build?l=en)
 
@@ -123,7 +123,7 @@ node scripts/smoke.mjs [baseUrl]      # בדיקת smoke עם צילומי מס�
 | [`site/data/positions.json`](site/data/positions.json) | 112 עמדות: מיקום, קו אדום, סיכום (גם באנגלית), ציטוט וייחוס ותרגום הציטוט לאנגלית, מקור, סוג מקור, תאריך ועותק בארכיון |
 | [`site/data/meta.json`](site/data/meta.json) | תאריכי עדכון, `mode` (תוצאות או סקרים), סטטוס התוצאות, משפט ההסתייגות על הסקרים, קישורי המקורות ו-`showSeats` |
 | [`site/data/scenarios.json`](site/data/scenarios.json) | עד 4 תרחישים שעלו בתקשורת: חברות, תומכות ונמנעות, ומקור עם תאריך לכל אחד |
-| [`site/data/results-26.json`](site/data/results-26.json) | תוצאות ועדת הבחירות לכל רשימה: קולות, אחוזים ומנדטים, כפי שפורסמו (30.10.2026, לפני הגשה לנשיא) |
+| [`site/data/results-26.json`](site/data/results-26.json) | תוצאות ועדת הבחירות לכל רשימה: קולות, אחוזים ומנדטים, כפי שפורסמו (התוצאות הרשמיות, שהוגשו לנשיא ב-4.11.2026) |
 | [`docs/research/`](docs/research/) | יומן ההחלטות, הערות הראיות לכל עמדה, ותוצאות הבדיקות |
 
 ## רישיון
@@ -140,7 +140,7 @@ node scripts/smoke.mjs [baseUrl]      # בדיקת smoke עם צילומי מס�
 
 **Mi Im Mi ("Who With Whom")** is a neutral, mobile-first web app, in Hebrew with an English version, for Israel's Knesset election of 27 October 2026. Pick parties that might form a coalition, and see where their positions agree and where they clash.
 
-**Since 1 November it runs on the results:** seats as published by the Central Elections Committee (as of 30.10, before submission to the President). Each party can be marked as a member, an outside supporter or an abstainer (everyone else votes against). The app shows whether the government would win the investiture vote (for > against) and which single parties that result or the members' 61 depends on (the numbers without each; an abstainer is checked as voting against), which red lines are crossed within the coalition (one line in the summary, also when there are none), the smallest sets of extra parties that would give the members alone 61 seats (fewest parties first, with the new head-on clashes and newly crossed red lines of each), the minimal 61-seat coalitions closest to one party's stated positions (a fixed order with no weights: its own red lines crossed, its head-on clashes, head-on clashes in the whole coalition, agreement, seats; coalitions with a partner silent on 3+ topics are listed apart, on request, with a warning), and how far supporters and abstainers are from the coalition (their head-on clashes are also counted in the share text). Three scenarios raised in the media (each with its source and date, named by composition only) replace the bloc presets. Positions are as documented on election eve.
+**Since 1 November it runs on the results:** seats from the Central Elections Committee's official results, submitted to the President on 4 November 2026. Each party can be marked as a member, an outside supporter or an abstainer (everyone else votes against). The app shows whether the government would win the investiture vote (for > against) and which single parties that result or the members' 61 depends on (the numbers without each; an abstainer is checked as voting against), which red lines are crossed within the coalition (one line in the summary, also when there are none), the smallest sets of extra parties that would give the members alone 61 seats (fewest parties first, with the new head-on clashes and newly crossed red lines of each), the minimal 61-seat coalitions closest to one party's stated positions (a fixed order with no weights: its own red lines crossed, its head-on clashes, head-on clashes in the whole coalition, agreement, seats; coalitions with a partner silent on 3+ topics are listed apart, on request, with a warning), and how far supporters and abstainers are from the coalition (their head-on clashes are also counted in the share text). Three scenarios raised in the media (each with its source and date, named by composition only) replace the bloc presets. Positions are as documented on election eve.
 
 🔗 https://mi-im-mi-2026.netlify.app · in English: [mi-im-mi-2026.netlify.app/#build?l=en](https://mi-im-mi-2026.netlify.app/#build?l=en)
 
