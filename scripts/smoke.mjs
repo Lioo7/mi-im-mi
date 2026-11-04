@@ -638,11 +638,15 @@ try {
     // Media scenarios replace the bloc presets: up to 4, named by composition, sorted alphabetically, each with a
     // dated, linked source; tapping one fills members, supporters and abstainers.
     const { scenarios } = loadData();
-    const scen = await evaluate(`(() => { const sec = document.querySelector('#presets'); return { title: sec.querySelector('h2')?.innerText,
+    const closedAtFirst = await evaluate("document.querySelector('#presets details')?.open === false");
+    await evaluate("document.querySelector('#presets details').open = true");
+    const scen = await evaluate(`(() => { const sec = document.querySelector('#presets'); return { title: sec.querySelector('summary')?.innerText.trim(), open: ${!closedAtFirst},
       old: sec.querySelectorAll('[data-act="preset"]').length, items: [...sec.querySelectorAll('.scenario')].map((li) => ({
         id: li.querySelector('[data-act="scenario"]').dataset.id, label: li.querySelector('[data-act="scenario"]').innerText.trim(),
         links: [...li.querySelectorAll('.scen-src a')].map((a) => a.href), src: li.querySelector('.scen-src').innerText })) }; })()`);
-    if (scen.title !== S.presets.scenariosTitle(S.presets.shortDate(scenarios.asOf))) errors.push(`[interaction] scenarios heading wrong (${scen.title})`);
+    // #26: the scenarios sit in the builder section, collapsed, behind "או התחילו מתרחיש שעלה בתקשורת (n) · נכון ל-…".
+    if (scen.title !== S.presets.scenariosStart(scenarios.scenarios.length, S.presets.shortDate(scenarios.asOf))) errors.push(`[interaction] scenarios summary wrong (${scen.title})`);
+    if (scen.open) errors.push('[interaction] the scenarios disclosure should start collapsed');
     if (scen.old) errors.push('[interaction] bloc presets still shown in results mode');
     if (scen.items.length !== scenarios.scenarios.length || scen.items.length > 4) errors.push(`[interaction] expected ${scenarios.scenarios.length} scenarios, got ${scen.items.length}`);
     const labels = scen.items.map((x) => x.label);
@@ -659,6 +663,8 @@ try {
       const want = `${S.presets.sourcesLabel(sc.sources.length)} ${sc.sources.map((x) => `${x.by ? S.presets.personIn(x.by) : ''}${x.outlet}, ${S.presets.shortDate(x.date)}`).join(' · ')}`;
       if (it.src.replace(/\s+/g, ' ').trim() !== want) errors.push(`[interaction] scenario ${it.id} source line "${it.src}" should read "${want}"`);
     }
+    await evaluate("(() => { const d = document.querySelector('#presets details'); d.open = true; d.scrollIntoView(); })()");
+    await sleep(150);
     await shoot(z, 'interaction-scenarios-m.png', false);
     if (await evaluate("document.querySelector('#presets .scen-note') !== null")) errors.push('[interaction] scenario notes must not be rendered (they live in decisions.md)');
     const b = scenarios.scenarios.find((x) => x.supporters.length && x.abstainers.length) ?? scenarios.scenarios[0];
@@ -668,7 +674,9 @@ try {
     const ids = (k) => (q.get(k) ?? '').split(',').filter(Boolean).sort().join(',');
     if (ids('m') !== [...b.members].sort().join(',') || ids('o') !== [...b.supporters].sort().join(',') || ids('a') !== [...b.abstainers].sort().join(',')) errors.push(`[interaction] scenario tap did not set its roles (${q})`);
   } else {
-    await evaluate("document.querySelector('[data-act=\"preset\"][data-id=\"unity\"]').click()");
+    const pre = await evaluate("JSON.stringify([document.querySelector('#presets summary')?.innerText.trim(), document.querySelector('#presets details')?.open])");
+    if (pre !== JSON.stringify([S.presets.presetsStart, false])) errors.push(`[interaction] presets disclosure: expected "${S.presets.presetsStart}", collapsed; got ${pre}`);
+    await evaluate("document.querySelector('#presets details').open = true; document.querySelector('[data-act=\"preset\"][data-id=\"unity\"]').click()");
   }
   await sleep(300);
   await shoot(z, 'interaction-build-unity-m.png', false);
@@ -1272,10 +1280,10 @@ try {
         current = `pair-${lng}@${w}`;
         await go(`${baseUrl}${L ? `#build?${L}` : ''}`);
         await ready();
-        const entry = await evaluate(`(() => { const a = document.querySelector('#presets .pair-entry a[href="#pair"]'); if (!a) return 'missing';
-          const r = a.getBoundingClientRect(); return r.height >= 44 ? a.innerText.trim() : 'under 44px'; })()`);
-        if (entry !== T.pair.open) errors.push(`[${current}] entry on the build view: expected "${T.pair.open}", got "${entry}"`);
-        await evaluate("document.querySelector('#presets .pair-entry a').click()");
+        const entry = await evaluate(`(() => { const a = document.querySelector('#tasks a[href="#pair"]'); if (!a) return 'missing';
+          const r = a.closest('.task').getBoundingClientRect(); return r.height >= 44 ? a.innerText.trim() : 'under 44px'; })()`);
+        if (entry !== T.home.pair) errors.push(`[${current}] entry on the build view: expected "${T.home.pair}", got "${entry}"`);
+        await evaluate("document.querySelector('#tasks a[href=\"#pair\"]').click()");
         await waitFor(() => evaluate("document.body.dataset.view === 'pair'"));
         await sleep(200);
         const opened = await evaluate("JSON.stringify([location.hash, document.activeElement?.id, document.querySelector('#pair-view .empty')?.innerText.trim()])");
@@ -1330,7 +1338,7 @@ try {
     // The coalition stays in the fragment around the view, but never rides in the share link.
     await go(`${baseUrl}#build?m=likud,yashar`);
     await ready();
-    await evaluate("document.querySelector('#presets .pair-entry a').click()");
+    await evaluate("document.querySelector('#tasks a[href=\"#pair\"]').click()");
     await waitFor(() => evaluate("document.body.dataset.view === 'pair'"));
     await pick(0, A);
     await pick(1, B);
@@ -1366,6 +1374,114 @@ try {
       if (linked !== wantLinked) errors.push(`[${current}] soft-link note: expected ${JSON.stringify(wantLinked)}, got ${JSON.stringify(linked)}`);
     }
     console.log(`  ✓ pair view: ${n} runs (360/375/390 × he, en), edge cases`);
+  }
+
+  // Task cards (#26): right after the intro, in a fixed order, each title its control (cards 1 and 3 tappable as a whole).
+  // First-screen fit with the host badge: Hebrew in full at 375×667; English in full at 390×844, and at 375×667 card 3's
+  // title row must at least start above the badge.
+  {
+    await c.send('Accessibility.enable');
+    const ax = async (sel) => {
+      const { root } = await c.send('DOM.getDocument', { depth: 0 });
+      const { nodeId } = await c.send('DOM.querySelector', { nodeId: root.nodeId, selector: sel });
+      if (!nodeId) return null;
+      const { nodes } = await c.send('Accessibility.getPartialAXTree', { nodeId, fetchRelatives: false });
+      return { name: nodes[0]?.name?.value ?? '', desc: nodes[0]?.description?.value ?? '' };
+    };
+    const tap = async (sel) => {
+      const pt = await evaluate(`(() => { const r = document.querySelector(${JSON.stringify(sel)}).getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; })()`);
+      for (const type of ['mousePressed', 'mouseReleased']) await c.send('Input.dispatchMouseEvent', { type, x: pt[0], y: pt[1], button: 'left', clickCount: 1 });
+    };
+    const key = async (k, code) => { for (const type of ['keyDown', 'keyUp']) await c.send('Input.dispatchKeyEvent', { type, key: k, code: k, windowsVirtualKeyCode: code }); };
+    const nameIn = (lng, id) => posCtx[lng].byId.get(id).name;
+    const BADGE_TOP = "(document.querySelector('#sim-host-badge')?.getBoundingClientRect().top ?? innerHeight - 64)";
+    const nTopics = topics.length;
+    const layouts = [
+      { w: 375, h: 667, lng: 'he', fit: 'full' }, { w: 390, h: 844, lng: 'he', fit: 'full' }, { w: 360, h: 740, lng: 'he' },
+      { w: 390, h: 844, lng: 'en', fit: 'full' }, { w: 375, h: 667, lng: 'en', fit: 'peek' }, { w: 360, h: 740, lng: 'en' },
+    ];
+    for (const { w, h, lng, fit } of layouts) {
+      const T = lng === 'he' ? S : EN;
+      const zt = { tag: `t${w}`, width: w, height: h, mobile: true, dpr: 2 };
+      await setSize(zt);
+      current = `tasks-${lng}@${w}x${h}`;
+      await go(`${baseUrl}${lng === 'en' ? '#build?l=en' : ''}`);
+      await ready();
+      await sleep(250);
+      const want = [[T.home.build, T.home.buildLine(nTopics)], ...(RESULTS ? [[T.home.closest, T.home.closestLine]] : []), [T.home.pair, T.home.pairLine(nTopics)]];
+      const got = await evaluate(`JSON.stringify({ h2: document.querySelector('#tasks h2')?.innerText.trim(), intro: [document.querySelector('#intro').tagName, document.querySelector('#intro').innerText.trim()],
+        cards: [...document.querySelectorAll('#tasks .task')].map((t) => [t.querySelector('.task-title').innerText.trim(), t.querySelector('.task-line').innerText.trim()]),
+        after: document.querySelector('#purpose').compareDocumentPosition(document.querySelector('#tasks')) & Node.DOCUMENT_POSITION_FOLLOWING,
+        overflow: document.documentElement.scrollWidth > innerWidth + 1 })`).then(JSON.parse);
+      const wantGot = { h2: T.home.title, intro: ['H1', T.buildIntro(nTopics)], cards: want, after: 4, overflow: false };
+      if (JSON.stringify(got) !== JSON.stringify(wantGot)) errors.push(`[${current}] cards: expected ${JSON.stringify(wantGot)}, got ${JSON.stringify(got)}`);
+      if (fit) {
+        const pos = await evaluate(`JSON.stringify({ badge: Math.round(${BADGE_TOP}), scrollY, cards: [...document.querySelectorAll('#tasks .task')].map((t) => { const r = t.getBoundingClientRect(); return [Math.round(r.top), Math.round(r.bottom)]; }),
+          lastTitle: Math.round(document.querySelector('#tasks .task:last-child .task-title').getBoundingClientRect().top),
+          purpose: Math.round(document.querySelector('#purpose').getBoundingClientRect().bottom) })`).then(JSON.parse);
+        if (pos.scrollY !== 0) errors.push(`[${current}] first load should be at the top (scrollY ${pos.scrollY})`);
+        if (fit === 'full' && !pos.cards.every(([t, b]) => t >= 0 && b <= pos.badge)) errors.push(`[${current}] every card must be fully visible above the badge (top ${pos.badge}) on first load: ${JSON.stringify(pos.cards)}`);
+        if (fit === 'peek' && !(pos.lastTitle < pos.badge)) errors.push(`[${current}] the last card's title row must start above the badge (title ${pos.lastTitle}, badge ${pos.badge})`);
+        if (pos.purpose > pos.badge) errors.push(`[${current}] the purpose paragraph must be on the first screen (ends ${pos.purpose})`);
+        await shoot(zt, `tasks-${w}x${h}${lng === 'en' ? '-en' : ''}.png`, false);
+      }
+      if (lng === 'en') { const he = await evaluate(HEBREW_OUTSIDE); if (he) errors.push(`[${current}] Hebrew text outside lang="he": ${he}`); }
+      // One accessible name per card control: the title alone; the line is its description.
+      for (const [sel, i] of [['#tasks [data-key="home-build"]', 0], ...(RESULTS ? [['#tasks [data-key="closest-pick"]', 1]] : []), ['#tasks [data-key="home-pair"]', want.length - 1]]) {
+        const a = await ax(sel);
+        if (!a || a.name !== want[i][0] || a.desc !== want[i][1]) errors.push(`[${current}] ${sel}: accessible name/description should be "${want[i][0]}" / "${want[i][1]}", got ${JSON.stringify(a)}`);
+      }
+      // Cards 1 and 3: the whole card is the target (its line answers a hit), with a visible focus ring around the card.
+      for (const k of ['home-build', 'home-pair']) {
+        await key('Shift', 16); // a key press first, so focus set by script counts as keyboard focus (:focus-visible)
+        const r = await evaluate(`(() => { const el = document.querySelector('[data-key="${k}"]'); const card = el.closest('.task'); const line = card.querySelector('.task-line');
+          card.scrollIntoView({ block: 'center' }); const lr = line.getBoundingClientRect(); const hit = document.elementFromPoint(lr.left + lr.width / 2, lr.top + lr.height / 2);
+          el.focus(); const st = getComputedStyle(el, '::after'); const cr = card.getBoundingClientRect(); const ok = [el.matches(':focus-visible'), st.outlineStyle, st.outlineWidth, st.position, st.content];
+          el.blur(); window.scrollTo(0, 0); return JSON.stringify([hit === el || el.contains(hit), ...ok, cr.height >= 44]); })()`);
+        if (r !== JSON.stringify([true, true, 'solid', '3px', 'absolute', '""', true])) errors.push(`[${current}] ${k}: whole-card target and focus ring [hit, focus-visible, outline, width, ::after position, content, ≥44px]: ${r}`);
+      }
+      // Targets and focus moves, once per language at phone width.
+      if (w === 390) {
+        const L = lng === 'en' ? '?l=en' : '';
+        await go(`${baseUrl}#build${L}`);
+        await ready();
+        await sleep(200);
+        const h0 = await evaluate('location.hash');
+        await tap('#tasks [data-key="home-build"] + .task-line');
+        const reached = await waitFor(() => evaluate("(() => { const r = document.querySelector('#builder-title').getBoundingClientRect(); return document.activeElement?.id === 'builder-title' && r.top >= 0 && r.top < 80; })()"), 3000).catch(() => false);
+        const hb = await evaluate('JSON.stringify([location.hash, document.querySelector("#builder-title").innerText.trim(), document.body.dataset.view])');
+        if (!reached || hb !== JSON.stringify([h0, T.builder.title, 'build'])) errors.push(`[${current}] card 1 should focus the builder heading at the top, URL unchanged (${reached}, ${hb})`);
+        if (lng === 'he') await shoot(zt, 'tasks-card1-target-m.png', false);
+        await evaluate('window.scrollTo(0, 0)');
+        if (RESULTS) {
+          await evaluate("(() => { const s = document.querySelector('#tasks [data-act=\"closest-pick\"]'); s.focus(); s.value = 'likud'; s.dispatchEvent(new Event('change', { bubbles: true })); })()");
+          await sleep(300);
+          const sheet = await evaluate("JSON.stringify([document.querySelector('#sheet').open, document.querySelector('#sheet h2')?.innerText.trim()])");
+          if (sheet !== JSON.stringify([true, T.closest.title(nameIn(lng, 'likud'))])) errors.push(`[${current}] card 2 should open the closest-coalitions sheet: ${sheet}`);
+          await key('Escape', 27);
+          await sleep(250);
+          const back = await evaluate("JSON.stringify([document.querySelector('#sheet').open, document.activeElement?.dataset?.key, document.querySelector('#tasks [data-act=\"closest-pick\"]').value])");
+          if (back !== JSON.stringify([false, 'closest-pick', ''])) errors.push(`[${current}] closing the sheet should return focus to the card 2 picker, reset: ${back}`);
+        }
+        await tap('#tasks [data-key="home-pair"] + .task-line');
+        await waitFor(() => evaluate("document.body.dataset.view === 'pair'"));
+        await sleep(200);
+        const pv = await evaluate('JSON.stringify([location.hash, document.activeElement?.id])');
+        if (pv !== JSON.stringify([`#pair${L}`, 'pair-title'])) errors.push(`[${current}] card 3 should open #pair${L} with focus on its heading: ${pv}`);
+        await evaluate('history.back()');
+        await waitFor(() => evaluate("document.body.dataset.view === 'build'"));
+        await sleep(250);
+        const bk = await evaluate('JSON.stringify([location.hash, document.activeElement?.dataset?.key, scrollY])');
+        if (bk !== JSON.stringify([`#build${L}`, 'home-pair', 0])) errors.push(`[${current}] back from the pair view should focus card 3: ${bk}`);
+        // The disclosure: collapsed, labelled, opens to the scenarios (results) or presets (polls).
+        const disc = await evaluate(`(() => { const d = document.querySelector('#presets details'); const was = d.open; d.querySelector('summary').click();
+          return JSON.stringify([was, d.open, d.querySelector('summary').innerText.trim(), d.querySelectorAll('[data-act="scenario"], [data-act="preset"]').length > 0, document.querySelector('#builder-title').compareDocumentPosition(d) & Node.DOCUMENT_POSITION_FOLLOWING]); })()`);
+        const sumWant = RESULTS ? T.presets.scenariosStart(loadData().scenarios.scenarios.length, T.presets.shortDate(loadData().scenarios.asOf)) : T.presets.presetsStart;
+        if (disc !== JSON.stringify([false, true, sumWant, true, 4])) errors.push(`[${current}] start-from disclosure [was open, opens, summary, has items, after the builder heading]: ${disc}`);
+      }
+    }
+    await setSize(SIZES[0]);
+    console.log('  ✓ task cards: he 375×667, en 390×844 (full fit), en 375×667 (card 3 peeks), 360px; names, targets, focus');
   }
 
   // Phone layout, both languages, also at 360 (a common Android width): at least 16px between the brand and the nav, a
