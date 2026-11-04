@@ -535,7 +535,15 @@ export const stateKeysIn = (params) => STATE_KEYS.some((k) => new URLSearchParam
 
 // Splits a location into its route, its state (fragment first, then a legacy query) and the query without the
 // state keys, which keeps any other param (e.g. ?s=wa) as it was.
-export function parseLocation({ search, hash }, validIds) {
+// The pair view's two pickers (`#pair?p=a,b`): known ids, the same party at most once, in the order picked. A party
+// under the threshold is allowed (its positions stay viewable). Returns two slots, null when empty.
+export function parsePair(fragment, validIds) {
+  const valid = new Set(validIds);
+  const ids = [...new Set((new URLSearchParams(fragment).get('p') ?? '').split(',').map((s) => s.trim()).filter((id) => valid.has(id)))];
+  return [ids[0] ?? null, ids[1] ?? null];
+}
+
+export function parseLocation({ search, hash }, validIds, pairIds = validIds) {
   const h = hash.replace(/^#/, '');
   const i = h.indexOf('?');
   const route = i < 0 ? h : h.slice(0, i);
@@ -549,6 +557,7 @@ export function parseLocation({ search, hash }, validIds) {
     route, state: parseState(legacy ? search : fragment, validIds), legacy, fromFragment: stateKeysIn(fragment), search: rest ? `?${rest}` : '',
     // `l=` (fragment only) names a language other than Hebrew; `hasParams` tells a full link from a nav link (`#method`).
     lang: LANGS.includes(l) ? l : 'he', hasParams: i >= 0,
+    pair: parsePair(fragment, pairIds),
   };
 }
 
@@ -565,7 +574,10 @@ export function moveLegacyState({ search, hash }) {
   return `${rest ? `?${rest}` : ''}#${route}?${fragment}`;
 }
 
-export function locationFor(ctx, state, route, search = '', lang = 'he') {
+// `pair` (the pair view's slots) is written only when given; the caller passes it on the pair route alone.
+export function locationFor(ctx, state, route, search = '', lang = 'he', pair = []) {
   const s = serializeState(ctx, state);
-  return `${search}#${route}${s}${lang === 'he' ? '' : `${s ? '&' : '?'}l=${lang}`}`;
+  const ids = pair.filter(Boolean);
+  const extra = [ids.length ? `p=${ids.join(',')}` : '', lang === 'he' ? '' : `l=${lang}`].filter(Boolean).join('&');
+  return `${search}#${route}${s}${extra ? `${s ? '&' : '?'}${extra}` : ''}`;
 }

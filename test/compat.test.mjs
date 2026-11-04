@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
   level, makeContext, topicStatus, crises, glue, friction, overall, newClashTopics,
   matrixCell, pairSummary, investiture, periphery, analyze, without, presets, parseState, serializeState,
-  parseLocation, locationFor, moveLegacyState, localize, contextFor,
+  parseLocation, parsePair, locationFor, moveLegacyState, localize, contextFor,
   withLinked, lowCoverage, addImpact, breakdown, ballotOrder, selected, completions, redLinesCrossed, closestTo,
   peripheryClashes, pivotal, coalitionGroups,
 } from '../site/js/compat.js';
@@ -146,6 +146,16 @@ test('pair summary counts only topics where both have positions', () => {
   const s = pairSummary(ctx, 'a', 'b');
   assert.equal(s.n, 2);
   assert.deepEqual(s.counts, { AGREE: 1, MINOR: 0, MAJOR: 0, CLASH: 1 });
+  // Rows follow the fixed topic order (never severity); a topic without both positions is NONE and not counted.
+  assert.deepEqual(s.rows.map((r) => [r.topicId, r.level]), [['t1', 'AGREE'], ['t2', 'CLASH'], ['t3', 'NONE']]);
+});
+
+test('pair summary marks a clash made by a declared red line, the same in either order', () => {
+  const ctx = fixture([P('a', 't1', 0, true), P('b', 't1', 2), P('a', 't2', 0), P('b', 't2', 2)]);
+  for (const [x, y] of [['a', 'b'], ['b', 'a']]) {
+    const [t1, t2] = pairSummary(ctx, x, y).rows;
+    assert.deepEqual([t1.level, t1.byRedLine, t2.level, t2.byRedLine], ['CLASH', true, 'MAJOR', false]);
+  }
 });
 
 // Seats in the fixture: a 30, b 20, c 10, d 8, e 4 (all 72).
@@ -343,13 +353,13 @@ test('the state lives in the fragment; a legacy query is read when the fragment 
   const ids = ['a', 'b', 'c'];
   const st = (members, supporters = [], abstainers = []) => ({ base: null, members, supporters, abstainers });
   const loc = (search, hash) => parseLocation({ search, hash }, ids);
-  assert.deepEqual(loc('', '#results?m=a,b&o=c'), { route: 'results', state: st(['a', 'b'], ['c']), legacy: false, fromFragment: true, search: '', lang: 'he', hasParams: true });
-  assert.deepEqual(loc('?m=a,b', ''), { route: '', state: st(['a', 'b']), legacy: true, fromFragment: false, search: '', lang: 'he', hasParams: false });
-  assert.deepEqual(loc('?m=a&a=c', '#build'), { route: 'build', state: st(['a'], [], ['c']), legacy: true, fromFragment: false, search: '', lang: 'he', hasParams: false });
+  assert.deepEqual(loc('', '#results?m=a,b&o=c'), { route: 'results', state: st(['a', 'b'], ['c']), legacy: false, fromFragment: true, search: '', lang: 'he', hasParams: true, pair: [null, null] });
+  assert.deepEqual(loc('?m=a,b', ''), { route: '', state: st(['a', 'b']), legacy: true, fromFragment: false, search: '', lang: 'he', hasParams: false, pair: [null, null] });
+  assert.deepEqual(loc('?m=a&a=c', '#build'), { route: 'build', state: st(['a'], [], ['c']), legacy: true, fromFragment: false, search: '', lang: 'he', hasParams: false, pair: [null, null] });
   // The fragment wins over a legacy query; other query params stay.
-  assert.deepEqual(loc('?s=wa&m=c', '#results?m=a'), { route: 'results', state: st(['a']), legacy: false, fromFragment: true, search: '?s=wa', lang: 'he', hasParams: true });
-  assert.deepEqual(loc('?s=wa&m=a', ''), { route: '', state: st(['a']), legacy: true, fromFragment: false, search: '?s=wa', lang: 'he', hasParams: false });
-  assert.deepEqual(loc('?s=wa', '#method'), { route: 'method', state: st([]), legacy: false, fromFragment: false, search: '?s=wa', lang: 'he', hasParams: false });
+  assert.deepEqual(loc('?s=wa&m=c', '#results?m=a'), { route: 'results', state: st(['a']), legacy: false, fromFragment: true, search: '?s=wa', lang: 'he', hasParams: true, pair: [null, null] });
+  assert.deepEqual(loc('?s=wa&m=a', ''), { route: '', state: st(['a']), legacy: true, fromFragment: false, search: '?s=wa', lang: 'he', hasParams: false, pair: [null, null] });
+  assert.deepEqual(loc('?s=wa', '#method'), { route: 'method', state: st([]), legacy: false, fromFragment: false, search: '?s=wa', lang: 'he', hasParams: false, pair: [null, null] });
   assert.equal(loc('', '#privacy?m=a').route, 'privacy');
   assert.deepEqual(loc('', '#?m=a').state, st(['a']));
   const ctx = fixture([]);
@@ -380,6 +390,31 @@ test('the language rides in the fragment as l=, Hebrew by default and omitted', 
   assert.equal(locationFor(ctx, { ...state, members: [] }, 'build', '', 'en'), '#build?l=en');
   const back = parseLocation({ search: '', hash: locationFor(ctx, state, 'results', '', 'en') }, ['a']);
   assert.deepEqual([back.lang, back.state.members], ['en', ['a']]);
+});
+
+test('the pair view: p= in the fragment, two distinct known ids in picked order, written only when given', () => {
+  const ids = ['a', 'b', 'c', 'd', 'e'];
+  const loc = (hash) => parseLocation({ search: '', hash }, ['a', 'b'], ids);
+  assert.deepEqual(parsePair('p=c,a', ids), ['c', 'a']);
+  assert.deepEqual(parsePair('p=a,a', ids), ['a', null], 'the same party twice is one');
+  assert.deepEqual(parsePair('p=zzz,b,,c,d', ids), ['b', 'c'], 'unknown ids dropped, two at most');
+  assert.deepEqual(parsePair('m=a', ids), [null, null]);
+  // Pair ids are checked against every party (a list under the threshold included), state ids against the passed ones.
+  assert.deepEqual(loc('#pair?p=e,a&l=en').pair, ['e', 'a']);
+  assert.deepEqual(loc('#pair?p=e,a').state.members, []);
+  // p is not coalition state: a pair link never brings or replaces a coalition, and a legacy ?p= is not moved.
+  assert.equal(loc('#pair?p=a,b').fromFragment, false);
+  assert.equal(moveLegacyState({ search: '?p=a,b', hash: '#pair' }), null);
+  const ctx = fixture([]);
+  const empty = { base: null, members: [], supporters: [], abstainers: [] };
+  const state = { ...empty, members: ['c', 'a'] };
+  assert.equal(locationFor(ctx, empty, 'pair', '', 'he', ['c', 'a']), '#pair?p=c,a');
+  assert.equal(locationFor(ctx, empty, 'pair', '', 'en', ['c', 'a']), '#pair?p=c,a&l=en');
+  assert.equal(locationFor(ctx, state, 'pair', '?s=wa', 'en', ['b', null]), '?s=wa#pair?m=a,c&p=b&l=en');
+  assert.equal(locationFor(ctx, empty, 'pair', '', 'he', [null, null]), '#pair');
+  assert.equal(locationFor(ctx, state, 'results', '', 'en'), '#results?m=a,c&l=en');
+  const back = parseLocation({ search: '', hash: locationFor(ctx, state, 'pair', '', 'en', ['e', 'c']) }, ids);
+  assert.deepEqual([back.route, back.pair, back.state.members, back.lang], ['pair', ['e', 'c'], ['a', 'c'], 'en']);
 });
 
 test('localize lays a record\'s en fields over the Hebrew; the order never depends on the language', () => {
