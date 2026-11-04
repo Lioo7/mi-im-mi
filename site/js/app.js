@@ -480,6 +480,10 @@ function pairSentence(pid, tid) {
   return `<span class="pair-sum">${esc(m ? m[0] : p.summary)}</span>`;
 }
 
+// A placed position the party declared a coalition condition.
+const isRedLine = (pid, tid) => posOf(pid, tid)?.position != null && Boolean(posOf(pid, tid).redLine);
+const redTag = () => `<span class="tag tag-red"><span aria-hidden="true">🚩</span> ${esc(S.redLine)}</span>`;
+
 function pairHtml(a, b) {
   const s = C.pairSummary(ctx, a, b);
   const rows = s.rows.map((r) => `
@@ -487,10 +491,11 @@ function pairHtml(a, b) {
       <summary>
         <span class="pair-topic">${esc(topic(r.topicId).name)}</span> ${levelBadge(r.level)}
         <span class="pair-labels">
-          ${[a, b].map((x) => `<span><strong>${esc(name(x))}:</strong> ${esc(axisLabel(r.topicId, posOf(x, r.topicId)?.position))}${pairSentence(x, r.topicId)}</span>`).join('')}
+          ${[a, b].map((x) => `<span><strong>${esc(name(x))}:</strong> ${esc(axisLabel(r.topicId, posOf(x, r.topicId)?.position))}${isRedLine(x, r.topicId) ? ` ${redTag()}` : ''}${pairSentence(x, r.topicId)}</span>`).join('')}
         </span>
       </summary>
       <div class="pair-detail">
+        ${r.byRedLine ? [a, b].filter((x) => isRedLine(x, r.topicId)).map((x) => `<p>${esc(S.sheet.redByLine(name(x)))}</p>`).join('') : ''}
         <h4>${esc(name(a))}</h4>${positionBlock(a, r.topicId, { heading: false })}
         <h4>${esc(name(b))}</h4>${positionBlock(b, r.topicId, { heading: false })}
       </div>
