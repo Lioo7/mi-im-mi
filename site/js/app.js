@@ -31,6 +31,8 @@ let showAllCompletions = false;
 const CLOSEST_SHOWN = 5;
 let closestView = { pid: null, fullAll: false, partialOpen: false, partialAll: false };
 let toastTimer;
+// The pair view's two pickers, in the order picked (null = empty). Kept when leaving the view; written to the URL on it.
+let pair = [null, null];
 
 // ---------- data helpers ----------
 const party = (id) => ctx.byId.get(id);
@@ -71,7 +73,7 @@ function applyState(next) {
 // A bare address with no coalition stays bare.
 function writeUrl() {
   const rest = C.selected(state).length || location.hash || lang !== 'he'
-    ? C.locationFor(ctx, state, routeToken, location.search, lang) : location.search;
+    ? C.locationFor(ctx, state, routeToken, location.search, lang, routeToken === 'pair' ? pair : []) : location.search;
   history.replaceState(null, '', location.pathname + rest);
 }
 
@@ -209,6 +211,7 @@ function renderMethod() {
     <p>${esc(M.resultsRule(showSeats()))}</p>
     <p>${esc(M.impactRule)}</p>
     <p>${esc(M.breakdownRule)}</p>
+    <p>${esc(M.pairRule)}</p>
     ${isResults() ? `<h3 id="closest-rule" class="anchor" tabindex="-1">${esc(M.closestTitle)}</h3><p>${esc(M.closestRule)}</p>` : ''}
 
     <h3>${esc(M.axesTitle)}</h3>
@@ -327,14 +330,18 @@ function closestPicker() {
 }
 
 function renderPresets() {
-  if (isResults() && scenarioData) { renderScenarios(); $('#presets').insertAdjacentHTML('beforeend', closestPicker()); return; }
+  if (isResults() && scenarioData) { renderScenarios(); $('#presets').insertAdjacentHTML('beforeend', closestPicker() + pairEntry()); return; }
   $('#presets').innerHTML = `
     <h2>${esc(S.presets.title)}</h2>
     <div class="preset-grid" role="group" aria-label="${esc(S.presets.title)}">
       ${presetOrder().map((k) => `<button type="button" class="preset" data-act="preset" data-id="${k}" data-key="preset-${k}">${esc(S.presets[k])}</button>`).join('')}
     </div>
-    <p class="muted small">${esc(S.presets.blocNote)}</p>`;
+    <p class="muted small">${esc(S.presets.blocNote)}</p>
+    ${pairEntry()}`;
 }
+
+// The way into the pair view (#23): a plain link, so it works like the other routes (back button, new tab).
+const pairEntry = () => `<p class="pair-entry"><a class="btn btn-ghost" href="#pair" data-key="pair-open">${esc(S.pair.open)}</a></p>`;
 
 const ltr = (text) => `<bdi dir="ltr">${esc(text)}</bdi>`;
 
@@ -731,6 +738,50 @@ function renderResults() {
   el.innerHTML = overallBar(r) + crisesCard(r) + glueCard(r) + frictionCard(r) + peripheryCard() + completionsCard() + coverageFootnote() + shareCard(r);
 }
 
+// ---------- pair view (#pair?p=a,b) ----------
+// One picker. It leaves out the party in the other picker, so the same party can never be picked twice. Every party
+// can be compared (positions of a list under the threshold stay viewable); in results mode those lists are grouped.
+function pairPicker(slot) {
+  const other = pair[1 - slot];
+  const opt = (p) => `<option value="${p.id}"${p.id === pair[slot] ? ' selected' : ''}>${esc(p.name)}</option>`;
+  const list = ctx.parties.filter((p) => p.id !== other);
+  const below = list.filter((p) => !ctx.passed(p.id));
+  return `<label class="compare">${esc(slot ? S.pair.pickB : S.pair.pickA)}
+    <select data-act="pair-pick" data-slot="${slot}" data-key="pair-pick-${slot}">
+      <option value="">${esc(S.pair.choose)}</option>${list.filter((p) => ctx.passed(p.id)).map(opt).join('')}
+      ${below.length ? `<optgroup label="${esc(S.elected.belowTitle)}">${below.map(opt).join('')}</optgroup>` : ''}
+    </select>
+  </label>`;
+}
+
+const pairSummaryText = (a, b) => {
+  const s = C.pairSummary(ctx, a, b);
+  const c = s.counts;
+  return S.pair.summary(c.AGREE, c.MINOR, c.MAJOR, c.CLASH, s.n);
+};
+const pairShareText = (a, b) => S.pair.shareText(name(a), name(b), pairSummaryText(a, b));
+// The share link carries the pair and the language, never the coalition.
+const pairShareUrl = (a, b) => location.origin + location.pathname
+  + C.locationFor(ctx, { base: null, members: [], supporters: [], abstainers: [] }, 'pair', '', lang, [a, b]);
+
+function renderPair() {
+  const [a, b] = pair;
+  const P = S.pair;
+  // Polls mode: the soft-linked pair that ran as one list gets the same note as in the builder.
+  const linked = a && b && ctx.linkedOf(a) === b ? `<p class="note note-soft">${esc(S.builder.linkedNote(...ordered([a, b]).map(name)))}</p>` : '';
+  const wa = a && b ? `https://wa.me/?text=${encodeURIComponent(`${pairShareText(a, b)}\n${pairShareUrl(a, b)}`)}` : '';
+  $('#pair-view').innerHTML = `
+    <p><a class="back" href="#build">${esc(S.nav.back)}</a></p>
+    <h1 class="page-title" id="pair-title" tabindex="-1">${esc(P.viewTitle)}</h1>
+    <p class="muted">${esc(P.intro(ctx.topics.length))}</p>
+    <div class="pair-pickers">${pairPicker(0)}${pairPicker(1)}</div>
+    ${a && b ? `${linked}<section class="card">${pairHtml(a, b)}</section>
+      <p class="share-row pair-share">
+        <button type="button" class="btn" data-act="pair-share" data-key="pair-share">${esc(S.share.button)}</button>
+        <a class="btn btn-ghost" href="${esc(wa)}" target="_blank" rel="noopener">${esc(S.share.whatsapp)}</a>
+      </p>` : `<p class="empty">${esc(P.pickBoth)}</p>`}`;
+}
+
 // "What is missing for 61": minimal sets of parties that would give the members alone a majority. Tap = add them.
 function completionsCard() {
   if (!showSeats()) return '';
@@ -894,9 +945,7 @@ function pollInfoSheet() {
     </ul>`);
 }
 
-async function share() {
-  const text = shareText(C.analyze(ctx, state));
-  const url = shareUrl();
+async function share(text = shareText(C.analyze(ctx, state)), url = shareUrl()) {
   if (navigator.share) {
     try { await navigator.share({ title: S.appName, text, url }); return; } catch (e) { if (e.name === 'AbortError') return; }
   }
@@ -1066,7 +1115,7 @@ function partySheet(pid, compareWith = '') {
 }
 
 // ---------- views & routing ----------
-const VIEWS = ['build', 'results', 'method'];
+const VIEWS = ['build', 'results', 'pair', 'method'];
 let view = 'build';
 // The fragment's route: the view, or a method anchor.
 let routeToken = 'build';
@@ -1075,7 +1124,7 @@ let routeToken = 'build';
 const METHOD_ANCHORS = ['why', 'privacy', 'accessibility', 'closest-rule'];
 
 function route(initial = false) {
-  const loc = C.parseLocation(location, passedIds());
+  const loc = C.parseLocation(location, passedIds(), ctx.parties.map((p) => p.id));
   // A fragment with state (a pasted link, back/forward) brings its coalition; one without (a nav link) keeps the current one.
   // A full link also brings its language (none = Hebrew); a nav link keeps the current one.
   if (!initial && loc.hasParams && loc.lang !== lang) {
@@ -1086,6 +1135,8 @@ function route(initial = false) {
     if (C.serializeState(ctx, loc.state) !== C.serializeState(ctx, state)) lastPreset = null;
     applyState(loc.state);
   }
+  // A pair link (or back/forward) brings its pair; the bare entry link `#pair` keeps the last one.
+  if (loc.route === 'pair' && loc.hasParams) pair = loc.pair;
   let v = loc.route;
   const anchor = METHOD_ANCHORS.includes(v) ? v : null;
   if (anchor) v = 'method';
@@ -1099,12 +1150,15 @@ function route(initial = false) {
   render();
   if (anchor) $(`#${anchor}`)?.scrollIntoView();
   else if (changed || initial) window.scrollTo(0, 0);
+  // Coming from the entry link, focus would stay on a hidden element: move it to the view's heading.
+  if (view === 'pair' && changed && !initial) $('#pair-title')?.focus({ preventScroll: true });
 }
 
 function render() {
   const focusKey = document.activeElement?.dataset?.key;
   if (view === 'build') renderBuilder();
   if (view === 'results') { renderResults(); renderMatrix(); }
+  if (view === 'pair') renderPair();
   renderBar();
   // The CSP allows no inline style attributes; set the meters' widths through the CSSOM.
   for (const el of document.querySelectorAll('.meter [data-pct]')) el.style.inlineSize = `${el.dataset.pct}%`;
@@ -1232,6 +1286,9 @@ function onClick(e) {
     case 'share':
       share();
       break;
+    case 'pair-share':
+      share(pairShareText(...pair), pairShareUrl(...pair));
+      break;
     case 'poll-info':
       pollInfoSheet();
       break;
@@ -1245,6 +1302,13 @@ function bind() {
   document.addEventListener('change', (e) => {
     const el = e.target.closest('select[data-act="compare"]');
     if (el) partySheet(el.dataset.id, el.value);
+    const pp = e.target.closest('select[data-act="pair-pick"]');
+    if (pp) {
+      pair[Number(pp.dataset.slot)] = pp.value || null;
+      writeUrl();
+      render();
+      if (pair[0] && pair[1]) announce(pairSummaryText(...pair));
+    }
     const pick = e.target.closest('select[data-act="closest-pick"]');
     if (pick?.value) {
       const id = pick.value;

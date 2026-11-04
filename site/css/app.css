@@ -151,6 +151,17 @@ blockquote { margin: .4em 0 .6em; padding-inline-start: 12px; border-inline-star
 .closest-partial { margin-block-start: 12px; }
 .closest-toggle, .closest-only { text-align: start; font-weight: 600; }
 .compare select { min-block-size: 44px; padding: 6px 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); }
+/* Pair view (#23): the entry on the build view, and two pickers stacked on a phone, side by side from 600px. */
+.pair-entry { margin-block: 12px 4px; }
+.pair-entry .btn { inline-size: 100%; justify-content: center; text-align: center; }
+.pair-pickers { display: grid; gap: 0 12px; }
+.pair-pickers .compare { min-inline-size: 0; }
+.pair-pickers select { inline-size: 100%; max-inline-size: 100%; }
+.pair-share { display: flex; flex-wrap: wrap; gap: 8px; }
+@media (min-width: 600px) {
+  .pair-entry .btn { inline-size: auto; }
+  .pair-pickers { grid-template-columns: 1fr 1fr; }
+}
 .axis-list { padding-inline-start: 1.2em; }
 .axis-list li { margin-block-end: .5em; }
 .axis-parties { display: block; font-size: .85rem; font-weight: 600; color: var(--accent); }
