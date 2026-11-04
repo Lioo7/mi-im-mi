@@ -43,7 +43,17 @@ export const S = {
     backFromMethod: '← Back',
     partyCount: (n) => `${plural(n, '1 party', 'parties')} selected`,
   },
-  buildIntro: 'Pick parties and see where they agree and where they clash',
+  buildIntro: (n) => `Where the parties agree and where they clash, ${inTopics(n)}, with a source for every position.`,
+  // The build view's task cards (#26), in a fixed order. Each line says what the tool shows, never what it concludes.
+  home: {
+    title: 'What you can do here',
+    build: 'Build a coalition',
+    buildLine: (n) => `Pick parties, give each one a role, and see where they agree and where they clash ${inTopics(n)}.`,
+    closest: 'Find coalitions for a party',
+    closestLine: 'Majority coalitions that include the party, ordered by how many of its red lines are crossed and how many clashes they have with its positions.',
+    pair: 'Compare two parties',
+    pairLine: (n) => `Two parties' stated positions side by side ${inTopics(n)}, with a source for each.`,
+  },
   sourceMix: (n, p, s, r) => `${n} documented positions: ${p} from platforms, ${s} from statements, ${r} from the record.`,
   voterInfo: 'Election day: Tuesday, 27 Oct · Most polling stations are open 7:00–22:00 ·',
   voterInfoLink: 'Where do I vote? (Hebrew)',
@@ -70,6 +80,9 @@ export const S = {
     blocNote: 'Blocs as defined by Bakalpi and N12.',
     scenariosTitle: (d) => `Scenarios raised in the media · as of ${d}`,
     scenariosNote: 'Tapping a scenario fills in the selection, and you can change it. A party not named in it counts as opposed.',
+    // The collapsed disclosure in the builder section (#26).
+    scenariosStart: (n, d) => `Or start from a scenario raised in the media (${n}) · as of ${d}`,
+    presetsStart: 'Or start from a ready-made scenario',
     scenarioLabel: (members, supporters, abstainers) => [
       members.join(' + '),
       supporters.length ? `${supporters.length === 1 ? 'supporter' : 'supporters'}: ${supporters.join(', ')}` : '',
@@ -94,6 +107,7 @@ export const S = {
     outside: 'From outside',
     borderline: 'At the threshold',
     seatsChip: (n) => seatsN(n),
+    title: 'Build a coalition',
     pick: 'Pick parties',
     baseTag: '★ Base',
     hint: 'Each party you pick has a role: in the coalition (sits in the government), supporter (supports the government from outside) or abstainer (in the confidence vote). A party you did not pick counts as opposed. Clashes are checked among coalition members, and the gaps of supporters and abstainers are shown separately. You choose a base for comparison in the results.',
@@ -291,7 +305,6 @@ export const S = {
     none: 'No minimal coalition of 61 seats includes this party.',
     aria: (partners, meta) => `Select the coalition ${partners}: ${meta}`,
     applied: (names) => `Coalition selected: ${names}`,
-    pickerLabel: 'Coalitions closest to the stated positions of…',
     pickerChoose: 'Choose a party',
   },
 
@@ -343,7 +356,6 @@ export const S = {
     title: 'Compare a pair',
     compareWith: 'Compare with…',
     choose: 'Pick a party to compare',
-    open: 'Compare two parties',
     viewTitle: 'Comparing two parties',
     intro: (n) => `The stated positions of two parties side by side, on ${topicsN(n)}, with a source for each. This is not a recommendation or a forecast.`,
     pickA: 'First party',

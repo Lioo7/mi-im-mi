@@ -37,7 +37,17 @@ export const S = {
     backFromMethod: '← חזרה',
     partyCount: (n) => `${plural(n, 'מפלגה אחת', 'מפלגות')} ${n === 1 ? 'נבחרה' : 'נבחרו'}`,
   },
-  buildIntro: 'בחרו מפלגות וגלו איפה הן מסכימות ואיפה הן מתנגשות',
+  buildIntro: (n) => `איפה המפלגות מסכימות ואיפה הן מתנגשות, ${inTopics(n)}, עם מקור לכל עמדה.`,
+  // The build view's task cards (#26), in a fixed order. Each line says what the tool shows, never what it concludes.
+  home: {
+    title: 'מה אפשר לעשות כאן',
+    build: 'בנו קואליציה',
+    buildLine: (n) => `בחרו מפלגות ותפקיד לכל אחת, וראו איפה הן מסכימות ואיפה הן מתנגשות ${inTopics(n)}.`,
+    closest: 'מצאו קואליציות למפלגה',
+    closestLine: 'קואליציות של רוב שכוללות את המפלגה, לפי כמה מהקווים האדומים שלה נחצים וכמה סתירות יש עם עמדותיה.',
+    pair: 'השוו שתי מפלגות',
+    pairLine: (n) => `העמדות המוצהרות של שתי מפלגות זו לצד זו ${inTopics(n)}, עם מקור לכל עמדה.`,
+  },
   sourceMix: (n, p, s, r) => `${n} עמדות מתועדות: ${p} לפי מצע, ${s} לפי הצהרות, ${r} לפי רקורד.`,
   // Hours: CEC FAQ (gov.il): most stations 07:00–22:00; small localities, hospitals, prisons and care homes 08:00–20:00.
   voterInfo: 'יום הבחירות: יום שלישי, 27.10 · רוב הקלפיות פתוחות 7:00–22:00 ·',
@@ -67,6 +77,9 @@ export const S = {
     // Results mode: media scenarios, named by composition only.
     scenariosTitle: (d) => `תרחישים שעלו בתקשורת · נכון ל-${d}`,
     scenariosNote: 'לחיצה על תרחיש ממלאת את הבחירה, ואפשר לשנות אותה. מפלגה שלא מופיעה בו נחשבת מתנגדת.',
+    // The collapsed disclosure in the builder section (#26).
+    scenariosStart: (n, d) => `או התחילו מתרחיש שעלה בתקשורת (${n}) · נכון ל-${d}`,
+    presetsStart: 'או התחילו מתרחיש מוכן',
     scenarioLabel: (members, supporters, abstainers) => [
       members.join(' + '),
       supporters.length ? `${supporters.length === 1 ? 'תומכת' : 'תומכות'}: ${supporters.join(', ')}` : '',
@@ -92,6 +105,7 @@ export const S = {
     outside: 'מבחוץ',
     borderline: 'על הסף',
     seatsChip: (n) => `${n} מנ׳`,
+    title: 'בנו קואליציה',
     pick: 'בחרו מפלגות',
     baseTag: '★ בסיס',
     hint: 'לכל מפלגה שבחרתם יש תפקיד: בקואליציה (יושבת בממשלה), תומכת (תומכת בממשלה מבחוץ) או נמנעת (בהצבעת האמון). מפלגה שלא נבחרה נחשבת מתנגדת. ההתנגשויות נבדקות בין חברות הקואליציה, והפערים של תומכות ונמנעות מוצגים בנפרד. בסיס להשוואה בוחרים בתוצאות.',
@@ -295,7 +309,6 @@ export const S = {
     none: 'אין קואליציה מינימלית של 61 מנדטים שכוללת את המפלגה הזאת.',
     aria: (partners, meta) => `בחירת הקואליציה ${partners}: ${meta}`,
     applied: (names) => `נבחרה קואליציה: ${names}`,
-    pickerLabel: 'הקואליציות הקרובות לעמדות של…',
     pickerChoose: 'בחרו מפלגה',
   },
 
@@ -348,7 +361,6 @@ export const S = {
     title: 'השוואת זוג',
     compareWith: 'השוו עם…',
     choose: 'בחרו מפלגה להשוואה',
-    open: 'השוו בין שתי מפלגות',
     viewTitle: 'השוואה בין שתי מפלגות',
     intro: (n) => `העמדות המוצהרות של שתי מפלגות זו לצד זו, ב-${topicsN(n)}, עם מקור לכל עמדה. זו לא המלצה ולא תחזית.`,
     pickA: 'מפלגה ראשונה',

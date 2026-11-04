@@ -151,15 +151,12 @@ blockquote { margin: .4em 0 .6em; padding-inline-start: 12px; border-inline-star
 .closest-partial { margin-block-start: 12px; }
 .closest-toggle, .closest-only { text-align: start; font-weight: 600; }
 .compare select { min-block-size: 44px; padding: 6px 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); }
-/* Pair view (#23): the entry on the build view, and two pickers stacked on a phone, side by side from 600px. */
-.pair-entry { margin-block: 12px 4px; }
-.pair-entry .btn { inline-size: 100%; justify-content: center; text-align: center; }
+/* Pair view (#23): two pickers stacked on a phone, side by side from 600px. */
 .pair-pickers { display: grid; gap: 0 12px; }
 .pair-pickers .compare { min-inline-size: 0; }
 .pair-pickers select { inline-size: 100%; max-inline-size: 100%; }
 .pair-share { display: flex; flex-wrap: wrap; gap: 8px; }
 @media (min-width: 600px) {
-  .pair-entry .btn { inline-size: auto; }
   .pair-pickers { grid-template-columns: 1fr 1fr; }
 }
 .axis-list { padding-inline-start: 1.2em; }
@@ -207,6 +204,8 @@ details.axis summary { cursor: pointer; font-weight: 600; min-block-size: 32px; 
 .lang-btn { border: 0; background: none; padding: 10px 2px; font: inherit; color: var(--accent); text-decoration: underline; cursor: pointer; }
 .lang-note { margin-block: 8px 0; color: var(--muted); font-size: .85rem; }
 .lang-note[hidden] { display: none; }
+/* The translation notice already spaces the header from the intro (#26: room for the task cards on a phone). */
+.lang-note:not([hidden]) ~ main .intro { margin-block-start: 8px; }
 .brand-name, .navlink { white-space: nowrap; }
 /* At least 16px between the brand and the nav, in both directions. */
 .topbar-in { gap: 16px; }
@@ -467,3 +466,31 @@ details.below summary { cursor: pointer; font-weight: 600; padding-block: 10px; 
 /* Results view: the sticky header (.resbar) must not cover a scroll target; --resbar-h is measured in app.js. */
 #view-results :is([id], h2, h3, .card) { scroll-margin-block-start: calc(var(--resbar-h, 64px) + 12px); }
 .pair-btn .tag { white-space: nowrap; }
+
+/* Task cards on the build view (#26): stacked on a phone, side by side from 720px. Each title is its control; in cards
+   1 and 3 the control's ::after covers the whole card, so the tap target is the card (well over 44px). */
+.tasks h2 { font-size: 1.05rem; margin-block: 8px 4px; }
+.task-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 5px; }
+.task { position: relative; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 5px 12px 6px; min-inline-size: 0; }
+.task:has(.task-go:hover) { background: var(--chip); }
+.task-title { font-size: 1.02rem; font-weight: 700; color: var(--accent); }
+.task-go { display: flex; align-items: center; justify-content: space-between; gap: 8px; inline-size: 100%;
+  padding: 0; border: 0; background: none; font: inherit; text-align: start; text-decoration: none; color: var(--accent); cursor: pointer; }
+.task-go::after { content: ""; position: absolute; inset: 0; border-radius: inherit; }
+.task-go:focus-visible { outline: none; }
+.task-go:focus-visible::after { outline: 3px solid var(--focus); outline-offset: 2px; }
+.task-go:hover .task-title { text-decoration: underline; }
+.task-chev { flex: none; inline-size: 18px; block-size: 18px; }
+[dir="rtl"] .chev-fwd { transform: scaleX(-1); }
+.task-pick { display: grid; gap: 4px; }
+.task-pick select { inline-size: 100%; max-inline-size: 100%; min-block-size: 44px; padding: 6px 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); font: inherit; }
+.task-line { margin: 2px 0 0; color: var(--muted); font-size: .86rem; line-height: 1.35; }
+@media (min-width: 720px) {
+  .task-list { grid-auto-flow: column; grid-auto-columns: 1fr; }
+}
+.build-sec .tray-head h2 { scroll-margin-block-start: 12px; }
+/* Scenarios / presets: collapsed in the builder section, so the party list stays near the top of it. */
+details.start-from { margin-block: 0 12px; background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 0 12px; }
+details.start-from > summary { cursor: pointer; font-weight: 600; color: var(--accent); padding-block: 11px; }
+details.start-from[open] { padding-block-end: 10px; }
+.tasks + #source-mix { margin-block-start: 10px; }

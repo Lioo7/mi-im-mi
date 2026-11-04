@@ -185,3 +185,20 @@ test('snapshot title: scoped to the members (2+), "שתי" for two in Hebrew', (
   assert.equal(EN.results.summaryTitleScoped(4), 'Overview: between the 4 coalition members');
   assert.equal(EN.results.summaryTitleScoped(2), 'Overview: between the 2 coalition members');
 });
+
+// #26: the task cards describe what each tool shows, never what it concludes, and rank nothing.
+test('task cards: neutral wording, no numbers of seats, both languages', async () => {
+  const { S: EN } = await import('../site/js/strings.en.js');
+  const texts = (H) => [H.title, H.build, H.buildLine(8), H.closest, H.closestLine, H.pair, H.pairLine(8)];
+  for (const t of texts(S.home)) {
+    assert.ok(!/מומלצ|פופולר|הכי|הטוב|הקרוב|מנדט|61/.test(t), `HE: ${t}`);
+  }
+  for (const t of texts(EN.home)) {
+    assert.ok(!/recommend|popular|best|closest|top\b|seat|61/i.test(t), `EN: ${t}`);
+  }
+  assert.equal(S.buildIntro(8), 'איפה המפלגות מסכימות ואיפה הן מתנגשות, ב-8 נושאים, עם מקור לכל עמדה.');
+  assert.equal(EN.buildIntro(8), 'Where the parties agree and where they clash, on 8 topics, with a source for every position.');
+  assert.equal(S.home.buildLine(8), 'בחרו מפלגות ותפקיד לכל אחת, וראו איפה הן מסכימות ואיפה הן מתנגשות ב-8 נושאים.');
+  assert.equal(S.home.pairLine(1), 'העמדות המוצהרות של שתי מפלגות זו לצד זו בנושא אחד, עם מקור לכל עמדה.');
+  assert.equal(S.presets.scenariosStart(3, '1.11'), 'או התחילו מתרחיש שעלה בתקשורת (3) · נכון ל-1.11');
+});

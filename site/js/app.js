@@ -131,7 +131,7 @@ function renderHeader() {
   $('#lang-note').textContent = S.translatedNote;
   $('#brand-name').textContent = S.appName;
   $('#nav-method').innerHTML = `<span class="nav-long">${esc(S.nav.method)}</span><span class="nav-short">${esc(S.nav.methodShort)}</span>`;
-  $('#intro').textContent = S.buildIntro;
+  $('#intro').textContent = S.buildIntro(ctx.topics.length);
   $('#purpose').textContent = S.buildPurpose;
   if (isResults()) {
     $('#voter-info')?.remove();
@@ -314,34 +314,55 @@ function renderScenarios() {
     <button type="button" class="preset" data-act="scenario" data-id="${esc(sc.id)}" data-key="scenario-${esc(sc.id)}">${esc(sc.label)}</button>
     <p class="scen-src">${esc(P.sourcesLabel(sc.sources.length))} ${sc.sources.map((x) => C.localize(x, lang)).map((src) => `${src.by ? esc(P.personIn(src.by)) : ''}<a href="${esc(src.url)}" rel="noopener" target="_blank">${bidi(src.outlet)}</a>, ${esc(P.shortDate(src.date))}`).join(' · ')}</p>
   </li>`).join('');
-  $('#presets').innerHTML = `
-    <h2>${esc(P.scenariosTitle(P.shortDate(scenarioData.asOf)))}</h2>
-    <ul class="scenario-list" aria-label="${esc(P.scenariosTitle(P.shortDate(scenarioData.asOf)))}">${items}</ul>
-    <p class="muted small">${esc(P.scenariosNote)}</p>`;
+  const asOf = P.shortDate(scenarioData.asOf);
+  $('#presets').innerHTML = startFrom(P.scenariosStart(scenarioList().length, asOf), `
+    <ul class="scenario-list" aria-label="${esc(P.scenariosTitle(asOf))}">${items}</ul>
+    <p class="muted small">${esc(P.scenariosNote)}</p>`);
 }
 
-// Results mode: a party picker that opens the party's closest coalitions. Nothing is preselected.
-function closestPicker() {
-  if (!isResults()) return '';
-  const K = S.closest;
-  return `<label class="compare closest-picker">${esc(K.pickerLabel)}
-    <select data-act="closest-pick" data-key="closest-pick"><option value="">${esc(K.pickerChoose)}</option>${ctx.parties.filter((p) => ctx.passed(p.id)).map((p) => `<option value="${p.id}">${esc(p.name)}</option>`).join('')}</select>
-  </label>`;
+// Scenarios and presets sit in the builder section, collapsed (#26): the party list stays the first thing in it.
+const startFrom = (summary, body) => `<details class="start-from" data-key="start-from">
+  <summary data-key="start-from-summary">${esc(summary)}</summary>${body}</details>`;
+
+// The task cards (#26): what the site can do, in a fixed order, right after the intro. Each title is its control.
+// Two levels at most: a card leads straight to its tool. Cards 1 and 3 are tappable as a whole (the control's ::after). The closest-coalitions card exists in results mode only (#22).
+function renderTasks() {
+  const H = S.home;
+  const n = ctx.topics.length;
+  const closest = isResults() ? `<li class="task">
+      <label class="task-pick"><span class="task-title" id="task-closest-title">${esc(H.closest)}</span>
+        <select data-act="closest-pick" data-key="closest-pick" aria-labelledby="task-closest-title" aria-describedby="task-closest-line"><option value="">${esc(S.closest.pickerChoose)}</option>${ctx.parties.filter((p) => ctx.passed(p.id)).map((p) => `<option value="${p.id}">${esc(p.name)}</option>`).join('')}</select>
+      </label>
+      <p class="task-line" id="task-closest-line">${esc(H.closestLine)}</p>
+    </li>` : '';
+  $('#tasks').innerHTML = `
+    <h2 id="tasks-title">${esc(H.title)}</h2>
+    <ul class="task-list">
+      <li class="task">
+        <button type="button" class="task-go" data-act="go-builder" data-key="home-build" aria-describedby="task-build-line"><span class="task-title">${esc(H.build)}</span>${CHEV_DOWN}</button>
+        <p class="task-line" id="task-build-line">${esc(H.buildLine(n))}</p>
+      </li>
+      ${closest}
+      <li class="task">
+        <a class="task-go" href="#pair" data-key="home-pair" aria-describedby="task-pair-line"><span class="task-title">${esc(H.pair)}</span>${CHEV_FWD}</a>
+        <p class="task-line" id="task-pair-line">${esc(H.pairLine(n))}</p>
+      </li>
+    </ul>`;
 }
+
+const CHEV_DOWN = '<svg class="task-chev" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 9l7 7 7-7" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+// Points forward in reading order; CSS flips it in RTL.
+const CHEV_FWD = '<svg class="task-chev chev-fwd" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
 function renderPresets() {
-  if (isResults() && scenarioData) { renderScenarios(); $('#presets').insertAdjacentHTML('beforeend', closestPicker() + pairEntry()); return; }
-  $('#presets').innerHTML = `
-    <h2>${esc(S.presets.title)}</h2>
+  renderTasks();
+  if (isResults() && scenarioData) { renderScenarios(); return; }
+  $('#presets').innerHTML = startFrom(S.presets.presetsStart, `
     <div class="preset-grid" role="group" aria-label="${esc(S.presets.title)}">
       ${presetOrder().map((k) => `<button type="button" class="preset" data-act="preset" data-id="${k}" data-key="preset-${k}">${esc(S.presets[k])}</button>`).join('')}
     </div>
-    <p class="muted small">${esc(S.presets.blocNote)}</p>
-    ${pairEntry()}`;
+    <p class="muted small">${esc(S.presets.blocNote)}</p>`);
 }
-
-// The way into the pair view (#23): a plain link, so it works like the other routes (back button, new tab).
-const pairEntry = () => `<p class="pair-entry"><a class="btn btn-ghost" href="#pair" data-key="pair-open">${esc(S.pair.open)}</a></p>`;
 
 const ltr = (text) => `<bdi dir="ltr">${esc(text)}</bdi>`;
 
@@ -391,11 +412,10 @@ function renderBuilder() {
     return `<p class="note note-soft">${esc(B.linkedNote(name(a), name(b)))}</p>`;
   });
 
+  $('#builder-head').innerHTML = `
+    <h2 id="builder-title" tabindex="-1">${esc(B.title)}</h2>
+    ${chosen.length ? `<button type="button" class="link-btn" data-act="clear" data-key="clear">${esc(B.clear)}</button>` : ''}`;
   $('#builder').innerHTML = `
-    <div class="tray-head">
-      <h2>${esc(B.pick)}</h2>
-      ${chosen.length ? `<button type="button" class="link-btn" data-act="clear" data-key="clear">${esc(B.clear)}</button>` : ''}
-    </div>
     ${seatsBox()}
     ${members.length ? `<p class="muted small">${esc(B.impactHeading)}: <span class="impact-legend"><span class="im-ok" aria-hidden="true">✓</span> ${esc(B.impactAgree)} · <span class="im-clash" aria-hidden="true">✕</span> ${esc(B.impactClash)} · <span class="im-unk" aria-hidden="true">?</span> ${esc(B.impactUnknown)}</span></p>` : ''}
     <ul class="plist" role="group" aria-label="${esc(B.pick)}">${rows}</ul>
@@ -1142,6 +1162,7 @@ function route(initial = false) {
   if (anchor) v = 'method';
   if (!VIEWS.includes(v)) v = initial && C.selected(state).length ? 'results' : 'build';
   const changed = v !== view;
+  const from = view;
   view = v;
   routeToken = anchor ?? v;
   writeUrl();
@@ -1152,6 +1173,8 @@ function route(initial = false) {
   else if (changed || initial) window.scrollTo(0, 0);
   // Coming from the entry link, focus would stay on a hidden element: move it to the view's heading.
   if (view === 'pair' && changed && !initial) $('#pair-title')?.focus({ preventScroll: true });
+  // Back from the pair view: focus returns to the card that opened it (it sits on the first screen).
+  if (view === 'build' && from === 'pair' && !initial) $('[data-key="home-pair"]')?.focus({ preventScroll: true });
 }
 
 function render() {
@@ -1208,6 +1231,13 @@ function onClick(e) {
       if (expandedTopics.has(id)) expandedTopics.delete(id); else expandedTopics.add(id);
       render();
       break;
+    case 'go-builder': {
+      // Card 1 (#26): the builder is in this view, so move there without touching the route.
+      const h = $('#builder-title');
+      h.scrollIntoView({ block: 'start', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+      h.focus({ preventScroll: true });
+      break;
+    }
     case 'clear':
       lastPreset = null;
       setState({ base: null, members: [], supporters: [], abstainers: [] });
