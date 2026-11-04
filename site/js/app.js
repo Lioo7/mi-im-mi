@@ -46,6 +46,9 @@ const showSeats = () => isResults() || meta.showSeats !== false;
 const fmtNum = (n) => n.toLocaleString('en-US');
 // Red lines as "<party> · <topic>", comma-separated (the overview line and the completions card).
 const redList = (lines) => lines.map((x) => `${name(x.partyId)} · ${topic(x.topicId).short}`).join(', ');
+// Parties outside the coalition share one neutral marker (a dashed outline, no fill); the role is always in the text.
+const outsideChip = (text) => `<span class="outside">${esc(text)}</span>`;
+const outsideParty = (id) => S.results.outsideParty(name(id), S.results.roleName[roleOf(id)]);
 const passedIds = () => ctx.parties.filter((p) => ctx.passed(p.id)).map((p) => p.id);
 
 function levelBadge(level, extraClass = '') {
@@ -534,7 +537,10 @@ function pivotalHtml() {
   if (!v.approved) return '';
   const S2 = S.seats;
   const n = (x) => S2.num(x, isResults());
-  const rows = C.pivotal(ctx, state).map((p) => `<li>${esc(S2.pivotalRow(name(p.partyId), p.role, p.breaksMajority ? n(p.vote.membersSeats) : null, n(p.vote.for), n(p.vote.against)))}</li>`).join('');
+  const rows = C.pivotal(ctx, state).map((p) => {
+    const row = esc(S2.pivotalRow(name(p.partyId), p.role, p.breaksMajority ? n(p.vote.membersSeats) : null, n(p.vote.for), n(p.vote.against)));
+    return `<li>${p.role === 'member' ? row : row.replace(esc(name(p.partyId)), () => outsideChip(name(p.partyId)))}</li>`;
+  }).join('');
   return `<div class="pivotal muted small"><p>${esc(S2.pivotalIntro(v.membersMajority))}</p>${rows ? `<ul>${rows}</ul>` : `<p>${esc(S2.pivotalNone)}</p>`}</div>`;
 }
 
@@ -589,13 +595,14 @@ function overallBar(r, { statuses = true } = {}) {
   }).join('');
   const b = C.breakdown(r.statuses);
   const parts = S.results.breakdown(b.agree, b.minor, b.major, b.clash, b.nodata).filter(([text, , always]) => always || !text.startsWith('0 '));
+  const outside = C.coalitionGroups(state).outside.length > 0;
   return `<section class="card overall">
-    <h2 class="card-title">${esc(S.results.summaryTitle)}</h2>
-    ${state.supporters.length || state.abstainers.length ? `<p class="muted small overall-scope">${esc(S.results.summaryScope(state.members.length))}</p>` : ''}
+    <h2 class="card-title">${esc(S.results.summaryTitleScoped(state.members.length))}</h2>
     <ol class="segs">${segs}</ol>
+    ${outside ? `<p class="muted small breakdown-label">${esc(S.results.breakdownLabel)}</p>` : ''}
     <ul class="breakdown">${parts.map(([text, cls]) => `<li class="${cls}">${esc(text)}</li>`).join('')}</ul>
-    ${peripheryLink()}
     ${redLinesLine()}
+    ${outsideBlock()}
     ${seatsLine()}
   </section>`;
 }
@@ -673,18 +680,25 @@ function coverageFootnote() {
     <p>${esc(S.results.coverageTail)}</p></div>`;
 }
 
-// "★ base · member · supporter (תומכת) · abstainer (נמנעת)", used on the results line and in the share text.
-function coalitionTags() {
-  const tag = (id) => `${id === state.base ? '★ ' : ''}${name(id)}${roleOf(id) === 'member' ? '' : ` ${S.results.roleTag[roleOf(id)]}`}`;
-  return C.selected(state).map(tag);
+// The members as "★ base", "member", …: the results header and the share text.
+const memberTags = () => state.members.map((id) => `${id === state.base ? '★ ' : ''}${name(id)}`);
+
+// The results header: one line when every party is a member; otherwise the members, then the parties outside the
+// coalition, each with its role in text.
+function coalitionHeader() {
+  const R = S.results;
+  const { outside } = C.coalitionGroups(state);
+  if (!outside.length) return `<p class="coalition-line"><span class="muted small">${esc(R.coalitionLabel)}:</span> ${esc(memberTags().join(' · '))}</p>`;
+  return `<p class="coalition-line"><span class="muted small">${esc(R.membersLabel(state.members.length))}:</span> ${esc(memberTags().join(' · '))}</p>
+    <div class="coalition-line coalition-outside"><span class="muted small">${esc(R.outsideLabel)}:</span>
+      <ul class="outside-list" role="list">${outside.map((o) => `<li>${outsideChip(outsideParty(o.partyId))}</li>`).join('')}</ul></div>`;
 }
 
 function renderResults() {
   const { members } = state;
   const el = $('#results');
   const chosen = C.selected(state);
-  $('#results-coalition').innerHTML = chosen.length
-    ? `<p class="coalition-line"><span class="muted small">${esc(S.results.coalitionLabel)}:</span> ${esc(coalitionTags().join(' · '))}</p>` : '';
+  $('#results-coalition').innerHTML = chosen.length ? coalitionHeader() : '';
   $('#results-bar').innerHTML = `
     <a class="back" href="#build">${esc(S.nav.back)}</a>
     ${chosen.length >= 2 ? `<button type="button" class="btn btn-small" data-act="share" data-key="share">${esc(S.share.button)}</button>` : ''}`;
@@ -759,11 +773,13 @@ function redLinesLine() {
     : `<p class="muted small redlines-line">${esc(S.results.noRedLinesCrossed)}</p>`;
 }
 
-// Under the snapshot: a pointer to the supporters/abstainers card, whose clashes the snapshot does not count.
-function peripheryLink() {
+// At the end of the snapshot's members-only lines, set apart: the parties outside the coalition, with a pointer to
+// their card (the snapshot does not count their clashes).
+function outsideBlock() {
   const n = C.peripheryClashes(ctx, state);
   if (n == null) return '';
-  return `<p class="periphery-link"><button type="button" class="link-btn" data-act="to-periphery" data-key="to-periphery">${esc(S.results.peripheryLink(n))}</button></p>`;
+  return `<div class="outside-block"><h3>${esc(S.results.outsideHeading)}</h3>
+    <p class="periphery-link"><button type="button" class="link-btn" data-act="to-periphery" data-key="to-periphery">${esc(S.results.peripheryLink(n))}</button></p></div>`;
 }
 
 // Supporters and abstainers vs the coalition members (never counted in the cards above).
@@ -772,7 +788,7 @@ function peripheryCard() {
   if (!rows.length) return '';
   const R = S.results;
   const items = rows.map((row) => `<li class="per-party">
-    <p class="row-title">${esc(name(row.partyId))} <span class="muted small">(${esc(R.roleName[row.role])})</span></p>
+    <p class="row-title">${outsideChip(outsideParty(row.partyId))}</p>
     ${row.items.length ? `<ul class="pair-list">${row.items.map((i) => `
       <li><button type="button" class="pair-btn" data-act="pair-sheet" data-a="${i.a}" data-b="${i.b}" data-key="per-${i.a}-${i.topicId}">
         <span>${esc(topic(i.topicId).short)}: ${esc(R.versus(name(i.b)))}</span>${levelBadge(i.level)}${i.byRedLine ? ` <span class="tag tag-red"><span aria-hidden="true">🚩</span> ${esc(S.redLine)}</span>` : ''}</button></li>`).join('')}</ul>`
@@ -840,9 +856,10 @@ function shareUrl() {
   return location.origin + location.pathname + C.locationFor(ctx, state, 'results', '', lang);
 }
 
-// The members' head-on clash topics, plus the supporters' and abstainers' clashes when there are any (the same N as
-// the snapshot's pointer).
-const shareText = (r) => S.share.text(coalitionTags().join(' + '), r.clashTopics, C.peripheryClashes(ctx, state));
+// The members and their head-on clash topics; then, when there are any, the parties outside the coalition with their
+// roles and their head-on clashes with the members (the same N as the snapshot's outside block).
+const shareText = (r) => S.share.text(memberTags().join(' + '), r.clashTopics, C.peripheryClashes(ctx, state),
+  C.coalitionGroups(state).outside.map((o) => [name(o.partyId), S.results.roleName[o.role]]));
 
 function shareCard(r) {
   const text = shareText(r);

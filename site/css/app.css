@@ -252,7 +252,7 @@ h2 { margin-block-start: 1.2em; }
 .back { color: var(--accent); font-weight: 700; text-decoration: none; padding: 10px 4px; display: inline-block; }
 .btn-small { min-block-size: 40px; padding: 6px 16px; }
 .card-title { margin: 0 0 .5em; font-size: 1.05rem; }
-.overall-scope { margin: -.3em 0 .6em; }
+.breakdown-label { margin: 10px 0 -4px; }
 .breakdown { list-style: none; margin: 10px 0 6px; padding: 0; display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: .88rem; font-weight: 600; }
 .bd-ok { color: #14532d; } .bd-minor { color: #5f4500; } .bd-major { color: #7a2e0e; } .bd-clash { color: #7f1d1d; } .bd-none { color: #4b5563; }
 .overall .seats-line { margin-block-start: 8px; }
@@ -289,6 +289,12 @@ h2 { margin-block-start: 1.2em; }
 .poll-legal .poll-btn { font-size: .95rem; color: var(--accent); padding: 0 4px; }
 .overall .poll-legal { margin-block-start: 6px; }
 .coalition-line { margin: 10px 0 0; font-size: .95rem; font-weight: 600; }
+/* Parties outside the coalition: one neutral marker everywhere (dashed outline, no fill, no colour); the role is in the text. */
+.outside { display: inline-block; max-inline-size: 100%; border: 1px dashed var(--muted); border-radius: 8px; padding: 0 .45em; overflow-wrap: anywhere; }
+.coalition-outside { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; margin-block-start: 6px; }
+.outside-list { display: flex; flex-wrap: wrap; gap: 4px 6px; list-style: none; margin: 0; padding: 0; min-inline-size: 0; }
+.outside-block { margin-block-start: 10px; padding-block-start: 8px; border-block-start: 1px dashed var(--muted); }
+.outside-block h3 { margin: 0; font-size: .95rem; }
 .minor-line { margin: 10px 0 0; font-weight: 600; }
 .links { padding-inline-start: 1.2em; }
 
@@ -325,6 +331,10 @@ body[data-view="build"] { padding-block-end: 100px; }
   body.host-badge .bar { padding-block-end: calc(72px + env(safe-area-inset-bottom)); }
   body.host-badge { padding-block-end: 88px; }
   body.host-badge[data-view="build"] { padding-block-end: 190px; }
+  /* The badge is 64px tall: from the end of the source line (results) or the legal sentence (polls) to the seat numbers
+     the gap is larger than that, so the numbers never show while the end of the line is under the badge. */
+  body.host-badge .overall .positions-asof + .seats-line { margin-block-start: 40px; }
+  body.host-badge .overall .poll-legal + .seats-line { margin-block-start: 62px; }
 }
 .toast { inset-block-end: 100px; }
 
@@ -437,6 +447,7 @@ details.below summary { cursor: pointer; font-weight: 600; padding-block: 10px; 
 .completions .poll-legal { margin-block: 6px; }
 .positions-asof { margin: -4px 0 8px; font-size: .85rem; color: var(--muted); }
 .periphery-link { margin: 8px 0 0; }
+.outside-block .periphery-link { margin: 0; }
 .periphery-link .link-btn { font-size: .95rem; text-align: start; }
 .scenario-list { list-style: none; margin: 0 0 6px; padding: 0; display: grid; gap: 10px; }
 .scenario .preset { inline-size: 100%; text-align: start; }

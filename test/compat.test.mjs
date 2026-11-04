@@ -5,7 +5,7 @@ import {
   matrixCell, pairSummary, investiture, periphery, analyze, without, presets, parseState, serializeState,
   parseLocation, locationFor, moveLegacyState, localize, contextFor,
   withLinked, lowCoverage, addImpact, breakdown, ballotOrder, selected, completions, redLinesCrossed, closestTo,
-  peripheryClashes, pivotal,
+  peripheryClashes, pivotal, coalitionGroups,
 } from '../site/js/compat.js';
 
 const P = (partyId, topicId, position, redLine = false) => ({ partyId, topicId, position, redLine });
@@ -192,6 +192,21 @@ test('analyze counts clashes among members only; supporters and abstainers go to
   // d (0) vs a/b (-2): MAJOR on t1.
   assert.deepEqual(per[1].items.map((i) => [i.topicId, i.level]), [['t1', 'MAJOR']]);
   assert.deepEqual(periphery(ctx, { members: ['a', 'b'] }), []);
+});
+
+test('coalitionGroups: members, then the outside parties with their role; outside is empty when all are members', () => {
+  assert.deepEqual(coalitionGroups({ members: ['a', 'b'] }), { members: ['a', 'b'], outside: [] });
+  assert.deepEqual(coalitionGroups({ members: ['a', 'b'], supporters: [], abstainers: [] }), { members: ['a', 'b'], outside: [] });
+  assert.deepEqual(coalitionGroups({ members: ['a', 'b'], supporters: ['c'], abstainers: ['e', 'd'] }), {
+    members: ['a', 'b'],
+    outside: [{ partyId: 'c', role: 'supporter' }, { partyId: 'e', role: 'abstainer' }, { partyId: 'd', role: 'abstainer' }],
+  });
+  // Abstainers only, and no members: the groups still split by role.
+  assert.deepEqual(coalitionGroups({ members: [], abstainers: ['d'] }), { members: [], outside: [{ partyId: 'd', role: 'abstainer' }] });
+  // The input is not shared with the result.
+  const st = { members: ['a'], supporters: ['c'] };
+  coalitionGroups(st).members.push('x');
+  assert.deepEqual(st.members, ['a']);
 });
 
 test('peripheryClashes: null without supporters or abstainers, else the CLASH items of periphery()', () => {

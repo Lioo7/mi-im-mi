@@ -10,7 +10,7 @@ import { mkdirSync, mkdtempSync, writeFileSync, rmSync, readFileSync, existsSync
 import { tmpdir } from 'node:os';
 import { join, extname, normalize } from 'node:path';
 import { ROOT, loadData } from './lib.mjs';
-import { contextFor, presets, serializeState, ballotOrder, completions, parseLocation, stateKeysIn, selected, locationFor, closestTo, redLinesCrossed, pivotal, investiture } from '../site/js/compat.js';
+import { contextFor, presets, serializeState, ballotOrder, completions, parseLocation, stateKeysIn, selected, locationFor, closestTo, redLinesCrossed, pivotal, investiture, coalitionGroups, analyze, peripheryClashes } from '../site/js/compat.js';
 import { PROD_HOST } from '../site/js/stats.js';
 import { S } from '../site/js/strings.js';
 import { S as EN } from '../site/js/strings.en.js';
@@ -116,20 +116,64 @@ function redLinesText(lng, members) {
   const r = redLinesCrossed(c, members);
   return r.length ? `🚩 ${T.results.redLinesCrossed(r.length, r.map((x) => `${c.byId.get(x.partyId).name} · ${c.topics.find((t) => t.id === x.topicId).short}`).join(', '))}` : T.results.noRedLinesCrossed;
 }
-// The snapshot's top: the scope caption right under the title (only with supporters or abstainers), then the breakdown,
-// the pointer to the supporters/abstainers card, and the red-line line, in that order.
-const OVERVIEW_JS = `(() => { const o = document.querySelector('#results .overall'); if (!o) return null; const cap = o.querySelector('.overall-scope');
-  const bd = o.querySelector('.breakdown'); const a = bd?.nextElementSibling; const b = a?.nextElementSibling;
-  return { cap: cap ? cap.innerText.trim() : null, capFirst: !cap || cap.previousElementSibling?.tagName === 'H2', next: [a?.className ?? '', b?.className ?? ''] }; })()`;
-function overviewErrors(T, state, ov) {
-  const side = state.supporters.length + state.abstainers.length > 0;
-  const want = side ? T.results.summaryScope(state.members.length) : null;
+// The results card, scoped: the header (one line when all are members; else the members, then the parties outside the
+// coalition, each in the neutral marker with its role in text), the snapshot (members-only title, the counts label only
+// with outside parties, the red-line line right after the counts, then the separate outside block), and the same marker
+// in the supporters/abstainers card and the pivotal rows. Members never get the marker.
+const CARD_JS = `(() => { const h = document.querySelector('#results-coalition'); const t = (e) => e ? e.innerText.replace(/\\s+/g, ' ').trim() : null;
+  const lines = [...h.querySelectorAll(':scope > .coalition-line')]; const o = document.querySelector('#results .overall');
+  const bd = o?.querySelector('.breakdown'); const ob = o?.querySelector('.outside-block');
+  const after = []; for (let e = bd?.nextElementSibling; e && after.length < 2; e = e.nextElementSibling) after.push(e.className);
+  return { lines: lines.map((l) => l.classList.contains('coalition-outside') ? t(l.querySelector(':scope > .muted')) : t(l)),
+    memberChips: lines[0]?.querySelectorAll('.outside').length ?? 0, chips: [...h.querySelectorAll('.outside')].map(t),
+    chipsListed: h.querySelectorAll('.outside-list[role="list"] > li > .outside').length,
+    perChips: [...document.querySelectorAll('#results .periphery .per-party .row-title .outside')].map(t),
+    pivotalChips: [...document.querySelectorAll('#results .pivotal li .outside')].map(t),
+    title: o && bd ? t(o.querySelector('h2')) : null, scope: document.querySelectorAll('.overall-scope').length,
+    label: t(o?.querySelector('.breakdown-label')), labelBefore: !o?.querySelector('.breakdown-label') || o.querySelector('.breakdown-label').nextElementSibling === bd,
+    after, block: ob ? { heading: t(ob.querySelector('h3')), link: t(ob.querySelector('[data-act="to-periphery"]')) } : null }; })()`;
+const sortP = (c, ids) => [...ids].sort((a, b) => c.order.get(a) - c.order.get(b));
+function cardErrors(lng, state, got) {
+  const c = posCtx[lng];
+  const T = lng === 'he' ? S : EN;
+  const R = T.results;
+  const nm = (id) => c.byId.get(id).name;
+  const st = { ...state, members: sortP(c, state.members), supporters: sortP(c, state.supporters), abstainers: sortP(c, state.abstainers) };
+  const { outside } = coalitionGroups(st);
+  const side = outside.length > 0;
+  const members = st.members.map((id) => `${id === st.base ? '★ ' : ''}${nm(id)}`).join(' · ');
+  const chips = outside.map((o) => R.outsideParty(nm(o.partyId), R.roleName[o.role]));
+  const want = {
+    lines: side ? [`${R.membersLabel(st.members.length)}: ${members}`, `${R.outsideLabel}:`] : [`${R.coalitionLabel}: ${members}`],
+    memberChips: 0, chips, chipsListed: chips.length,
+    perChips: st.members.length ? chips : [],
+    pivotalChips: SEATS_HIDDEN ? [] : pivotal(c, st).filter((p) => p.role !== 'member').map((p) => nm(p.partyId)),
+    scope: 0,
+  };
+  if (st.members.length >= 2) {
+    Object.assign(want, {
+      title: R.summaryTitleScoped(st.members.length), label: side ? R.breakdownLabel : null, labelBefore: true,
+      after: side ? ['small redlines-line', 'outside-block'] : ['small redlines-line'],
+      block: side ? { heading: R.outsideHeading, link: R.peripheryLink(peripheryClashes(c, st)) } : null,
+    });
+  }
   const out = [];
-  if (ov.cap !== want) out.push(`scope caption should be ${JSON.stringify(want)}, got ${JSON.stringify(ov.cap)}`);
-  if (!ov.capFirst) out.push('scope caption must come right after the title');
-  const [a, b] = ov.next;
-  if (side ? !(a.includes('periphery-link') && b.includes('redlines-line')) : !a.includes('redlines-line')) out.push(`after the breakdown: expected ${side ? 'pointer, then red-line line' : 'red-line line'}, got ${a} | ${b}`);
+  for (const [k, v] of Object.entries(want)) {
+    let g = got[k];
+    // The red-line line is muted when none is crossed; only its own class matters here.
+    if (k === 'after') g = g.map((x) => (x.includes('redlines-line') ? 'small redlines-line' : x)).slice(0, v.length);
+    if (JSON.stringify(g) !== JSON.stringify(v)) out.push(`results card ${k}: expected ${JSON.stringify(v)}, got ${JSON.stringify(g)}`);
+  }
   return out;
+}
+// The share text, exactly: the members, then (only with outside parties) those parties with roles and their clashes.
+function shareTextFor(lng, state) {
+  const c = posCtx[lng];
+  const T = lng === 'he' ? S : EN;
+  const nm = (id) => c.byId.get(id).name;
+  const st = { ...state, members: sortP(c, state.members), supporters: sortP(c, state.supporters), abstainers: sortP(c, state.abstainers) };
+  return T.share.text(st.members.map((id) => `${id === st.base ? '★ ' : ''}${nm(id)}`).join(' + '), analyze(c, st).clashTopics, peripheryClashes(c, st),
+    coalitionGroups(st).outside.map((o) => [nm(o.partyId), T.results.roleName[o.role]]));
 }
 const REDLINES_JS = "[...document.querySelectorAll('#results .overall .redlines-line')].map((e) => e.innerText.replace(/\\s+/g, ' ').trim()).join('|')";
 const oppositionQs = serializeState(ctx, { base: null, ...pr.opposition });
@@ -438,8 +482,6 @@ try {
           const wantNames = side.map((id) => parties.find((p) => p.id === id).name);
           if (per === 'missing' || !wantNames.every((n) => per.includes(n))) errors.push(`[${current}] supporters/abstainers card missing or incomplete (${per})`);
           const leak = await evaluate(`[...document.querySelectorAll('#results .gap-head, #results .card:not(.periphery) .pair-btn, #matrix .party-btn')].map((e) => e.innerText).join('|')`);
-          const pointer = await evaluate("document.querySelector('#results .overall [data-act=\"to-periphery\"]')?.innerText || ''");
-          if (!/^↓ (ועוד \d+ סתירות חזיתיות|ועוד סתירה חזיתית אחת|אין סתירות חזיתיות) מול התומכות והנמנעות$/.test(pointer)) errors.push(`[${current}] snapshot lacks the pointer to the supporters/abstainers card (${pointer})`);
           const leaked = wantNames.filter((n) => leak.includes(n));
           if (leaked.length) errors.push(`[${current}] supporters/abstainers counted in the coalition analysis: ${leaked.join(', ')}`);
         }
@@ -452,16 +494,13 @@ try {
         const wa = await evaluate("document.querySelector('#results a[href^=\"https://wa.me/\"]')?.href || ''");
         const wantShare = `${baseUrl}#results${serializeState(ctx, parseLocation(splitSuffix(suffix), passedIds).state)}`;
         if (wa && !new URL(wa).searchParams.get('text').endsWith(`\n${wantShare}`)) errors.push(`[${current}] WhatsApp link should end with ${wantShare} (${new URL(wa).searchParams.get('text')})`);
-        if (exp.state.members.length >= 2) {
-          const ov = await evaluate(OVERVIEW_JS);
-          for (const e of ov ? overviewErrors(S, exp.state, ov) : ['no snapshot']) errors.push(`[${current}] ${e}`);
-        }
+        if (exp.state.members.length) for (const e of cardErrors('he', exp.state, await evaluate(CARD_JS))) errors.push(`[${current}] ${e}`);
         // #14: one red-line line in the snapshot (also when none is crossed), the same list as the completions card.
         if (exp.state.members.length >= 2) {
           const got = await evaluate(REDLINES_JS);
           const want = redLinesText('he', exp.state.members);
           if (got !== want) errors.push(`[${current}] red-line line should be "${want}", got "${got}"`);
-          if (RESULTS && name === 'results-coalition' && !got.startsWith('🚩 2 קווים אדומים נחצים')) errors.push(`[${current}] expected 2 red lines crossed, got "${got}"`);
+          if (RESULTS && name === 'results-coalition' && !got.startsWith('🚩 2 קווים אדומים נחצו')) errors.push(`[${current}] expected 2 red lines crossed, got "${got}"`);
           if (name === 'results-opposition' && got !== S.results.noRedLinesCrossed) errors.push(`[${current}] expected no red line crossed, got "${got}"`);
           const card = await evaluate(`(() => { const c = document.querySelector('#results .completions'); if (!c) return null;
             const t = [...c.querySelectorAll('.tag-red')].map((e) => e.innerText.replace(/\\s+/g, ' ').trim()).find((x) => x.includes('כבר חוצה')); return t ? t.slice(t.indexOf(': ') + 2) : ''; })()`);
@@ -471,9 +510,8 @@ try {
         // #1: the supporters' and abstainers' head-on clashes, the same N and words as the snapshot pointer; nothing without them.
         if (wa) {
           const text = new URL(wa).searchParams.get('text');
-          const pointer = await evaluate("document.querySelector('#results .overall [data-act=\"to-periphery\"]')?.innerText || ''");
-          const tail = pointer.replace(/^↓ (ועוד )?/, '');
-          if (pointer ? !text.includes(` · ${tail}\n`) : text.includes('מול התומכות')) errors.push(`[${current}] share text and snapshot pointer disagree (${pointer || 'no pointer'}): ${text}`);
+          const want = shareTextFor('he', exp.state);
+          if (!text.startsWith(`${want}\n`)) errors.push(`[${current}] share text should be "${want}", got "${text}"`);
         }
       }
       if (expectView === 'method') {
@@ -526,7 +564,7 @@ try {
         await waitFor(() => evaluate("document.body.dataset.view !== undefined && document.querySelector('#footer')?.children.length > 0 && (document.querySelector('script[data-nf-variant]') !== null)"));
         await sleep(400);
         const first = await evaluate(LEGAL_CHECK);
-        if (first) errors.push(`[${current}] first load: seat numbers visible without the full legal sentence (${first})`);
+        if (first) { errors.push(`[${current}] first load: seat numbers visible without the full legal sentence (${first})`); await shoot(z, `legal-fail-${name}-${z.tag}.png`, false); }
         const scrolled = await evaluate(`(() => { const out = []; const max = document.documentElement.scrollHeight - innerHeight;
           for (let y = 0; y <= max; y += 40) { window.scrollTo(0, y); const r = ${LEGAL_CHECK}; if (r) out.push(y + ': ' + r); }
           window.scrollTo(0, 0); return out.slice(0, 3).join(' | '); })()`);
@@ -535,6 +573,27 @@ try {
       }
     }
     console.log(`  ✓ legal sentence vs seat numbers: ${legalCases.length} views × 390×844, 375×667 (with host badge)`);
+  }
+
+  // The narrowest supported phone (360px): the outside-party markers wrap inside the page, in both languages.
+  {
+    const z = { tag: 'n', width: 360, height: 740, mobile: true, dpr: 2 };
+    await setSize(z);
+    const narrow = ['results-roles', 'results-scenario-arab', 'results-pair'].map((n) => cases.find((c) => c[0] === n));
+    for (const [name, suffix] of narrow) {
+      for (const l of ['he', 'en']) {
+        current = `narrow-${name}-${l}@360`;
+        await go(baseUrl + suffix + (l === 'en' ? '&l=en' : '')); // these suffixes all carry a fragment query
+        await waitFor(() => evaluate("document.body.dataset.view !== undefined && document.querySelector('#footer')?.children.length > 0"));
+        await sleep(250);
+        const bad = await evaluate(`(() => { const out = []; if (document.documentElement.scrollWidth > innerWidth + 1) out.push('horizontal page overflow');
+          for (const e of document.querySelectorAll('.outside')) { const r = e.getBoundingClientRect(); if (r.width && (r.left < -1 || r.right > innerWidth + 1)) out.push('marker outside the page: ' + e.innerText); }
+          return out.join(' | '); })()`);
+        if (bad) errors.push(`[${current}] ${bad}`);
+        await shoot(z, `${name}-n${l === 'en' ? '-en' : ''}.png`);
+      }
+    }
+    console.log(`  ✓ 360px: ${narrow.length} views × he, en (outside-party markers inside the page)`);
   }
 
   // The served CSP is netlify.toml's. Netlify's badge (real on production, emulated locally) runs under it: its srcdoc
@@ -1123,19 +1182,15 @@ try {
           if (JSON.stringify(got) !== JSON.stringify(want)) errors.push(`[${current}] English pivotal rows: expected ${JSON.stringify(want)}, got ${JSON.stringify(got)}`);
           if (RESULTS && name === 'results-scenario-arab' && !got?.includes("If Ra'am votes against: 59 vs 61")) errors.push(`[${current}] expected "If Ra'am votes against: 59 vs 61"`);
         } else if (await evaluate("document.querySelector('.pivotal') !== null")) errors.push(`[${current}] showSeats is off but the pivotal rows are shown`);
-        if (exp.state.members.length >= 2) {
-          const ov = await evaluate(OVERVIEW_JS);
-          for (const e of ov ? overviewErrors(EN, exp.state, ov) : ['no snapshot']) errors.push(`[${current}] English: ${e}`);
-        }
+        if (exp.state.members.length) for (const e of cardErrors('en', exp.state, await evaluate(CARD_JS))) errors.push(`[${current}] English: ${e}`);
         if (exp.state.members.length >= 2) {
           const got = await evaluate(REDLINES_JS);
           const want = redLinesText('en', exp.state.members);
           if (got !== want) errors.push(`[${current}] English red-line line should be "${want}", got "${got}"`);
         }
         if (wa) {
-          const pointer = await evaluate("document.querySelector('#results .overall [data-act=\"to-periphery\"]')?.innerText || ''");
-          const tail = pointer.replace(/^↓ /, '').replace(' more ', ' ').replace(/^No /, 'no ');
-          if (pointer ? !text.includes(` · ${tail}\n`) : text.includes('supporters and abstainers')) errors.push(`[${current}] English share text and snapshot pointer disagree (${pointer || 'no pointer'}): ${text}`);
+          const want = shareTextFor('en', exp.state);
+          if (!text.startsWith(`${want}\n`)) errors.push(`[${current}] English share text should be "${want}", got "${text}"`);
         }
       }
       await shoot(z2, `${name}-${z2.tag}-en.png`);

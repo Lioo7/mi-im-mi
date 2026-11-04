@@ -3,6 +3,8 @@
 export const plural = (n, one, many) => (n === 1 ? one : `${n} ${many}`);
 const topicsN = (n) => plural(n, '1 topic', 'topics');
 const inTopics = (n) => `on ${topicsN(n)}`;
+// Head-on clashes with the parties outside the coalition: the snapshot's outside block and the share text.
+const clashesN = (n) => (n === 0 ? 'no head-on clashes' : n === 1 ? '1 head-on clash' : `${n} head-on clashes`);
 const seatsN = (n) => plural(n, '1 seat', 'seats');
 // People and channels named in the data (quote speakers, where a quote was published, who translated it). The source
 // of each English spelling is in docs/research/decisions.md; test/strings.test.mjs checks every value has an entry.
@@ -133,7 +135,7 @@ export const S = {
     // A removed party votes against; an abstainer is shown as voting against.
     pivotalIntro: (majority) => `Parties without which ${majority ? 'the members no longer have 61, or ' : ''}the confidence vote has no majority (for vs against):`,
     pivotalRow: (name, role, members, f, a) => (role === 'abstainer' ? `If ${name} votes against: ${f} vs ${a}`
-      : `Without ${name}${role === 'supporter' ? ' (supporter)' : ''}: ${members != null ? `coalition members ${members} of 61 · ` : ''}${f} vs ${a}`),
+      : `Without ${name}${role === 'supporter' ? ' (supports from outside)' : ''}: ${members != null ? `coalition members ${members} of 61 · ` : ''}${f} vs ${a}`),
     pivotalNone: 'No single party does this.',
     majority: 'Majority',
     short: (n) => `${n} short`,
@@ -181,8 +183,10 @@ export const S = {
   results: {
     pickOne: 'Pick at least one party, or a ready-made scenario.',
     summaryTitle: 'Overview',
-    // Under the snapshot title when there are supporters or abstainers: what the counts below cover.
-    summaryScope: (n) => `Among the ${n} coalition members · supporters and abstainers separately`,
+    // The snapshot title with 2+ members: everything up to the outside block is between the members only.
+    summaryTitleScoped: (n) => `Overview: between the ${n} coalition members`,
+    // Before the counts, only when there are parties outside the coalition.
+    breakdownLabel: 'Topics between the coalition members:',
     addPartner: 'Add a partner to see clashes',
     crisesTitle: (n) => (n === 1 ? 'The crisis waiting for this coalition' : `The ${n} crises waiting for this coalition`),
     gapsTitle: 'The topics with the largest gaps',
@@ -197,18 +201,23 @@ export const S = {
     noGlue: 'No topic on which all the partners agree',
     noAgree: 'No topic on which all the partners agree',
     minorOnly: (names) => `Small gap only: ${names}`,
+    // The results header: one line when every party is a member, two labelled groups otherwise.
     coalitionLabel: 'The coalition being checked',
-    roleTag: { supporter: '(supporter)', abstainer: '(abstainer)' },
+    membersLabel: (n) => `In the coalition (${n})`,
+    outsideLabel: 'Outside the coalition',
+    outsideParty: (name, role) => `${name} · ${role}`,
     noMembers: 'Mark at least one party as "In coalition" to see clashes.',
     peripheryTitle: 'Where the supporters and abstainers are far from the coalition',
     peripheryIntro: 'For each supporter and abstainer: the topics where it has a substantial gap or a head-on clash with a coalition member, and the member furthest from it. These gaps are not counted in the overview above.',
     peripheryNone: 'No topic with a substantial gap or a head-on clash with the coalition members.',
-    roleName: { supporter: 'Supports from outside', abstainer: 'Abstains' },
+    roleName: { supporter: 'supports from outside', abstainer: 'abstains' },
     versus: (n) => `vs. ${n}`,
     // Red lines crossed among the members (#14): one line in the snapshot, also shown when there are none.
-    redLinesCrossed: (n, list) => `${n === 1 ? '1 red line is' : `${n} red lines are`} crossed within the coalition: ${list}`,
-    noRedLinesCrossed: 'No red line is crossed within the coalition',
-    peripheryLink: (n) => `↓ ${n === 0 ? 'No head-on clashes' : n === 1 ? '1 more head-on clash' : `${n} more head-on clashes`} with the supporters and abstainers`,
+    redLinesCrossed: (n, list) => `${n === 1 ? '1 red line is' : `${n} red lines are`} crossed between the coalition members: ${list}`,
+    noRedLinesCrossed: 'No red line is crossed between the coalition members',
+    // The snapshot's outside block: its heading, and the link to the supporters/abstainers card.
+    outsideHeading: 'Versus the parties outside the coalition',
+    peripheryLink: (n) => `↓ ${n === 0 ? 'No head-on clashes' : clashesN(n)} with the coalition members`,
     glueCoverage: (k, n) => `(${k} of ${n} partners stated a position)`,
     frictionTitle: 'The partner that creates the most friction',
     frictionTie: 'The partners that create the most friction',
@@ -342,9 +351,11 @@ export const S = {
     button: 'Share',
     copied: 'Link copied',
     whatsapp: 'Send on WhatsApp',
-    // periphery: head-on clashes with the supporters and abstainers, or null when there are none (text unchanged).
-    text: (names, clashes, periphery = null) => `The coalition I built: ${names} · ${topicsN(clashes)} in a head-on clash${periphery == null ? ''
-      : ` · ${periphery === 0 ? 'no head-on clashes' : periphery === 1 ? '1 head-on clash' : `${periphery} head-on clashes`} with the supporters and abstainers`}`,
+    // names: the members. outside: [name, role] of the supporters and abstainers, with periphery = their head-on clashes
+    // with the members; without outside parties the text is unchanged.
+    text: (names, clashes, periphery = null, outside = []) => (outside.length
+      ? `The coalition I built: ${names} · Outside the coalition: ${outside.map(([n, r]) => `${n} (${r})`).join(', ')} · ${topicsN(clashes)} in a head-on clash between the coalition members · ${clashesN(periphery)} with the parties outside the coalition`
+      : `The coalition I built: ${names} · ${topicsN(clashes)} in a head-on clash`),
   },
 
   method: {
@@ -382,7 +393,7 @@ export const S = {
     researchDocsNote: 'Every position has a record of the evidence and of the review decisions, including red lines and considerations that came up.',
     redLineRule: 'A red line is marked only when the party or its leader said explicitly, in their own words and in public, that the topic is a condition for joining a coalition. Not from media reports.',
     redLineTest: 'The wording test: it takes a statement that without X the party will not join or support a government ("we will not be partners in any government that…", "a threshold condition"), or that X is not up for negotiation ("no concession", "we will not give in"). A list of priorities ("at the top of our demands") is not a red line. The test is by wording only, regardless of the bloc.',
-    redLinesCrossedRule: 'The status summary has one line on red lines: a member\'s red line is crossed when another member is 2 or more steps away on that topic (the same rule that turns a 2-step gap into a head-on clash). Only stated red lines count, and a topic with no stated position is not counted. When none is crossed, the line says so. It is the same list as in the "what is missing for 61" card.',
+    redLinesCrossedRule: 'The status summary has one line on red lines: a member\'s red line is crossed when another member is 2 or more steps away on that topic (the same rule that turns a 2-step gap into a head-on clash). Only stated red lines count, and a topic with no stated position is not counted. When none is crossed, the line says so. It is the same list as in the "what is missing for 61" card. This line checks only the coalition members. Red lines of supporters and abstainers are not checked here. In their card, 🚩 marks a 2-step gap that counts as a head-on clash because of a red line.',
     rolesTitle: 'Roles and the confidence vote',
     rolesRules: (seats, linked) => [
       'Each party has one of four roles: in the coalition, supporter from outside, abstainer, or opposed. Opposed is the default for any party not picked.',

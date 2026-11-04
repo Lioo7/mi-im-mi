@@ -271,6 +271,13 @@ const sumSeats = (ctx, ids) => ids.reduce((n, id) => n + ctx.seatsOf(id), 0);
 // Every party that is not a member, supporter or abstainer is an opponent (the default role).
 export const selected = ({ members, supporters = [], abstainers = [] }) => [...members, ...supporters, ...abstainers];
 
+// The results header's two groups: the members, and the parties outside the coalition with their role (supporters, then
+// abstainers, each in state order). `outside` is empty when every selected party is a member.
+export const coalitionGroups = ({ members, supporters = [], abstainers = [] }) => ({
+  members: [...members],
+  outside: [...supporters.map((partyId) => ({ partyId, role: 'supporter' })), ...abstainers.map((partyId) => ({ partyId, role: 'abstainer' }))],
+});
+
 // Investiture vote: for = members + supporters, abstain = abstainers, against = everyone else (all seats minus both).
 // Approved when for > against (a majority of those voting). Members alone reaching 61 is reported separately.
 // All seats = 120 with results; with polls it is the sum of the poll averages.

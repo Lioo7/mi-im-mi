@@ -3,6 +3,8 @@
 export const plural = (n, one, many) => (n === 1 ? one : `${n} ${many}`);
 const topicsN = (n) => plural(n, 'נושא אחד', 'נושאים');
 const inTopics = (n) => (n === 1 ? 'בנושא אחד' : `ב-${n} נושאים`);
+// Head-on clashes with the parties outside the coalition: the snapshot's outside block and the share text.
+const clashesN = (n) => (n === 0 ? 'אין סתירות חזיתיות' : n === 1 ? 'סתירה חזיתית אחת' : `${n} סתירות חזיתיות`);
 
 export const S = {
   lang: 'he',
@@ -132,7 +134,7 @@ export const S = {
     // A removed party votes against; an abstainer is shown as voting against.
     pivotalIntro: (majority) => `מפלגות שבלעדיהן ${majority ? 'אין לחברות הקואליציה 61, או ש' : ''}אין רוב בהצבעת האמון (בעד מול נגד):`,
     pivotalRow: (name, role, members, f, a) => (role === 'abstainer' ? `אם ${name} תצביע נגד: ${f} מול ${a}`
-      : `בלי ${name}${role === 'supporter' ? ' (תומכת)' : ''}: ${members != null ? `חברות הקואליציה ${members} מתוך 61 · ` : ''}${f} מול ${a}`),
+      : `בלי ${name}${role === 'supporter' ? ' (תומכת מבחוץ)' : ''}: ${members != null ? `חברות הקואליציה ${members} מתוך 61 · ` : ''}${f} מול ${a}`),
     pivotalNone: 'אין מפלגה אחת כזו.',
     majority: 'יש רוב',
     short: (n) => `חסרים ${n}`,
@@ -181,8 +183,10 @@ export const S = {
   results: {
     pickOne: 'בחרו מפלגה אחת לפחות, או תרחיש מוכן.',
     summaryTitle: 'תמונת מצב',
-    // Under the snapshot title when there are supporters or abstainers: what the counts below cover.
-    summaryScope: (n) => `בין ${n} חברות הקואליציה · התומכות והנמנעות בנפרד`,
+    // The snapshot title with 2+ members: everything up to the outside block is between the members only.
+    summaryTitleScoped: (n) => `תמונת מצב בין ${n === 2 ? 'שתי' : n} חברות הקואליציה`,
+    // Before the counts, only when there are parties outside the coalition.
+    breakdownLabel: 'נושאים בין חברות הקואליציה:',
     addPartner: 'הוסיפו שותפה כדי לראות התנגשויות',
     crisesTitle: (n) => n === 1 ? 'המשבר שמחכה לקואליציה הזו' : `${n} המשברים שמחכים לקואליציה הזו`,
     gapsTitle: 'הנושאים עם הפערים הגדולים ביותר',
@@ -197,8 +201,11 @@ export const S = {
     noGlue: 'אין נושא שכל השותפות מסכימות עליו',
     noAgree: 'אין נושא שכל השותפות מסכימות עליו',
     minorOnly: (names) => `פער קל בלבד: ${names}`,
+    // The results header: one line when every party is a member, two labelled groups otherwise.
     coalitionLabel: 'הקואליציה שנבדקת',
-    roleTag: { supporter: '(תומכת)', abstainer: '(נמנעת)' },
+    membersLabel: (n) => `בקואליציה (${n})`,
+    outsideLabel: 'מחוץ לקואליציה',
+    outsideParty: (name, role) => `${name} · ${role}`,
     noMembers: 'סמנו לפחות מפלגה אחת כ״בקואליציה״ כדי לראות התנגשויות.',
     peripheryTitle: 'איפה התומכות והנמנעות רחוקות מהקואליציה',
     peripheryIntro: 'לכל תומכת ונמנעת: הנושאים שבהם יש לה פער מהותי או סתירה חזיתית מול חברה בקואליציה, והחברה הרחוקה ממנה ביותר. הפערים האלה לא נספרים בתמונת המצב שלמעלה.',
@@ -206,9 +213,11 @@ export const S = {
     roleName: { supporter: 'תומכת מבחוץ', abstainer: 'נמנעת' },
     versus: (n) => `מול ${n}`,
     // Red lines crossed among the members (#14): one line in the snapshot, also shown when there are none.
-    redLinesCrossed: (n, list) => `${n === 1 ? 'קו אדום אחד נחצה' : `${n} קווים אדומים נחצים`} בתוך הקואליציה: ${list}`,
-    noRedLinesCrossed: 'אין קו אדום שנחצה בתוך הקואליציה',
-    peripheryLink: (n) => `↓ ${n === 0 ? 'אין סתירות חזיתיות' : n === 1 ? 'ועוד סתירה חזיתית אחת' : `ועוד ${n} סתירות חזיתיות`} מול התומכות והנמנעות`,
+    redLinesCrossed: (n, list) => `${n === 1 ? 'קו אדום אחד נחצה' : `${n} קווים אדומים נחצו`} בין חברות הקואליציה: ${list}`,
+    noRedLinesCrossed: 'אין קו אדום שנחצה בין חברות הקואליציה',
+    // The snapshot's outside block: its heading, and the link to the supporters/abstainers card.
+    outsideHeading: 'מול המפלגות מחוץ לקואליציה',
+    peripheryLink: (n) => `↓ ${clashesN(n)} עם חברות הקואליציה`,
     glueCoverage: (k, n) => `(${k} מתוך ${n} שותפות הביעו עמדה)`,
     frictionTitle: 'השותפה שמייצרת הכי הרבה חיכוך',
     frictionTie: 'השותפות שמייצרות הכי הרבה חיכוך',
@@ -347,9 +356,11 @@ export const S = {
     button: 'שתפו',
     copied: 'הקישור הועתק',
     whatsapp: 'שלחו בוואטסאפ',
-    // periphery: head-on clashes with the supporters and abstainers, or null when there are none (text unchanged).
-    text: (names, clashes, periphery = null) => `הקואליציה שבניתי: ${names} · ${topicsN(clashes)} בסתירה חזיתית${periphery == null ? ''
-      : ` · ${periphery === 0 ? 'אין סתירות חזיתיות' : periphery === 1 ? 'סתירה חזיתית אחת' : `${periphery} סתירות חזיתיות`} מול התומכות והנמנעות`}`,
+    // names: the members. outside: [name, role] of the supporters and abstainers, with periphery = their head-on clashes
+    // with the members; without outside parties the text is unchanged.
+    text: (names, clashes, periphery = null, outside = []) => (outside.length
+      ? `הקואליציה שבניתי: ${names} · מחוץ לקואליציה: ${outside.map(([n, r]) => `${n} (${r})`).join(', ')} · ${topicsN(clashes)} בסתירה חזיתית בין חברות הקואליציה · ${clashesN(periphery)} עם המפלגות מחוץ לקואליציה`
+      : `הקואליציה שבניתי: ${names} · ${topicsN(clashes)} בסתירה חזיתית`),
   },
 
   method: {
@@ -388,7 +399,7 @@ export const S = {
     researchDocsNote: 'לכל עמדה יש תיעוד של הראיות ושל החלטות הבדיקה, כולל קווי אדום ושיקולים שעלו.',
     redLineRule: 'קו אדום מסומן רק כשהמפלגה או מנהיגה אמרו במפורש, בלשונם ובפומבי, שהנושא הוא תנאי לכניסה לקואליציה. לא מדיווחים בתקשורת.',
     redLineTest: 'מבחן הניסוח: נדרשת אמירה שבלי X המפלגה לא תיכנס לממשלה או לא תתמוך בה ("לא נהיה שותפים בשום ממשלה ש…", "תנאי סף"), או ש-X אינו נתון למשא ומתן ("שום ויתור", "לא נוותר"). סדר עדיפויות ("בראש הדרישות שלנו") אינו קו אדום. הבדיקה לפי הניסוח בלבד, בלי קשר לגוש.',
-    redLinesCrossedRule: 'בתמונת המצב מופיעה שורה אחת על קווים אדומים: קו אדום של חברה בקואליציה נחצה כשחברה אחרת רחוקה ממנה 2 דרגות או יותר באותו נושא (אותו כלל שהופך פער של 2 דרגות לסתירה חזיתית). נספרים רק קווים אדומים מוצהרים, ונושא בלי עמדה מוצהרת לא נספר. כשאין קו אדום שנחצה, השורה אומרת זאת. זו אותה רשימה שמופיעה בכרטיס "מה חסר לרוב".',
+    redLinesCrossedRule: 'בתמונת המצב מופיעה שורה אחת על קווים אדומים: קו אדום של חברה בקואליציה נחצה כשחברה אחרת רחוקה ממנה 2 דרגות או יותר באותו נושא (אותו כלל שהופך פער של 2 דרגות לסתירה חזיתית). נספרים רק קווים אדומים מוצהרים, ונושא בלי עמדה מוצהרת לא נספר. כשאין קו אדום שנחצה, השורה אומרת זאת. זו אותה רשימה שמופיעה בכרטיס "מה חסר לרוב". השורה הזו בודקת רק את חברות הקואליציה. קווים אדומים של התומכות והנמנעות לא נבדקים בה. בכרטיס שלהן, 🚩 מסמן פער של 2 דרגות שנחשב סתירה חזיתית בגלל קו אדום.',
     rolesTitle: 'תפקידים והצבעת אמון',
     // With seats hidden (polls mode, showSeats off) the vote is not shown, so its rules are left out.
     // linked: polls mode, where the parties of one list count as one unit in the completions.
