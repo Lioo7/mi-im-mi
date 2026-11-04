@@ -10,7 +10,7 @@ import { mkdirSync, mkdtempSync, writeFileSync, rmSync, readFileSync, existsSync
 import { tmpdir } from 'node:os';
 import { join, extname, normalize } from 'node:path';
 import { ROOT, loadData } from './lib.mjs';
-import { contextFor, presets, serializeState, ballotOrder, completions, parseLocation, stateKeysIn, selected, locationFor, closestTo, redLinesCrossed, pivotal, investiture, coalitionGroups, analyze, peripheryClashes } from '../site/js/compat.js';
+import { contextFor, presets, serializeState, ballotOrder, completions, parseLocation, stateKeysIn, selected, locationFor, closestTo, redLinesCrossed, pivotal, investiture, coalitionGroups, analyze, peripheryClashes, pairSummary } from '../site/js/compat.js';
 import { PROD_HOST } from '../site/js/stats.js';
 import { S } from '../site/js/strings.js';
 import { S as EN } from '../site/js/strings.en.js';
@@ -1240,6 +1240,133 @@ try {
     if (hebrew) errors.push(`[${current}] ${pid}|${tid} sheet: Hebrew text outside lang="he": ${hebrew}`);
   }
   console.log('  ✓ English interactions');
+
+  // Pair view (#23), every mode, both languages, at 360, 375 and 390: the build view's entry opens #pair with focus on its
+  // heading; two pickers that never offer the same party twice; all topics in topic order with the summary, the 🚩 tags
+  // and a null cell's dated note; no seat numbers; no horizontal scroll with every row open; a share link carrying the
+  // pair and the language only. Then: a fresh load of that link, p=x,x, the coalition kept around the view, the
+  // toggle, lists under the threshold (results) and the soft-linked note (polls only).
+  {
+    const nameIn = (lng, id) => posCtx[lng].byId.get(id).name;
+    const pairWant = (lng, a, b) => {
+      const T = lng === 'he' ? S : EN;
+      const s = pairSummary(posCtx[lng], a, b);
+      const sum = T.pair.summary(s.counts.AGREE, s.counts.MINOR, s.counts.MAJOR, s.counts.CLASH, s.n);
+      return { sum, share: T.pair.shareText(nameIn(lng, a), nameIn(lng, b), sum) };
+    };
+    const pick = (slot, id) => evaluate(`(() => { const s = document.querySelector('#pair-view [data-act="pair-pick"][data-slot="${slot}"]');
+      s.focus(); s.value = ${JSON.stringify(id)}; s.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+    const options = (slot) => evaluate(`[...document.querySelectorAll('#pair-view [data-slot="${slot}"] option')].map((o) => o.value).filter(Boolean)`);
+    const allIds = ctx.parties.map((p) => p.id);
+    const orderedIds = [...passedIds, ...allIds.filter((id) => !passedIds.includes(id))];
+    const [A, B] = ['utj', 'yisrael-beiteinu'];
+    const draftIdx = topics.findIndex((t) => t.id === 'draft');
+    const nullTopics = topics.filter((t) => loadData().positions.find((p) => p.partyId === A && p.topicId === t.id)?.position == null).map((t) => t.id);
+    let n = 0;
+    for (const w of [360, 375, 390]) {
+      const zp = { tag: `p${w}`, width: w, height: w === 375 ? 667 : 800, mobile: true, dpr: 2 };
+      await setSize(zp);
+      for (const lng of ['he', 'en']) {
+        const T = lng === 'he' ? S : EN;
+        const L = lng === 'en' ? 'l=en' : '';
+        current = `pair-${lng}@${w}`;
+        await go(`${baseUrl}${L ? `#build?${L}` : ''}`);
+        await ready();
+        const entry = await evaluate(`(() => { const a = document.querySelector('#presets .pair-entry a[href="#pair"]'); if (!a) return 'missing';
+          const r = a.getBoundingClientRect(); return r.height >= 44 ? a.innerText.trim() : 'under 44px'; })()`);
+        if (entry !== T.pair.open) errors.push(`[${current}] entry on the build view: expected "${T.pair.open}", got "${entry}"`);
+        await evaluate("document.querySelector('#presets .pair-entry a').click()");
+        await waitFor(() => evaluate("document.body.dataset.view === 'pair'"));
+        await sleep(200);
+        const opened = await evaluate("JSON.stringify([location.hash, document.activeElement?.id, document.querySelector('#pair-view .empty')?.innerText.trim()])");
+        if (opened !== JSON.stringify([`#pair${L ? `?${L}` : ''}`, 'pair-title', T.pair.pickBoth])) errors.push(`[${current}] opening the pair view: ${opened}`);
+        if (JSON.stringify(await options(0)) !== JSON.stringify(orderedIds)) errors.push(`[${current}] picker order: ${await options(0)}`);
+        await pick(0, A);
+        await sleep(150);
+        await pick(1, B);
+        await sleep(250);
+        const want = pairWant(lng, A, B);
+        const got = await evaluate(`JSON.stringify({ hash: location.hash, focus: document.activeElement?.dataset?.key, rows: document.querySelectorAll('#pair-view .pair-row').length,
+          topicsInOrder: [...document.querySelectorAll('#pair-view .pair-topic')].map((e) => e.innerText.trim()),
+          sum: document.querySelector('#pair-view .pair > .muted')?.innerText.trim(),
+          redTags: document.querySelectorAll('#pair-view .pair-row')[${draftIdx}]?.querySelectorAll('summary .tag-red').length })`).then(JSON.parse);
+        const wantGot = { hash: `#pair?p=${A},${B}${L ? `&${L}` : ''}`, focus: 'pair-pick-1', rows: topics.length, topicsInOrder: posCtx[lng].topics.map((t) => t.name), sum: want.sum, redTags: 2 };
+        if (JSON.stringify(got) !== JSON.stringify(wantGot)) errors.push(`[${current}] pair view: expected ${JSON.stringify(wantGot)}, got ${JSON.stringify(got)}`);
+        if ((await options(0)).includes(B) || (await options(1)).includes(A)) errors.push(`[${current}] a picker offers the party already picked in the other one`);
+        // Every row open: the null cells say so and show their dated note; nothing overflows the page.
+        await evaluate("document.querySelectorAll('#pair-view details').forEach((d) => { d.open = true; })");
+        await sleep(150);
+        for (const tid of nullTopics) {
+          const i = topics.findIndex((t) => t.id === tid);
+          const p = posCtx[lng].idx.get(`${A}|${tid}`);
+          const row = await evaluate(`(() => { const r = document.querySelectorAll('#pair-view .pair-row')[${i}]; return JSON.stringify([r.querySelector('summary .lv-NONE') !== null, r.querySelector('.pair-detail').innerText.replace(/\\s+/g, ' ').includes(${JSON.stringify(p.summary.replace(/\s+/g, ' ').slice(-60))})]); })()`);
+          if (row !== '[true,true]') errors.push(`[${current}] ${A}|${tid}: the null cell must read "${T.levels.NONE.label}" and show what was found (${row})`);
+        }
+        if (lng === 'he' && !(await evaluate("document.querySelector('#pair-view').innerText.includes('במצע יהדות התורה מ-1999 נכתב')"))) errors.push(`[${current}] the dated note from the 1999 platform is missing`);
+        const view = await evaluate(`(() => { const v = document.querySelector('#view-pair').cloneNode(true); v.querySelectorAll('.pair-detail, .pair-sum').forEach((e) => e.remove());
+          const t = v.textContent; return JSON.stringify([document.documentElement.scrollWidth > innerWidth + 1, /מנדט|\\bseats?\\b/i.test(t), document.querySelector('#bar').hidden]); })()`);
+        if (view !== '[false,false,true]') errors.push(`[${current}] [overflow, seat text, bar shown] should be [false,false,true]: ${view}`);
+        if (lng === 'en') { const he = await evaluate(HEBREW_OUTSIDE); if (he) errors.push(`[${current}] Hebrew text outside lang="he": ${he}`); }
+        const shareUrl = `${baseUrl}#pair?p=${A},${B}${L ? `&${L}` : ''}`;
+        const wa = await evaluate("document.querySelector('#pair-view a[href^=\"https://wa.me/\"]')?.href || ''");
+        const waText = wa ? new URL(wa).searchParams.get('text') : '';
+        if (waText !== `${want.share}\n${shareUrl}`) errors.push(`[${current}] WhatsApp text should be "${want.share}\\n${shareUrl}", got "${waText}"`);
+        await shoot(zp, `pair-${zp.tag}${lng === 'en' ? '-en' : ''}.png`);
+        // A fresh load of the shared link shows the same pair.
+        await go(shareUrl);
+        await waitFor(() => evaluate("document.querySelectorAll('#pair-view .pair-row').length > 0"));
+        const fresh = await evaluate("JSON.stringify([document.documentElement.lang, location.hash, [...document.querySelectorAll('#pair-view select')].map((s) => s.value), document.querySelector('#pair-view .pair > .muted')?.innerText.trim()])");
+        if (fresh !== JSON.stringify([lng, `#pair?p=${A},${B}${L ? `&${L}` : ''}`, [A, B], want.sum])) errors.push(`[${current}] the shared link should open the same pair: ${fresh}`);
+        n++;
+      }
+    }
+    await setSize(SIZES[0]);
+    current = 'pair-edges@390';
+    // The same party twice is one; the second picker is empty and does not offer it.
+    await go(`${baseUrl}#pair?p=likud,likud`);
+    await waitFor(() => evaluate("document.body.dataset.view === 'pair' && document.querySelector('#pair-view select') !== null"));
+    const twice = await evaluate("JSON.stringify([location.hash, [...document.querySelectorAll('#pair-view select')].map((s) => s.value), document.querySelector('#pair-view .pair-row') === null])");
+    if (twice !== JSON.stringify(['#pair?p=likud', ['likud', ''], true]) || (await options(1)).includes('likud')) errors.push(`[${current}] p=likud,likud should settle on one party: ${twice}`);
+    // The coalition stays in the fragment around the view, but never rides in the share link.
+    await go(`${baseUrl}#build?m=likud,yashar`);
+    await ready();
+    await evaluate("document.querySelector('#presets .pair-entry a').click()");
+    await waitFor(() => evaluate("document.body.dataset.view === 'pair'"));
+    await pick(0, A);
+    await pick(1, B);
+    await sleep(200);
+    const kept = await evaluate("JSON.stringify([location.hash, new URL(document.querySelector('#pair-view a[href^=\"https://wa.me/\"]').href).searchParams.get('text').split('\\n')[1]])");
+    if (kept !== JSON.stringify([`#pair${serializeState(ctx, { base: null, members: ['likud', 'yashar'] })}&p=${A},${B}`, `${baseUrl}#pair?p=${A},${B}`])) errors.push(`[${current}] coalition around the pair view: ${kept}`);
+    // The toggle keeps the view and the pair; the back link returns to the builder with the coalition.
+    await evaluate("document.querySelector('#lang-switch button').click()");
+    await sleep(300);
+    const toggled = await evaluate("JSON.stringify([document.documentElement.lang, location.hash, document.querySelectorAll('#pair-view .pair-row').length])");
+    if (toggled !== JSON.stringify(['en', `#pair${serializeState(ctx, { base: null, members: ['likud', 'yashar'] })}&p=${A},${B}&l=en`, topics.length])) errors.push(`[${current}] the toggle on the pair view: ${toggled}`);
+    await evaluate("document.querySelector('#pair-view a.back').click()");
+    await sleep(300);
+    const backTo = await evaluate("JSON.stringify([document.body.dataset.view, location.hash, document.querySelectorAll('#builder .prow.is-on').length])");
+    if (backTo !== JSON.stringify(['build', `#build${serializeState(ctx, { base: null, members: ['likud', 'yashar'] })}&l=en`, 2])) errors.push(`[${current}] back to the builder: ${backTo}`);
+    // Lists under the threshold: their own labelled group (results); a clash made by a red line explains itself.
+    const below = allIds.filter((id) => !passedIds.includes(id));
+    for (const lng of ['he', 'en']) {
+      const T = lng === 'he' ? S : EN;
+      current = `pair-edges-${lng}@390`;
+      await go(`${baseUrl}#pair?p=amcha-yisrael,likud${lng === 'en' ? '&l=en' : ''}`);
+      await waitFor(() => evaluate("document.querySelectorAll('#pair-view .pair-row').length > 0"));
+      const group = await evaluate("JSON.stringify([...document.querySelectorAll('#pair-view [data-slot=\"1\"] optgroup')].map((g) => [g.label, [...g.querySelectorAll('option')].map((o) => o.value)]))");
+      const wantGroup = below.filter((id) => id !== 'amcha-yisrael').length ? [[T.elected.belowTitle, below.filter((id) => id !== 'amcha-yisrael')]] : [];
+      if (group !== JSON.stringify(wantGroup)) errors.push(`[${current}] below-threshold group: expected ${JSON.stringify(wantGroup)}, got ${group}`);
+      const note = await evaluate(`document.querySelectorAll('#pair-view .pair-row')[${draftIdx}].querySelector('.pair-detail').textContent.replace(/\\s+/g, ' ').includes(${JSON.stringify(T.sheet.redByLine(nameIn(lng, 'amcha-yisrael')))})`);
+      if (!note) errors.push(`[${current}] the red-line note is missing from the draft row`);
+      // הציונות הדתית / זהות: the soft-link note in polls mode only (with results they are separate parties).
+      await go(`${baseUrl}#pair?p=religious-zionism,zehut${lng === 'en' ? '&l=en' : ''}`);
+      await waitFor(() => evaluate("document.querySelectorAll('#pair-view .pair-row').length > 0"));
+      const linked = await evaluate("document.querySelector('#pair-view .note-soft')?.innerText.trim() ?? null");
+      const wantLinked = RESULTS ? null : T.builder.linkedNote(...['religious-zionism', 'zehut'].sort((a, b) => ctx.order.get(a) - ctx.order.get(b)).map((id) => nameIn(lng, id)));
+      if (linked !== wantLinked) errors.push(`[${current}] soft-link note: expected ${JSON.stringify(wantLinked)}, got ${JSON.stringify(linked)}`);
+    }
+    console.log(`  ✓ pair view: ${n} runs (360/375/390 × he, en), edge cases`);
+  }
 
   // Phone layout, both languages, also at 360 (a common Android width): at least 16px between the brand and the nav, a
   // header that doesn't overflow, overview topics on one line each (no hyphenation) in a 4×2 grid on phones and one row
