@@ -333,17 +333,8 @@ h1, h2, h3 { color: var(--accent); }
 /* sticky bar: party count + button only */
 .bar { justify-content: space-between; }
 .bar-count { font-weight: 700; color: var(--fg); }
-body[data-view="build"] { padding-block-end: 100px; }
-/* Host-injected badge (Netlify free plan): 202×64px at the viewport's bottom corner. Keep our text clear of it. */
-@media (max-width: 1160px) {
-  body.host-badge .bar { padding-block-end: calc(72px + env(safe-area-inset-bottom)); }
-  body.host-badge { padding-block-end: 88px; }
-  body.host-badge[data-view="build"] { padding-block-end: 190px; }
-  /* The badge is 64px tall: from the end of the source line (results) or the legal sentence (polls) to the seat numbers
-     the gap is larger than that, so the numbers never show while the end of the line is under the badge. */
-  body.host-badge .overall .positions-asof + .seats-line { margin-block-start: 40px; }
-  body.host-badge .overall .poll-legal + .seats-line { margin-block-start: 62px; }
-}
+/* Room for the fixed bar, only while it is shown (a party is selected). */
+body[data-view="build"]:has(#bar:not([hidden])) { padding-block-end: 100px; }
 .toast { inset-block-end: 100px; }
 
 .why-box { background: var(--card-tint); border: 1px solid #c3cff0; border-radius: 12px; padding: 4px 16px 8px; margin-block: 12px 20px; scroll-margin-block-start: 12px; }
