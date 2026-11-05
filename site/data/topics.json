@@ -13,7 +13,7 @@
       "1": "חובת שירות לבני ישיבות, עם סנקציות כלכליות אישיות",
       "2": "חובת שירות צבאי או אזרחי לכל האזרחים, כולל ערבים"
     },
-    "axisNote": "הציר מודד את היקף חובת השירות. המיקום נקבע לפי העמדה המוצהרת לגבי שירות חרדים, ו-+2 רק למפלגה שתומכת במפורש בחובת שירות לכל האזרחים כולל ערבים. העמדה לגבי שירות אזרחים ערבים מופיעה תמיד בתקציר; מפלגה שהביעה עמדה רק לגבי שירות ערבים – אין עמדה מוצהרת. התנגדות לשירות חובה בכלל ממוקמת ב-−2, והנימוק של המפלגה מופיע בתקציר.",
+    "axisNote": "הציר מודד את היקף חובת השירות. המיקום נקבע לפי העמדה המוצהרת לגבי שירות חרדים, ו-+2 רק למפלגה שתומכת במפורש בחובת שירות לכל האזרחים כולל ערבים. העמדה לגבי שירות אזרחים ערבים מופיעה תמיד בתקציר. למפלגה שהביעה עמדה רק לגבי שירות ערבים אין עמדה מוצהרת. התנגדות לשירות חובה בכלל ממוקמת ב-−2, והנימוק של המפלגה מופיע בתקציר.",
     "en": {
       "name": "Enlistment and sharing the burden equally",
       "short": "Draft",
@@ -24,7 +24,7 @@
         "1": "Compulsory service for yeshiva students, with personal economic sanctions",
         "2": "Compulsory military or civil service for all citizens, including Arab citizens"
       },
-      "axisNote": "The axis measures the scope of the service obligation. The placement follows the stated position on Haredi (ultra-Orthodox) service, and +2 goes only to a party that explicitly supports compulsory service for all citizens, including Arab citizens. The position on service by Arab citizens always appears in the summary; a party that stated a position only on service by Arab citizens has no stated position. Opposition to compulsory service altogether is placed at −2, and the party's reasoning appears in the summary."
+      "axisNote": "The axis measures the scope of the service obligation. The placement follows the stated position on Haredi (ultra-Orthodox) service, and +2 goes only to a party that explicitly supports compulsory service for all citizens, including Arab citizens. The position on service by Arab citizens always appears in the summary. A party that stated a position only on service by Arab citizens has no stated position. Opposition to compulsory service altogether is placed at −2, and the party's reasoning appears in the summary."
     }
   },
   {
@@ -38,7 +38,7 @@
       "-2": "לנבחרי הציבור השפעה מכרעת על בחירת שופטים, התגברות ברוב רגיל, ייעוץ משפטי לא מחייב",
       "-1": "שינויים באותו כיוון בהיקף מצומצם יותר, למשל פיצול תפקיד היועמ״ש או ערכאת ערעור על בג״ץ",
       "0": "שינויים מוגבלים רק בהסכמה רחבה, למשל פסקת התגברות ברוב גדול או הסדרת הביקורת השיפוטית בהסכמה",
-      "1": "עצמאות מערכת המשפט; הסדרה חוקתית בהסכמה רחבה (חוקה או חוק יסוד: החקיקה)",
+      "1": "עצמאות מערכת המשפט, והסדרה חוקתית בהסכמה רחבה (חוקה או חוק יסוד: החקיקה)",
       "2": "ביטול השינויים שנחקקו בקדנציה האחרונה, כולל בוועדה לבחירת שופטים, ועיגון זכויות וביקורת שיפוטית בחוקי יסוד"
     },
     "axisNote": "הציר מודד את היחס בין הדרג הנבחר למערכת המשפט.",
@@ -49,7 +49,7 @@
         "-2": "Elected officials have decisive influence over the selection of judges, an override by a simple majority, non-binding legal counsel",
         "-1": "Changes in the same direction on a smaller scale, for example splitting the Attorney General's role or a court of appeal over the High Court of Justice",
         "0": "Limited changes only by broad agreement, for example an override clause with a large majority or regulating judicial review by agreement",
-        "1": "Independence of the judicial system; constitutional regulation by broad agreement (a constitution or a Basic Law: Legislation)",
+        "1": "Independence of the judicial system, and constitutional regulation by broad agreement (a constitution or a Basic Law: Legislation)",
         "2": "Repealing the changes enacted in the last Knesset term, including to the Judicial Selection Committee, and anchoring rights and judicial review in Basic Laws"
       },
       "axisNote": "The axis measures the relationship between elected officials and the judicial system."
@@ -121,23 +121,23 @@
     ],
     "axis": {
       "-2": "ריבונות ישראלית מלאה על יהודה ושומרון / הגדה המערבית ושלילת מדינה פלסטינית לעולם, או הגירה/גירוש כמדיניות מדינה פעילה",
-      "-1": "התנגדות למדינה פלסטינית ולכל נסיגה, חיזוק ההתיישבות; ריבונות חלקית או פירוק הרשות הפלסטינית",
+      "-1": "התנגדות למדינה פלסטינית ולכל נסיגה, חיזוק ההתיישבות, וריבונות חלקית או פירוק הרשות הפלסטינית",
       "0": "בלי מדינה פלסטינית בטווח הנראה וגם בלי החלת ריבונות / סיפוח: ניהול הסכסוך והיפרדות אזרחית",
       "1": "הסדר מדיני אזורי שיכול לכלול ישות או מדינה פלסטינית מפורזת, בתנאים ביטחוניים",
       "2": "מדינה פלסטינית על בסיס קווי 1967, עם הקפאה או פינוי של התנחלויות"
     },
-    "axisNote": "הציר מודד ריבונות ושליטה ביהודה ושומרון / הגדה המערבית (הסדר הקבע). עזה נמדדת בציר נפרד. הגירה או גירוש כמדיניות מדינה פעילה ממוקמים ב-−2; תמיכה ב\"לאפשר למי שרוצה לצאת\" אינה משנה מיקום ומופיעה בתקציר, במונחי המפלגה.",
+    "axisNote": "הציר מודד ריבונות ושליטה ביהודה ושומרון / הגדה המערבית (הסדר הקבע). עזה נמדדת בציר נפרד. הגירה או גירוש כמדיניות מדינה פעילה ממוקמים ב-−2. תמיכה ב\"לאפשר למי שרוצה לצאת\" אינה משנה מיקום ומופיעה בתקציר, במונחי המפלגה.",
     "en": {
       "name": "The Palestinian issue",
       "short": "Pales­tin­ian",
       "axis": {
         "-2": "Full Israeli sovereignty over Judea and Samaria / the West Bank and never a Palestinian state, or emigration/expulsion as active state policy",
-        "-1": "Opposition to a Palestinian state and to any withdrawal, strengthening settlement; partial sovereignty or dismantling the Palestinian Authority",
+        "-1": "Opposition to a Palestinian state and to any withdrawal, strengthening settlement, and partial sovereignty or dismantling the Palestinian Authority",
         "0": "No Palestinian state in the foreseeable future, and also no applying sovereignty / annexation: managing the conflict and civil separation",
         "1": "A regional diplomatic settlement that could include a demilitarized Palestinian entity or state, under security conditions",
         "2": "A Palestinian state based on the 1967 lines, with a freeze on settlements or their evacuation"
       },
-      "axisNote": "The axis measures sovereignty and control in Judea and Samaria / the West Bank (the permanent status). Gaza is measured on a separate axis. Emigration or expulsion as active state policy is placed at −2; support for \"allowing those who want to leave\" does not change the placement and appears in the summary, in the party's terms."
+      "axisNote": "The axis measures sovereignty and control in Judea and Samaria / the West Bank (the permanent status). Gaza is measured on a separate axis. Emigration or expulsion as active state policy is placed at −2. Support for \"allowing those who want to leave\" does not change the placement and appears in the summary, in the party's terms."
     }
   },
   {
@@ -154,7 +154,7 @@
       "1": "הסדר אזורי בהובלת ארה״ב ומדינות ערב, כולל תפקיד לרשות פלסטינית מחודשת, ונסיגה הדרגתית",
       "2": "סיום המלחמה, נסיגה מלאה והסדר מדיני כמסגרת לביטחון"
     },
-    "axisNote": "הציר מודד שליטה ברצועה והגישה למלחמה. הגירה או גירוש כמדיניות מדינה פעילה ממוקמים ב-−2; תמיכה ב\"לאפשר למי שרוצה לצאת\" אינה משנה מיקום ומופיעה בתקציר, במונחי המפלגה. עמדות על תקציב הביטחון, איראן ולבנון מופיעות בתקציר.",
+    "axisNote": "הציר מודד שליטה ברצועה והגישה למלחמה. הגירה או גירוש כמדיניות מדינה פעילה ממוקמים ב-−2. תמיכה ב\"לאפשר למי שרוצה לצאת\" אינה משנה מיקום ומופיעה בתקציר, במונחי המפלגה. עמדות על תקציב הביטחון, איראן ולבנון מופיעות בתקציר.",
     "en": {
       "name": "Security, Gaza and the day after",
       "short": "Gaza",
@@ -165,7 +165,7 @@
         "1": "A regional arrangement led by the US and Arab states, including a role for a revitalized Palestinian Authority, and gradual withdrawal",
         "2": "Ending the war, full withdrawal and a diplomatic settlement as the framework for security"
       },
-      "axisNote": "The axis measures control of the Strip and the approach to the war. Emigration or expulsion as active state policy is placed at −2; support for \"allowing those who want to leave\" does not change the placement and appears in the summary, in the party's terms. Positions on the defense budget, Iran and Lebanon appear in the summary."
+      "axisNote": "The axis measures control of the Strip and the approach to the war. Emigration or expulsion as active state policy is placed at −2. Support for \"allowing those who want to leave\" does not change the placement and appears in the summary, in the party's terms. Positions on the defense budget, Iran and Lebanon appear in the summary."
     }
   },
   {
@@ -211,7 +211,7 @@
       "1": "דגש על מניעה וטיפול בגורמים המבניים (תעסוקה, חינוך, תשתיות), עם אכיפה אזרחית רגילה",
       "2": "שמירה על זכויות האזרח, בלי אמצעים חריגים, ופיקוח חיצוני על המשטרה"
     },
-    "axisNote": "כל המפלגות רוצות פחות פשיעה. הציר מודד את האמצעים: אמצעים חריגים מול טיפול בגורמים. תמיכה במעורבות שב״כ לבדה = −1; −2 דורש שב״כ ועוד לפחות אמצעי חריג אחד מהרשימה.",
+    "axisNote": "כל המפלגות רוצות פחות פשיעה. הציר מודד את האמצעים: אמצעים חריגים מול טיפול בגורמים. תמיכה במעורבות שב״כ לבדה = −1, ו-−2 דורש שב״כ ועוד לפחות אמצעי חריג אחד מהרשימה.",
     "en": {
       "name": "Personal security and crime",
       "short": "Crime",
@@ -222,7 +222,7 @@
         "1": "An emphasis on prevention and on addressing structural causes (employment, education, infrastructure), with regular civil enforcement",
         "2": "Protecting civil rights, with no exceptional measures, and external oversight of the police"
       },
-      "axisNote": "All parties want less crime. The axis measures the means: exceptional measures versus addressing causes. Support for Shin Bet involvement alone = −1; −2 requires the Shin Bet plus at least one other exceptional measure from the list."
+      "axisNote": "All parties want less crime. The axis measures the means: exceptional measures versus addressing causes. Support for Shin Bet involvement alone = −1, and −2 requires the Shin Bet plus at least one other exceptional measure from the list."
     }
   }
 ]
