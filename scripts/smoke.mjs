@@ -4,9 +4,13 @@
 // Zero installs: drives Chrome over the DevTools protocol with Node's built-in WebSocket.
 // Headers: local runs send netlify.toml's headers, so the CSP is enforced; remote runs check the served header matches.
 // Usage: node scripts/smoke.mjs [baseUrl]   (default: serves ./site on a local port)
-import { spawn } from 'node:child_process';
+// Bounded (#27): every CDP call times out (SMOKE_STEP_MS, default 15s) with the step's name, an overall watchdog
+// (SMOKE_WATCHDOG_MS, default 20 min) ends a stuck run, and Chrome (its own process group) is killed on any exit.
+// Leftover smoke Chromes (--user-data-dir=…/smoke-chrome-*) are killed before a run, so run one smoke at a time.
+// Progress is written synchronously, and to smoke/progress.log. SMOKE_SIMULATE_HANG=1 forces a CDP call that never answers.
+import { spawn, execFileSync } from 'node:child_process';
 import { createServer } from 'node:http';
-import { mkdirSync, mkdtempSync, writeFileSync, rmSync, readFileSync, existsSync, statSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, writeFileSync, rmSync, readFileSync, existsSync, statSync, writeSync, appendFileSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, extname, normalize } from 'node:path';
 import { ROOT, loadData } from './lib.mjs';
@@ -25,14 +29,32 @@ const isLegacy = (suffix) => stateKeysIn(splitSuffix(suffix).search);
 // The state params a suffix carries: the fragment's, or a legacy query's when the fragment has none.
 const stateParams = (suffix) => { const { search, hash } = splitSuffix(suffix); const f = hash.split('?')[1] ?? ''; return new URLSearchParams(stateKeysIn(f) ? f : search); };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const STEP_MS = Number(process.env.SMOKE_STEP_MS ?? 15000);
+const WATCHDOG_MS = Number(process.env.SMOKE_WATCHDOG_MS ?? 20 * 60 * 1000);
+// The case being run; timeouts and the watchdog name it.
+let current = '';
+const PROGRESS = join(OUT, 'progress.log');
+const write = (fd, line) => { writeSync(fd, line + '\n'); try { appendFileSync(PROGRESS, line + '\n'); } catch { /* smoke/ not created yet */ } };
+const log = (line) => write(1, line);
+const logErr = (line) => write(2, line);
+const step = (name) => { current = name; try { appendFileSync(PROGRESS, `… ${name}\n`); } catch { /* ignore */ } };
 
+// Rejects when the promise takes longer than ms (the promise itself is left to settle or not).
+function within(promise, ms, label) {
+  let timer;
+  return Promise.race([promise, new Promise((_, reject) => { timer = setTimeout(() => reject(new Error(`${label} timed out after ${Math.round(ms)}ms [${current}]`)), Math.max(ms, 0)); })])
+    .finally(() => clearTimeout(timer));
+}
+
+// Each attempt races the time left, so one attempt that never returns cannot block past the deadline.
 async function waitFor(fn, ms = 10000) {
   const end = Date.now() + ms;
+  let last = null;
   while (Date.now() < end) {
-    try { const v = await fn(); if (v) return v; } catch { /* retry */ }
+    try { const v = await within(Promise.resolve().then(fn), end - Date.now(), 'waitFor attempt'); if (v) return v; } catch (e) { last = e; }
     await sleep(150);
   }
-  throw new Error('timeout');
+  throw new Error(`timeout after ${ms}ms [${current}]${last ? ` (last error: ${last.message})` : ''}`);
 }
 
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png', '.svg': 'image/svg+xml' };
@@ -68,6 +90,13 @@ function cdp(wsUrl) {
   let id = 0;
   const pending = new Map();
   const listeners = [];
+  let closed = false;
+  // A closed socket rejects every pending call, and every later one.
+  ws.onclose = () => {
+    closed = true;
+    for (const { reject } of pending.values()) reject(new Error(`CDP socket closed [${current}]`));
+    pending.clear();
+  };
   ws.onmessage = (ev) => {
     const msg = JSON.parse(ev.data);
     if (msg.id && pending.has(msg.id)) {
@@ -78,9 +107,12 @@ function cdp(wsUrl) {
   };
   return {
     ready: new Promise((r) => { ws.onopen = r; }),
-    send: (method, params = {}) => new Promise((resolve, reject) => {
+    // Every call has a timeout that names the method and the case (screenshots get longer).
+    send: (method, params = {}, ms = method === 'Page.captureScreenshot' ? 4 * STEP_MS : STEP_MS) => new Promise((resolve, reject) => {
+      if (closed) { reject(new Error(`CDP ${method}: socket closed [${current}]`)); return; }
       const i = ++id;
-      pending.set(i, { resolve, reject });
+      const timer = setTimeout(() => { pending.delete(i); reject(new Error(`CDP ${method} got no answer in ${ms / 1000}s [${current}]`)); }, ms);
+      pending.set(i, { resolve: (v) => { clearTimeout(timer); resolve(v); }, reject: (e) => { clearTimeout(timer); reject(e); } });
       ws.send(JSON.stringify({ id: i, method, params }));
     }),
     on: (fn) => listeners.push(fn),
@@ -222,12 +254,43 @@ const base = args.find((a) => !a.startsWith('--'));
 const server = base ? null : await serve();
 const baseUrl = (base ?? server.url).replace(/\/?$/, '/');
 const onProd = new URL(baseUrl).hostname === PROD_HOST;
+// Leftover smoke Chromes only (matched by their profile), never the user's browser.
+try { execFileSync('pkill', ['-9', '-f', '--user-data-dir=[^ ]*/smoke-chrome-'], { stdio: 'ignore' }); } catch { /* none running */ }
+// With those gone, any smoke-chrome-* profile left in the temp dir is stale.
+for (const d of readdirSync(tmpdir()).filter((n) => n.startsWith('smoke-chrome-'))) removeDir(join(tmpdir(), d));
 const profile = mkdtempSync(join(tmpdir(), 'smoke-chrome-'));
 const port = 9300 + Math.floor(Math.random() * 100);
+// Its own process group (detached), so killing the group takes its helper processes too.
 const chrome = spawn(CHROME, [
   '--headless=new', `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`,
   '--no-first-run', '--no-default-browser-check', '--hide-scrollbars', '--lang=he', 'about:blank',
-], { stdio: 'ignore' });
+], { stdio: 'ignore', detached: true });
+// Chrome may still be exiting after SIGKILL: retry briefly (synchronously, so 'exit' handlers can use it).
+function removeDir(dir) {
+  for (let i = 0; i < 20 && existsSync(dir); i++) {
+    try { rmSync(dir, { recursive: true, force: true }); } catch { Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 50); }
+  }
+}
+let cleaned = false;
+// Synchronous, so it also runs from the 'exit' handler.
+function cleanup() {
+  if (cleaned) return;
+  cleaned = true;
+  try { process.kill(-chrome.pid, 'SIGKILL'); } catch { /* already gone */ }
+  try { chrome.kill('SIGKILL'); } catch { /* already gone */ }
+  try { server?.stop(); } catch { /* ignore */ }
+  removeDir(profile);
+}
+process.on('exit', cleanup);
+for (const [sig, code] of [['SIGINT', 130], ['SIGTERM', 143], ['SIGHUP', 129]]) {
+  process.on(sig, () => { logErr(`✗ smoke interrupted (${sig}) during: ${current || '(start)'}`); cleanup(); process.exit(code); });
+}
+const watchdog = setTimeout(() => {
+  logErr(`✗ smoke watchdog: the run did not finish in ${WATCHDOG_MS >= 60000 ? `${WATCHDOG_MS / 60000} min` : `${WATCHDOG_MS / 1000}s`}; last step: ${current || '(start)'}`);
+  cleanup();
+  process.exit(1);
+}, WATCHDOG_MS);
+watchdog.unref();
 
 const errors = [];
 const beacons = [];
@@ -239,11 +302,11 @@ let exitCode = 0;
 try {
   rmSync(OUT, { recursive: true, force: true });
   mkdirSync(OUT, { recursive: true });
+  step('start');
   const targets = await waitFor(() => fetch(`http://127.0.0.1:${port}/json/list`).then((r) => r.json()));
   const page = targets.find((t) => t.type === 'page');
   const c = cdp(page.webSocketDebuggerUrl);
   await c.ready;
-  let current = '';
   c.on((m) => {
     if (m.method === 'Runtime.exceptionThrown') errors.push(`[${current}] exception: ${m.params.exceptionDetails.exception?.description ?? m.params.exceptionDetails.text}`);
     if (m.method === 'Runtime.consoleAPICalled' && m.params.type === 'error') errors.push(`[${current}] console.error: ${m.params.args.map((a) => a.value ?? a.description).join(' ')}`);
@@ -281,6 +344,10 @@ try {
   await c.send('Page.addScriptToEvaluateOnNewDocument', { source: `document.addEventListener('securitypolicyviolation', (e) =>
     console.error('CSP violation: ' + e.effectiveDirective + ' blocked ' + (e.blockedURI || 'inline') + ' ' + (e.sample || '')));` });
 
+  if (process.env.SMOKE_SIMULATE_HANG) {
+    step('simulated-hang');
+    await c.send('Runtime.evaluate', { expression: 'new Promise(() => {})', awaitPromise: true });
+  }
   const evaluate = async (expr) => (await c.send('Runtime.evaluate', { expression: expr, returnByValue: true, awaitPromise: true })).result.value;
   const ready = () => waitFor(() => evaluate("document.querySelector('#builder')?.children.length > 0"));
   // A fresh load (a URL that differs only in its fragment would otherwise be a same-document navigation).
@@ -318,7 +385,7 @@ try {
   for (const z of SIZES) {
     await setSize(z);
     for (const [name, suffix, expectView] of cases) {
-      current = `${name}@${z.width}`;
+      step(`${name}@${z.width}`);
       await go(baseUrl + suffix);
       await waitFor(() => evaluate("document.body.dataset.view !== undefined && document.querySelector('#footer')?.children.length > 0"));
       await sleep(250);
@@ -510,7 +577,7 @@ try {
       }
       await shoot(z, `${name}-${z.tag}.png`);
     }
-    console.log(`  ✓ ${z.width}px: ${cases.length} views`);
+    log(`  ✓ ${z.width}px: ${cases.length} views`);
   }
 
   // Legal sentence vs seat numbers: whenever seat totals are visible, the full sentence must
@@ -537,7 +604,7 @@ try {
     for (const z of [{ ...SIZES[0] }, { tag: 's', width: 375, height: 667, mobile: true, dpr: 2 }]) {
       await setSize(z);
       for (const [name, suffix] of legalCases) {
-        current = `legal-${name}@${z.width}x${z.height}`;
+        step(`legal-${name}@${z.width}x${z.height}`);
         await go(baseUrl + suffix);
         await waitFor(() => evaluate("document.body.dataset.view !== undefined && document.querySelector('#footer')?.children.length > 0"));
         await sleep(400);
@@ -550,7 +617,7 @@ try {
         if (await evaluate('document.documentElement.scrollWidth > window.innerWidth + 1')) errors.push(`[${current}] horizontal page overflow`);
       }
     }
-    console.log(`  ✓ legal sentence vs seat numbers: ${legalCases.length} views × 390×844, 375×667`);
+    log(`  ✓ legal sentence vs seat numbers: ${legalCases.length} views × 390×844, 375×667`);
   }
 
   // The narrowest supported phone (360px): the outside-party markers wrap inside the page, in both languages.
@@ -560,7 +627,7 @@ try {
     const narrow = ['results-roles', 'results-scenario-arab', 'results-pair'].map((n) => cases.find((c) => c[0] === n));
     for (const [name, suffix] of narrow) {
       for (const l of ['he', 'en']) {
-        current = `narrow-${name}-${l}@360`;
+        step(`narrow-${name}-${l}@360`);
         await go(baseUrl + suffix + (l === 'en' ? '&l=en' : '')); // these suffixes all carry a fragment query
         await waitFor(() => evaluate("document.body.dataset.view !== undefined && document.querySelector('#footer')?.children.length > 0"));
         await sleep(250);
@@ -571,25 +638,25 @@ try {
         await shoot(z, `${name}-n${l === 'en' ? '-en' : ''}.png`);
       }
     }
-    console.log(`  ✓ 360px: ${narrow.length} views × he, en (outside-party markers inside the page)`);
+    log(`  ✓ 360px: ${narrow.length} views × he, en (outside-party markers inside the page)`);
   }
 
   // The served CSP is netlify.toml's. Netlify's "Powered by Netlify" badge is off (a project setting in the dashboard,
   // #26): if it is ever turned back on, its injected script would need CSP exceptions we removed, so fail loudly.
   const csp = siteHeaders()['Content-Security-Policy'];
   if (base) {
-    current = 'headers';
+    step('headers');
     const served = (await fetch(baseUrl, { method: 'HEAD' })).headers.get('content-security-policy');
     if (served !== csp) errors.push(`[headers] the served CSP differs from netlify.toml:\n    served: ${served}\n    toml:   ${csp}`);
     const html = await (await fetch(baseUrl)).text();
     if (/\/\.netlify\/scripts\/hud|data-nf-variant/.test(html)) errors.push('[headers] Netlify injects its badge script again: turn the badge off in Project configuration > General > Powered by Netlify badge');
-    console.log('  ✓ served CSP matches netlify.toml; no injected badge script');
+    log('  ✓ served CSP matches netlify.toml; no injected badge script');
   }
 
   // Interactions at phone width: pick a preset on the build view, open the poll note, go to results, open a cell, come back.
   const z = SIZES[0];
   await setSize(z);
-  current = 'interaction@390';
+  step('interaction@390');
   await go(baseUrl);
   await ready();
   if (RESULTS) {
@@ -979,7 +1046,7 @@ try {
       }
     }
     await setSize(z);
-    console.log('  ✓ closest coalitions');
+    log('  ✓ closest coalitions');
   } else {
     await go(`${baseUrl}#results?m=likud,yashar`);
     await waitFor(() => evaluate("document.querySelector('.party-btn[data-id=\"likud\"]') !== null"));
@@ -1078,7 +1145,7 @@ try {
   if (pasted.hash !== `#results${qsOf(['together', 'democrats'])}` || !pasted.same || !pastedNames.every((n) => pasted.line.includes(n)) || pasted.line.includes(ctx.byId.get('likud').name)) {
     errors.push(`[interaction] a pasted fragment should replace the coalition without a reload (${JSON.stringify(pasted)})`);
   }
-  console.log('  ✓ interactions');
+  log('  ✓ interactions');
 
   // English (#3): every case again with l=en (old-format links are Hebrew-only). The Hebrew pass covers the logic; this
   // one checks the language: lang/dir and title, the translation notice, no Hebrew outside lang="he", the source line
@@ -1102,7 +1169,7 @@ try {
   for (const z2 of SIZES) {
     await setSize(z2);
     for (const [name, suffix, expectView] of enCases) {
-      current = `en-${name}@${z2.width}`;
+      step(`en-${name}@${z2.width}`);
       await go(baseUrl + suffix);
       await waitFor(() => evaluate("document.body.dataset.view !== undefined && document.querySelector('#footer')?.children.length > 0"));
       await sleep(250);
@@ -1161,13 +1228,13 @@ try {
       }
       await shoot(z2, `${name}-${z2.tag}-en.png`);
     }
-    console.log(`  ✓ English, ${z2.width}px: ${enCases.length} views`);
+    log(`  ✓ English, ${z2.width}px: ${enCases.length} views`);
   }
 
   // English interactions at phone width: the toggle (both ways, keeping the coalition, the view and focus), a nav link,
   // a pasted English link, and cell sheets with quotes in Hebrew and Arabic.
   await setSize(SIZES[0]);
-  current = 'en-interaction@390';
+  step('en-interaction@390');
   await go(`${baseUrl}#results?m=likud,yashar`);
   await waitFor(() => evaluate("document.body.dataset.view === 'results'"));
   await evaluate('window.smokeSameDoc = true');
@@ -1205,7 +1272,7 @@ try {
     const hebrew = await evaluate(HEBREW_OUTSIDE);
     if (hebrew) errors.push(`[${current}] ${pid}|${tid} sheet: Hebrew text outside lang="he": ${hebrew}`);
   }
-  console.log('  ✓ English interactions');
+  log('  ✓ English interactions');
 
   // Pair view (#23), every mode, both languages, at 360, 375 and 390: the build view's entry opens #pair with focus on its
   // heading; two pickers that never offer the same party twice; all topics in topic order with the summary, the 🚩 tags
@@ -1235,7 +1302,7 @@ try {
       for (const lng of ['he', 'en']) {
         const T = lng === 'he' ? S : EN;
         const L = lng === 'en' ? 'l=en' : '';
-        current = `pair-${lng}@${w}`;
+        step(`pair-${lng}@${w}`);
         await go(`${baseUrl}${L ? `#build?${L}` : ''}`);
         await ready();
         const entry = await evaluate(`(() => { const a = document.querySelector('#tasks a[href="#pair"]'); if (!a) return 'missing';
@@ -1287,7 +1354,7 @@ try {
       }
     }
     await setSize(SIZES[0]);
-    current = 'pair-edges@390';
+    step('pair-edges@390');
     // The same party twice is one; the second picker is empty and does not offer it.
     await go(`${baseUrl}#pair?p=likud,likud`);
     await waitFor(() => evaluate("document.body.dataset.view === 'pair' && document.querySelector('#pair-view select') !== null"));
@@ -1316,7 +1383,7 @@ try {
     const below = allIds.filter((id) => !passedIds.includes(id));
     for (const lng of ['he', 'en']) {
       const T = lng === 'he' ? S : EN;
-      current = `pair-edges-${lng}@390`;
+      step(`pair-edges-${lng}@390`);
       await go(`${baseUrl}#pair?p=amcha-yisrael,likud${lng === 'en' ? '&l=en' : ''}`);
       await waitFor(() => evaluate("document.querySelectorAll('#pair-view .pair-row').length > 0"));
       const group = await evaluate("JSON.stringify([...document.querySelectorAll('#pair-view [data-slot=\"1\"] optgroup')].map((g) => [g.label, [...g.querySelectorAll('option')].map((o) => o.value)]))");
@@ -1331,7 +1398,7 @@ try {
       const wantLinked = RESULTS ? null : T.builder.linkedNote(...['religious-zionism', 'zehut'].sort((a, b) => ctx.order.get(a) - ctx.order.get(b)).map((id) => nameIn(lng, id)));
       if (linked !== wantLinked) errors.push(`[${current}] soft-link note: expected ${JSON.stringify(wantLinked)}, got ${JSON.stringify(linked)}`);
     }
-    console.log(`  ✓ pair view: ${n} runs (360/375/390 × he, en), edge cases`);
+    log(`  ✓ pair view: ${n} runs (360/375/390 × he, en), edge cases`);
   }
 
   // Task cards (#26): right after the intro, in a fixed order, each title its control (cards 1 and 3 tappable as a whole).
@@ -1363,7 +1430,7 @@ try {
       const T = lng === 'he' ? S : EN;
       const zt = { tag: `t${w}x${h}`, width: w, height: h, mobile: true, dpr: 2 };
       await setSize(zt);
-      current = `tasks-${lng}@${w}x${h}`;
+      step(`tasks-${lng}@${w}x${h}`);
       await go(`${baseUrl}${lng === 'en' ? '#build?l=en' : ''}`);
       await ready();
       await sleep(250);
@@ -1449,7 +1516,7 @@ try {
       }
     }
     await setSize(SIZES[0]);
-    console.log('  ✓ task cards: he all cards at 375×667/375×600/390×844; en all at 390×844, card 3 title at 375×667, cards 1-2 at 375×600; names, targets, focus, contrast');
+    log('  ✓ task cards: he all cards at 375×667/375×600/390×844; en all at 390×844, card 3 title at 375×667, cards 1-2 at 375×600; names, targets, focus, contrast');
   }
 
   // The undo line (#29): a closest coalition (results mode), a completion (with seats) and removing the friction party each
@@ -1586,7 +1653,7 @@ try {
       }
     }
     await setSize(SIZES[0]);
-    console.log(`  ✓ undo line: ${cases} runs (${RESULTS ? 'closest, ' : ''}${SEATS_HIDDEN ? '' : 'completion, '}friction × undo/close × he/en × 375/360)${RESULTS ? ', empty start' : ''}, lifetime; no toast action`);
+    log(`  ✓ undo line: ${cases} runs (${RESULTS ? 'closest, ' : ''}${SEATS_HIDDEN ? '' : 'completion, '}friction × undo/close × he/en × 375/360)${RESULTS ? ', empty start' : ''}, lifetime; no toast action`);
   }
 
   // Phone layout, both languages, also at 360 (a common Android width): at least 16px between the brand and the nav, a
@@ -1608,7 +1675,7 @@ try {
   for (const w of [360, 390, 1280]) {
     await c.send('Emulation.setDeviceMetricsOverride', { width: w, height: 800, deviceScaleFactor: 2, mobile: w < 600 });
     for (const l of ['he', 'en']) {
-      current = `layout-${l}@${w}`;
+      step(`layout-${l}@${w}`);
       await go(`${baseUrl}#results?m=likud,yashar,together${l === 'en' ? '&l=en' : ''}`);
       await waitFor(() => evaluate("document.querySelector('#results .seg') !== null && document.querySelector('#matrix .topic-btn') !== null"));
       await sleep(250);
@@ -1617,25 +1684,22 @@ try {
     }
   }
   await setSize(SIZES[0]);
-  console.log('  ✓ phone layout at 360, 390 and 1280 (both languages)');
+  log('  ✓ phone layout at 360, 390 and 1280 (both languages)');
   c.close();
 } catch (e) {
   errors.push(`smoke failed: ${e.message}`);
 } finally {
-  chrome.kill();
-  server?.stop();
-  await sleep(300);
-  try { rmSync(profile, { recursive: true, force: true }); } catch { /* ignore */ }
+  cleanup();
 }
 
 if (onProd && beacons.length === 0) errors.push('no GoatCounter beacon seen on production: the privacy check did not run');
 if (!onProd && beacons.length > 0) errors.push(`${beacons.length} GoatCounter beacon(s) sent from a non-production host (${new URL(baseUrl).host}); only ${PROD_HOST} may count`);
 
 if (errors.length) {
-  console.error(`✗ ${errors.length} error(s):\n  ` + errors.join('\n  '));
+  logErr(`✗ ${errors.length} error(s):\n  ` + errors.join('\n  '));
   exitCode = 1;
 } else {
-  console.log('✓ no console errors; screenshots in smoke/');
-  console.log(`  GoatCounter beacons intercepted: ${beacons.length}${onProd ? ' (none carried coalition data)' : ' (none expected off production)'}`);
+  log('✓ no console errors; screenshots in smoke/');
+  log(`  GoatCounter beacons intercepted: ${beacons.length}${onProd ? ' (none carried coalition data)' : ' (none expected off production)'}`);
 }
 process.exit(exitCode);
