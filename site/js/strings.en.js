@@ -246,11 +246,11 @@ export const S = {
       if (seats != null) parts.push(`${exact ? '' : 'about '}${seatsN(seats)}`);
       return parts.length ? `Without it: ${parts.join(' · ')}` : '';
     },
-    // The inline undo line at the top of the results view (#29): what changed, "Undo", and a close button.
+    // The inline undo line at the top of the results view (#29): what changed, "Restore previous", and a close button.
     undoReplaced: 'The coalition was replaced',
     undoAdded: (names) => `Added: ${names.join(', ')}`,
     undoRemoved: (n) => `Removed: ${n}`,
-    undo: 'Undo',
+    undo: 'Restore previous',
     undoClose: 'Close this message',
     // Announced after undo; outside parties mirror the header's groups ("C (supports from outside)").
     restored: (members, outside) => {
