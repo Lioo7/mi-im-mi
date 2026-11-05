@@ -1685,6 +1685,63 @@ try {
   }
   await setSize(SIZES[0]);
   log('  ✓ phone layout at 360, 390 and 1280 (both languages)');
+
+  const ENLARGE = (pct) => `(() => { document.documentElement.style.setProperty('font-size', '${pct}%'); document.body.style.setProperty('font-size', '${16 * pct / 100}px'); return true; })()`;
+  // Fit (#35): at phone widths, with normal and enlarged text (root and body at 125%, standing in for a wider device
+  // font such as Samsung's Hebrew one, or user text scaling): every matrix header's text stays inside its column and the
+  // viewport, is vertical with its text next to the cells, the matrix and the page never scroll sideways, the overview
+  // labels stay inside their tiles, the header bar neither overflows nor overlaps, and the task cards hold their content.
+  const FIT_COMMON = `const bad = []; const vw = document.documentElement.clientWidth;
+    const textBox = (e) => { const r = document.createRange(); r.selectNodeContents(e); return r.getBoundingClientRect(); };
+    const out = (t, c) => t.left < c.left - .5 || t.right > c.right + .5;
+    if (document.documentElement.scrollWidth > vw + 1) bad.push('the page scrolls sideways by ' + (document.documentElement.scrollWidth - vw) + 'px');
+    const bar = document.querySelector('.topbar-in'); if (bar.scrollWidth > bar.clientWidth + 1) bad.push('header bar overflows');
+    const parts = [document.querySelector('.brand'), document.querySelector('.navlink'), document.querySelector('.langswitch')].map((e) => e.getBoundingClientRect());
+    if (parts.some((a, i) => parts.some((b, j) => j > i && a.left < b.right - .5 && b.left < a.right - .5 && a.top < b.bottom - .5 && b.top < a.bottom - .5))) bad.push('header items overlap');
+    if (parts.some((p) => p.left < -.5 || p.right > vw + .5)) bad.push('a header item leaves the viewport');`;
+  const FIT_RESULTS = `(() => { ${FIT_COMMON}
+    const wrap = document.querySelector('#matrix .table-wrap'); const wr = wrap.getBoundingClientRect();
+    if (wrap.scrollWidth > wrap.clientWidth + 1) bad.push('the matrix scrolls sideways by ' + (wrap.scrollWidth - wrap.clientWidth) + 'px');
+    document.querySelectorAll('#matrix thead th').forEach((th) => { const b = th.querySelector('.topic-btn'); const t = textBox(b); const c = th.getBoundingClientRect();
+      if (out(t, c) || t.top < c.top - .5 || t.bottom > c.bottom + .5) bad.push('matrix header "' + b.textContent + '" leaves its column');
+      if (t.left < Math.max(wr.left, 0) - .5 || t.right > Math.min(wr.right, vw) + .5) bad.push('matrix header "' + b.textContent + '" leaves the viewport');
+      if (vw <= 480) { if (!getComputedStyle(b).writingMode.startsWith('vertical')) bad.push('matrix header "' + b.textContent + '" is not vertical');
+        else if (c.bottom - t.bottom > 12) bad.push('matrix header "' + b.textContent + '" is not next to the cells (' + Math.round(c.bottom - t.bottom) + 'px above)'); } });
+    document.querySelectorAll('#results .seg').forEach((g) => { const l = g.querySelector('.seg-label'); if (out(textBox(l), g.getBoundingClientRect())) bad.push('overview label "' + l.textContent + '" leaves its tile'); });
+    return bad; })()`;
+  const FIT_BUILD = `(() => { ${FIT_COMMON}
+    document.querySelectorAll('.task').forEach((t, i) => { const c = t.getBoundingClientRect();
+      if ([...t.querySelectorAll('*')].some((e) => { const r = e.getBoundingClientRect(); return r.width > 0 && out(r, c); })) bad.push('task card ' + (i + 1) + ' content leaves the card'); });
+    return bad; })()`;
+  const FIT_MEMBERS = 'm=likud,yashar,together,otzma-yehudit,shas,utj';
+  let fitRuns = 0;
+  for (const w of [360, 375, 390, 412]) {
+    await c.send('Emulation.setDeviceMetricsOverride', { width: w, height: 800, deviceScaleFactor: 2, mobile: true });
+    for (const l of ['he', 'en']) {
+      for (const pct of [100, 125]) {
+        step(`fit-${l}@${w}-${pct}%`);
+        fitRuns++;
+        await go(`${baseUrl}#results?${FIT_MEMBERS}${l === 'en' ? '&l=en' : ''}`);
+        await waitFor(() => evaluate("document.querySelectorAll('#matrix .topic-btn').length === 8 && document.querySelector('#results .seg') !== null"));
+        await evaluate(ENLARGE(pct));
+        await sleep(250);
+        for (const b of await evaluate(FIT_RESULTS)) errors.push(`[${current}] ${b}`);
+        if (w === 375 && pct === 100) {
+          // The matrix at 375 in each language, for the report (smoke/matrix-<lang>-375.png).
+          const clip = await evaluate("(() => { const t = document.querySelector('#matrix .table-wrap'); const r = t.getBoundingClientRect(); return { x: 0, y: r.top + scrollY - 8, width: innerWidth, height: Math.ceil(r.height) + 16, scale: 1 }; })()");
+          const shot = await c.send('Page.captureScreenshot', { format: 'png', clip, captureBeyondViewport: true });
+          writeFileSync(join(OUT, `matrix-${l}-375.png`), Buffer.from(shot.data, 'base64'));
+        }
+        await go(`${baseUrl}#build${l === 'en' ? '?l=en' : ''}`);
+        await waitFor(() => evaluate("document.querySelectorAll('.task').length > 0"));
+        await evaluate(ENLARGE(pct));
+        await sleep(250);
+        for (const b of await evaluate(FIT_BUILD)) errors.push(`[${current} build] ${b}`);
+      }
+    }
+  }
+  await setSize(SIZES[0]);
+  log(`  ✓ fit: ${fitRuns} runs (360/375/390/412 × he/en × text 100%/125%): matrix headers, overview, header bar, task cards`);
   c.close();
 } catch (e) {
   errors.push(`smoke failed: ${e.message}`);
