@@ -3,7 +3,7 @@
 // Beacons: against production every beacon is checked (and never sent); on any other host none may be sent at all.
 // Zero installs: drives Chrome over the DevTools protocol with Node's built-in WebSocket.
 // Headers: local runs send netlify.toml's headers, so the CSP is enforced; remote runs check the served header matches.
-// Usage: node scripts/smoke.mjs [baseUrl] [--no-hud]   (default: serves ./site on a local port)
+// Usage: node scripts/smoke.mjs [baseUrl]   (default: serves ./site on a local port)
 import { spawn } from 'node:child_process';
 import { createServer } from 'node:http';
 import { mkdirSync, mkdtempSync, writeFileSync, rmSync, readFileSync, existsSync, statSync } from 'node:fs';
@@ -45,30 +45,19 @@ function siteHeaders() {
   return Object.fromEntries([...values.matchAll(/^\s*([\w-]+)\s*=\s*"(.*)"\s*$/gm)].map((m) => [m[1], m[2]]));
 }
 
-// Netlify's free plan injects a badge script into production pages. It builds a srcdoc iframe with an inline script
-// and style, which inherits our CSP. Local runs fetch the live tag and script and serve them on ?smoke-hud.
-async function fetchHud() {
-  const page = await (await fetch(`https://${PROD_HOST}/`)).text();
-  const tag = page.match(/<script[^>]*data-nf-variant[^>]*><\/script>/)?.[0];
-  if (!tag) throw new Error(`no badge script on https://${PROD_HOST}/ (run with --no-hud to skip the badge check)`);
-  const src = new URL(tag.match(/src="([^"]+)"/)[1].replace(/&amp;/g, '&'), `https://${PROD_HOST}/`);
-  return { tag, path: src.pathname, js: await (await fetch(src)).text() };
-}
-
 // Minimal static server for ./site (query strings ignored, like Netlify), sending netlify.toml's headers.
-async function serve(hud) {
+async function serve() {
   const dir = join(ROOT, 'site');
   const headers = siteHeaders();
   const server = createServer((req, res) => {
     const url = new URL(req.url, 'http://x');
-    if (hud && url.pathname === hud.path) { res.writeHead(200, { ...headers, 'content-type': 'text/javascript' }); res.end(hud.js); return; }
     let path = normalize(decodeURIComponent(url.pathname)).replace(/^([.][.][/\\])+/, '');
     let file = join(dir, path);
     if (existsSync(file) && statSync(file).isDirectory()) file = join(file, 'index.html');
     if (!file.startsWith(dir) || !existsSync(file)) { res.writeHead(404); res.end('not found'); return; }
     res.writeHead(200, { ...headers, 'content-type': TYPES[extname(file)] ?? 'application/octet-stream' });
     const body = readFileSync(file);
-    res.end(hud && url.searchParams.has('smoke-hud') && file.endsWith('index.html') ? body.toString().replace('</body>', `${hud.tag}\n</body>`) : body);
+    res.end(body);
   });
   await new Promise((r) => server.listen(0, '127.0.0.1', r));
   return { url: `http://127.0.0.1:${server.address().port}/`, stop: () => server.close() };
@@ -230,8 +219,7 @@ const PIVOTAL_JS = `(() => { const o = document.querySelector('#results .overall
   return [...p.querySelectorAll('p, li')].map((e) => e.innerText.replace(/\\s+/g, ' ').trim()); })()`;
 const args = process.argv.slice(2);
 const base = args.find((a) => !a.startsWith('--'));
-const hud = base || args.includes('--no-hud') ? null : await fetchHud();
-const server = base ? null : await serve(hud);
+const server = base ? null : await serve();
 const baseUrl = (base ?? server.url).replace(/\/?$/, '/');
 const onProd = new URL(baseUrl).hostname === PROD_HOST;
 const profile = mkdtempSync(join(tmpdir(), 'smoke-chrome-'));
@@ -289,17 +277,7 @@ try {
   for (const d of ['Page', 'Runtime', 'Log', 'Network']) await c.send(`${d}.enable`);
   await c.send('Network.setCacheDisabled', { cacheDisabled: true });
   await c.send('Fetch.enable', { patterns: [{ urlPattern: '*goatcounter.com/count*' }] });
-  // Simulate the host's floating badge (202×64, bottom-right) wherever the real one is absent (local, drafts), so layout
-  // checks see what production visitors see. The marker script makes the app reserve room for it, as on production.
-  await c.send('Page.addScriptToEvaluateOnNewDocument', { source: `document.addEventListener('DOMContentLoaded', () => {
-    if (document.querySelector('script[data-nf-variant]')) return;
-    const s = document.createElement('script'); s.type = 'text/plain'; s.dataset.nfVariant = 'smoke-sim'; document.head.append(s);
-    const b = document.createElement('div'); b.id = 'sim-host-badge';
-    b.style.cssText = 'position:fixed;bottom:0;right:0;width:202px;height:64px;z-index:2147483647;background:rgba(20,22,28,.55)';
-    document.body.append(b);
-  });` });
-
-  // CSP violations, ours or inside the badge's srcdoc iframe, become console errors and fail the run.
+  // CSP violations become console errors and fail the run.
   await c.send('Page.addScriptToEvaluateOnNewDocument', { source: `document.addEventListener('securitypolicyviolation', (e) =>
     console.error('CSP violation: ' + e.effectiveDirective + ' blocked ' + (e.blockedURI || 'inline') + ' ' + (e.sample || '')));` });
 
@@ -422,7 +400,7 @@ try {
         const barInfo = await evaluate("(() => { const b = document.querySelector('#bar'); return b.hidden ? 'hidden' : b.innerText.replace(/\\s+/g, ' ').trim(); })()");
         if (members_in_url(suffix)) {
           if (!/^\d+ מפלגות נבחרו|^מפלגה אחת נבחרה/.test(barInfo) || /מנדט|סקר|≈|\d{2,}/.test(barInfo.replace(/^\d+ מפלגות נבחרו/, ''))) errors.push(`[${current}] sticky bar must hold only the party count and button, got "${barInfo}"`);
-          // The host badge must not cover the bar's button.
+          // Nothing may cover the bar's button.
           const btn = await evaluate(`(() => { const a = document.querySelector('#bar a.btn'); if (!a) return 'missing'; const r = a.getBoundingClientRect(); const pts = []; for (const fx of [0.1, 0.5, 0.9]) for (const fy of [0.2, 0.5, 0.8]) pts.push([r.left + r.width * fx, r.top + r.height * fy]);
             const bad = pts.filter(([x, y]) => { const e = document.elementFromPoint(x, y); return !e || !(a === e || a.contains(e)); }); return bad.length ? 'covered by ' + (document.elementFromPoint(bad[0][0], bad[0][1])?.id || document.elementFromPoint(bad[0][0], bad[0][1])?.tagName) : 'ok'; })()`);
           if (btn !== 'ok') errors.push(`[${current}] bar button obscured: ${btn}`);
@@ -535,7 +513,7 @@ try {
     console.log(`  ✓ ${z.width}px: ${cases.length} views`);
   }
 
-  // Legal sentence vs seat numbers, with the host badge present: whenever seat totals are visible, the full sentence must
+  // Legal sentence vs seat numbers: whenever seat totals are visible, the full sentence must
   // be visible too, except for parts already scrolled past the top (reading down, the sentence always comes first).
   // Checked on first load and at every 40px of scroll, on a regular and a short phone.
   if (!SEATS_HIDDEN) {
@@ -561,7 +539,7 @@ try {
       for (const [name, suffix] of legalCases) {
         current = `legal-${name}@${z.width}x${z.height}`;
         await go(baseUrl + suffix);
-        await waitFor(() => evaluate("document.body.dataset.view !== undefined && document.querySelector('#footer')?.children.length > 0 && (document.querySelector('script[data-nf-variant]') !== null)"));
+        await waitFor(() => evaluate("document.body.dataset.view !== undefined && document.querySelector('#footer')?.children.length > 0"));
         await sleep(400);
         const first = await evaluate(LEGAL_CHECK);
         if (first) { errors.push(`[${current}] first load: seat numbers visible without the full legal sentence (${first})`); await shoot(z, `legal-fail-${name}-${z.tag}.png`, false); }
@@ -572,7 +550,7 @@ try {
         if (await evaluate('document.documentElement.scrollWidth > window.innerWidth + 1')) errors.push(`[${current}] horizontal page overflow`);
       }
     }
-    console.log(`  ✓ legal sentence vs seat numbers: ${legalCases.length} views × 390×844, 375×667 (with host badge)`);
+    console.log(`  ✓ legal sentence vs seat numbers: ${legalCases.length} views × 390×844, 375×667`);
   }
 
   // The narrowest supported phone (360px): the outside-party markers wrap inside the page, in both languages.
@@ -596,36 +574,16 @@ try {
     console.log(`  ✓ 360px: ${narrow.length} views × he, en (outside-party markers inside the page)`);
   }
 
-  // The served CSP is netlify.toml's. Netlify's badge (real on production, emulated locally) runs under it: its srcdoc
-  // script reports back (data-nl-ready), and its hash is in the policy. (Its inline <style> embeds the viewport size,
-  // so it has no stable hash; style-src-elem allows inline <style> instead.)
+  // The served CSP is netlify.toml's. Netlify's "Powered by Netlify" badge is off (a project setting in the dashboard,
+  // #26): if it is ever turned back on, its injected script would need CSP exceptions we removed, so fail loudly.
   const csp = siteHeaders()['Content-Security-Policy'];
   if (base) {
+    current = 'headers';
     const served = (await fetch(baseUrl, { method: 'HEAD' })).headers.get('content-security-policy');
     if (served !== csp) errors.push(`[headers] the served CSP differs from netlify.toml:\n    served: ${served}\n    toml:   ${csp}`);
-  }
-  if (hud || onProd) {
-    for (const [z, dark] of [[SIZES[0], false], [SIZES[1], false], [SIZES[0], true]]) {
-      current = `badge-csp@${z.width}${dark ? '-dark' : ''}`;
-      await setSize(z);
-      await c.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value: dark ? 'dark' : 'light' }] });
-      await go(`${baseUrl}${hud ? '?smoke-hud=1' : ''}#results?m=likud,yashar`);
-      const ran = await waitFor(() => evaluate("document.querySelector('#nl-badge-frame')?.dataset.nlReady === '1'"), 6000).catch(() => false);
-      const hashes = await evaluate(`(async () => { const f = document.querySelector('#nl-badge-frame'); if (!f) return null;
-        const d = new DOMParser().parseFromString(f.srcdoc, 'text/html');
-        const h = async (t) => "'sha256-" + btoa(String.fromCharCode(...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(t))))) + "'";
-        return Promise.all([...d.querySelectorAll('script')].map((e) => h(e.textContent))); })()`);
-      if (!hashes) errors.push(`[${current}] Netlify's badge iframe did not mount`);
-      else if (hashes.some((x) => !csp.includes(x))) errors.push(`[${current}] the badge's inline script changed; its script hash is now ${hashes.join(' ')} (update netlify.toml)`);
-      if (!ran) errors.push(`[${current}] Netlify's badge script did not run under the CSP`);
-      // The badge can report back before the app has rendered (slower data fetches on production).
-      await waitFor(() => evaluate("document.body.dataset.view === 'results' && document.querySelector('#footer')?.children.length > 0"));
-      await sleep(250);
-      await shoot(z, `badge-csp-${z.tag}${dark ? '-dark' : ''}.png`, false);
-    }
-    await c.send('Emulation.setEmulatedMedia', { features: [] });
-    await setSize(SIZES[0]);
-    console.log(`  ✓ Netlify badge under the CSP (${hud ? 'emulated' : 'production'})`);
+    const html = await (await fetch(baseUrl)).text();
+    if (/\/\.netlify\/scripts\/hud|data-nf-variant/.test(html)) errors.push('[headers] Netlify injects its badge script again: turn the badge off in Project configuration > General > Powered by Netlify badge');
+    console.log('  ✓ served CSP matches netlify.toml; no injected badge script');
   }
 
   // Interactions at phone width: pick a preset on the build view, open the poll note, go to results, open a cell, come back.
@@ -1377,8 +1335,10 @@ try {
   }
 
   // Task cards (#26): right after the intro, in a fixed order, each title its control (cards 1 and 3 tappable as a whole).
-  // First-screen fit with the host badge: Hebrew in full at 375×667; English in full at 390×844, and at 375×667 card 3's
-  // title must be on screen with its start not under the badge (the badge covers the bottom-right corner only).
+  // First-screen fit (#26), with the purpose line's disclaimer always on screen:
+  // - Hebrew: every card fully on screen at 375×667, 375×600 (a phone with real browser chrome) and 390×844.
+  // - English: every card at 390×844; at 375×667 the last card's title fully on screen; at 375×600 the first two cards
+  //   (English has more fixed text above the cards: the translation notice and longer intro and purpose lines).
   {
     await c.send('Accessibility.enable');
     const ax = async (sel) => {
@@ -1394,15 +1354,14 @@ try {
     };
     const key = async (k, code) => { for (const type of ['keyDown', 'keyUp']) await c.send('Input.dispatchKeyEvent', { type, key: k, code: k, windowsVirtualKeyCode: code }); };
     const nameIn = (lng, id) => posCtx[lng].byId.get(id).name;
-    const BADGE_TOP = "(document.querySelector('#sim-host-badge')?.getBoundingClientRect().top ?? innerHeight - 64)";
     const nTopics = topics.length;
     const layouts = [
-      { w: 375, h: 667, lng: 'he', fit: 'full' }, { w: 390, h: 844, lng: 'he', fit: 'full' }, { w: 360, h: 740, lng: 'he' },
-      { w: 390, h: 844, lng: 'en', fit: 'full' }, { w: 375, h: 667, lng: 'en', fit: 'peek' }, { w: 360, h: 740, lng: 'en' },
+      { w: 375, h: 667, lng: 'he', fit: 'all' }, { w: 375, h: 600, lng: 'he', fit: 'all' }, { w: 390, h: 844, lng: 'he', fit: 'all' }, { w: 360, h: 740, lng: 'he' },
+      { w: 390, h: 844, lng: 'en', fit: 'all' }, { w: 375, h: 667, lng: 'en', fit: 'last-title' }, { w: 375, h: 600, lng: 'en', fit: 'first-two' }, { w: 360, h: 740, lng: 'en' },
     ];
     for (const { w, h, lng, fit } of layouts) {
       const T = lng === 'he' ? S : EN;
-      const zt = { tag: `t${w}`, width: w, height: h, mobile: true, dpr: 2 };
+      const zt = { tag: `t${w}x${h}`, width: w, height: h, mobile: true, dpr: 2 };
       await setSize(zt);
       current = `tasks-${lng}@${w}x${h}`;
       await go(`${baseUrl}${lng === 'en' ? '#build?l=en' : ''}`);
@@ -1424,16 +1383,14 @@ try {
         order: RESULTS ? ['LABEL', 'P.line', 'SELECT'] : [], contrast: true, overflow: false };
       if (JSON.stringify(got) !== JSON.stringify(wantGot)) errors.push(`[${current}] cards: expected ${JSON.stringify(wantGot)}, got ${JSON.stringify(got)}`);
       if (fit) {
-        const pos = await evaluate(`JSON.stringify({ badge: Math.round(${BADGE_TOP}), scrollY, cards: [...document.querySelectorAll('#tasks .task')].map((t) => { const r = t.getBoundingClientRect(); return [Math.round(r.top), Math.round(r.bottom)]; }),
-          peek: (() => { const t = document.querySelector('#tasks .task:last-child .task-title'); const r = t.getBoundingClientRect();
-            if (r.top < 0 || r.bottom > innerHeight) return 'outside the screen (' + Math.round(r.top) + '-' + Math.round(r.bottom) + ')';
-            const x = document.documentElement.dir === 'rtl' ? r.right - 4 : r.left + 4; const hit = document.elementFromPoint(x, r.top + r.height / 2);
-            return t.contains(hit) || hit?.closest?.('.task-go')?.contains(t) ? 'ok' : 'start covered by ' + (hit?.id || hit?.className || hit?.tagName); })(),
-          purpose: Math.round(document.querySelector('#purpose').getBoundingClientRect().bottom) })`).then(JSON.parse);
+        const pos = await evaluate(`JSON.stringify({ h: innerHeight, scrollY, cards: [...document.querySelectorAll('#tasks .task')].map((t) => { const r = t.getBoundingClientRect(); return [Math.round(r.top), Math.round(r.bottom)]; }),
+          lastTitle: (() => { const r = document.querySelector('#tasks .task:last-child .task-title').getBoundingClientRect(); return [Math.round(r.top), Math.round(r.bottom)]; })(),
+          purpose: Math.round(document.querySelector('#purpose').getBoundingClientRect().bottom), disclaimer: document.querySelector('#purpose').innerText.trim().endsWith(${JSON.stringify(lng === 'he' ? 'זו לא המלצת הצבעה.' : 'This is not a voting recommendation.')}) })`).then(JSON.parse);
         if (pos.scrollY !== 0) errors.push(`[${current}] first load should be at the top (scrollY ${pos.scrollY})`);
-        if (fit === 'full' && !pos.cards.every(([t, b]) => t >= 0 && b <= pos.badge)) errors.push(`[${current}] every card must be fully visible above the badge (top ${pos.badge}) on first load: ${JSON.stringify(pos.cards)}`);
-        if (fit === 'peek' && pos.peek !== 'ok') errors.push(`[${current}] the last card's title must be inside the screen with its start not under the badge: ${pos.peek}`);
-        if (pos.purpose > pos.badge) errors.push(`[${current}] the purpose paragraph must be on the first screen (ends ${pos.purpose})`);
+        const on = ([t, b]) => t >= 0 && b <= pos.h;
+        const ok = { all: () => pos.cards.every(on), 'first-two': () => pos.cards.slice(0, 2).every(on), 'last-title': () => on(pos.lastTitle) }[fit]();
+        if (!ok) errors.push(`[${current}] first screen (${pos.h}px), rule "${fit}": cards ${JSON.stringify(pos.cards)}, last title ${JSON.stringify(pos.lastTitle)}`);
+        if (!pos.disclaimer || pos.purpose > pos.h) errors.push(`[${current}] the purpose line with its disclaimer must be on the first screen (ends ${pos.purpose}, disclaimer ${pos.disclaimer})`);
         await shoot(zt, `tasks-${w}x${h}${lng === 'en' ? '-en' : ''}.png`, false);
       }
       if (lng === 'en') { const he = await evaluate(HEBREW_OUTSIDE); if (he) errors.push(`[${current}] Hebrew text outside lang="he": ${he}`); }
@@ -1492,7 +1449,7 @@ try {
       }
     }
     await setSize(SIZES[0]);
-    console.log('  ✓ task cards: he 375×667, en 390×844 (full fit), en 375×667 (card 3 title on screen, start uncovered), 360px; names, targets, focus, contrast');
+    console.log('  ✓ task cards: he all cards at 375×667/375×600/390×844; en all at 390×844, card 3 title at 375×667, cards 1-2 at 375×600; names, targets, focus, contrast');
   }
 
   // Phone layout, both languages, also at 360 (a common Android width): at least 16px between the brand and the nav, a
