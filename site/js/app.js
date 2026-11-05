@@ -329,17 +329,17 @@ const startFrom = (summary, body) => `<details class="start-from" data-key="star
 function renderTasks() {
   const H = S.home;
   const n = ctx.topics.length;
+  // Title, then description, then the control, as in the other cards.
   const closest = isResults() ? `<li class="task">
-      <label class="task-pick"><span class="task-title" id="task-closest-title">${esc(H.closest)}</span>
-        <select data-act="closest-pick" data-key="closest-pick" aria-labelledby="task-closest-title" aria-describedby="task-closest-line"><option value="">${esc(S.closest.pickerChoose)}</option>${ctx.parties.filter((p) => ctx.passed(p.id)).map((p) => `<option value="${p.id}">${esc(p.name)}</option>`).join('')}</select>
-      </label>
+      <label class="task-title" for="task-closest-pick">${esc(H.closest)}</label>
       <p class="task-line" id="task-closest-line">${esc(H.closestLine)}</p>
+      <select id="task-closest-pick" class="task-select" data-act="closest-pick" data-key="closest-pick" aria-describedby="task-closest-line"><option value="">${esc(S.closest.pickerChoose)}</option>${ctx.parties.filter((p) => ctx.passed(p.id)).map((p) => `<option value="${p.id}">${esc(p.name)}</option>`).join('')}</select>
     </li>` : '';
   $('#tasks').innerHTML = `
     <h2 id="tasks-title">${esc(H.title)}</h2>
     <ul class="task-list">
       <li class="task">
-        <button type="button" class="task-go" data-act="go-builder" data-key="home-build" aria-describedby="task-build-line"><span class="task-title">${esc(H.build)}</span>${CHEV_DOWN}</button>
+        <button type="button" class="task-go" data-act="go-builder" data-key="home-build" aria-describedby="task-build-line"><span class="task-title">${esc(H.build)}</span>${JUMP}</button>
         <p class="task-line" id="task-build-line">${esc(H.buildLine(n))}</p>
       </li>
       ${closest}
@@ -350,7 +350,9 @@ function renderTasks() {
     </ul>`;
 }
 
-const CHEV_DOWN = '<svg class="task-chev" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 9l7 7 7-7" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+// Card 1 jumps within the page: the site's in-page jump mark "↓" (as in "↓ … עם חברות הקואליציה"), not a chevron,
+// which reads as expand-in-place.
+const JUMP = '<span class="task-jump" aria-hidden="true">↓</span>';
 // Points forward in reading order; CSS flips it in RTL.
 const CHEV_FWD = '<svg class="task-chev chev-fwd" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 

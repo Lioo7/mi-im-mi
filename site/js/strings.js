@@ -44,7 +44,8 @@ export const S = {
     build: 'בנו קואליציה',
     buildLine: (n) => `בחרו מפלגות ותפקיד לכל אחת, וראו איפה הן מסכימות ואיפה הן מתנגשות ${inTopics(n)}.`,
     closest: 'מצאו קואליציות למפלגה',
-    closestLine: 'קואליציות של רוב שכוללות את המפלגה, לפי כמה מהקווים האדומים שלה נחצים וכמה סתירות יש עם עמדותיה.',
+    // The first two keys of the #22 order, exactly; the rest is on the method page (closestRule).
+    closestLine: 'בחרו מפלגה וראו קואליציות של רוב שכוללות אותה. ראשונות: אלה שבהן נחצים פחות מהקווים האדומים שלה; אם יש שוויון, אלה עם פחות נושאים בסתירה חזיתית איתה.',
     pair: 'השוו שתי מפלגות',
     pairLine: (n) => `העמדות המוצהרות של שתי מפלגות זו לצד זו ${inTopics(n)}, עם מקור לכל עמדה.`,
   },
@@ -54,7 +55,7 @@ export const S = {
   voterInfoLink: 'איפה אני מצביע?',
   // Interior Ministry polling-station lookup (gov.il blocks bots; verified by hand on 26.10.2026, see decisions.md).
   voterInfoUrl: 'https://www.gov.il/apps/moin/bocharim/',
-  buildPurpose: 'כלי ניטרלי שמראה עד כמה מפלגות שעשויות לשבת יחד בקואליציה מסכימות זו עם זו לפי המצע, הצהרות רשמיות ורקורד בפועל (הצעות חוק שהמפלגה יזמה או קידמה). כל עמדה מגובה במקור. זו לא המלצת הצבעה.',
+  buildPurpose: 'העמדות לקוחות ממצעים, מהצהרות רשמיות ומהצעות חוק שהמפלגות יזמו או קידמו. זו לא המלצת הצבעה.',
 
   how: {
     title: 'איך זה עובד',

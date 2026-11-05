@@ -201,4 +201,7 @@ test('task cards: neutral wording, no numbers of seats, both languages', async (
   assert.equal(S.home.buildLine(8), 'בחרו מפלגות ותפקיד לכל אחת, וראו איפה הן מסכימות ואיפה הן מתנגשות ב-8 נושאים.');
   assert.equal(S.home.pairLine(1), 'העמדות המוצהרות של שתי מפלגות זו לצד זו בנושא אחד, עם מקור לכל עמדה.');
   assert.equal(S.presets.scenariosStart(3, '1.11'), 'או התחילו מתרחיש שעלה בתקשורת (3) · נכון ל-1.11');
+  // The purpose line keeps the disclaimer and names the three source kinds, record = bills (never votes).
+  assert.equal(S.buildPurpose, 'העמדות לקוחות ממצעים, מהצהרות רשמיות ומהצעות חוק שהמפלגות יזמו או קידמו. זו לא המלצת הצבעה.');
+  assert.ok(EN.buildPurpose.endsWith('This is not a voting recommendation.'));
 });

@@ -50,7 +50,8 @@ export const S = {
     build: 'Build a coalition',
     buildLine: (n) => `Pick parties, give each one a role, and see where they agree and where they clash ${inTopics(n)}.`,
     closest: 'Find coalitions for a party',
-    closestLine: 'Majority coalitions that include the party, ordered by how many of its red lines are crossed and how many clashes they have with its positions.',
+    // The first two keys of the #22 order, exactly; the rest is on the method page (closestRule).
+    closestLine: 'Pick a party to see majority coalitions that include it. Listed first: those that cross fewer of its red lines; on a tie, those with fewer topics in head-on clash with it.',
     pair: 'Compare two parties',
     pairLine: (n) => `Two parties' stated positions side by side ${inTopics(n)}, with a source for each.`,
   },
@@ -58,7 +59,7 @@ export const S = {
   voterInfo: 'Election day: Tuesday, 27 Oct · Most polling stations are open 7:00–22:00 ·',
   voterInfoLink: 'Where do I vote? (Hebrew)',
   voterInfoUrl: 'https://www.gov.il/apps/moin/bocharim/',
-  buildPurpose: 'A neutral tool that shows how far parties that may sit together in a coalition agree with each other, based on their platforms, official statements and actual record (bills the party initiated or advanced). Every position is backed by a source. This is not a voting recommendation.',
+  buildPurpose: 'Positions come from platforms, official statements and bills the parties initiated or advanced. This is not a voting recommendation.',
 
   how: {
     title: 'How it works',
