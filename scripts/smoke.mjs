@@ -357,8 +357,8 @@ try {
         const title = await evaluate('document.title');
         if (title !== `${S.appName} · ${S.tagline}`) errors.push(`[${current}] <title> must be "${S.appName} · ${S.tagline}", got "${title}"`);
         const purpose = await evaluate("document.querySelector('#purpose')?.innerText || ''");
-        if (!purpose.includes('כל עמדה מגובה במקור. זו לא המלצת הצבעה.')) errors.push(`[${current}] build view is missing the purpose line`);
-        if (!purpose.includes('רקורד בפועל (הצעות חוק שהמפלגה יזמה או קידמה)') || purpose.includes('הצבעות')) errors.push(`[${current}] purpose line must name all three source kinds, with record = bills (no votes)`);
+        if (!purpose.endsWith('זו לא המלצת הצבעה.')) errors.push(`[${current}] build view is missing the purpose line`);
+        if (!/ממצעים, מהצהרות רשמיות ומהצעות חוק שהמפלגות יזמו או קידמו/.test(purpose) || purpose.includes('הצבעות')) errors.push(`[${current}] purpose line must name all three source kinds, with record = bills (no votes)`);
         const mix = await evaluate("document.querySelector('#source-mix')?.innerText || ''");
         if (!/\d+ עמדות מתועדות: \d+ לפי מצע, \d+ לפי הצהרות, \d+ לפי רקורד/.test(mix)) errors.push(`[${current}] source-mix line missing (${mix})`);
         if (RESULTS) {
@@ -1378,7 +1378,7 @@ try {
 
   // Task cards (#26): right after the intro, in a fixed order, each title its control (cards 1 and 3 tappable as a whole).
   // First-screen fit with the host badge: Hebrew in full at 375×667; English in full at 390×844, and at 375×667 card 3's
-  // title row must at least start above the badge.
+  // title must be on screen with its start not under the badge (the badge covers the bottom-right corner only).
   {
     await c.send('Accessibility.enable');
     const ax = async (sel) => {
@@ -1412,16 +1412,27 @@ try {
       const got = await evaluate(`JSON.stringify({ h2: document.querySelector('#tasks h2')?.innerText.trim(), intro: [document.querySelector('#intro').tagName, document.querySelector('#intro').innerText.trim()],
         cards: [...document.querySelectorAll('#tasks .task')].map((t) => [t.querySelector('.task-title').innerText.trim(), t.querySelector('.task-line').innerText.trim()]),
         after: document.querySelector('#purpose').compareDocumentPosition(document.querySelector('#tasks')) & Node.DOCUMENT_POSITION_FOLLOWING,
+        jump: [document.querySelector('[data-key="home-build"] .task-jump')?.textContent, document.querySelector('[data-key="home-build"] svg') === null],
+        order: [...(document.querySelector('#task-closest-pick')?.closest('.task').children ?? [])].map((e) => e.tagName + (e.classList.contains('task-line') ? '.line' : '')),
+        contrast: [document.querySelector('#purpose'), ...document.querySelectorAll('#tasks .task-line')].map((e) => {
+          const rgb = (c) => c.match(/[\\d.]+/g).slice(0, 3).map(Number); const lum = (c) => { const [r, g, b] = rgb(c).map((v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+          let bgEl = e; while (bgEl && getComputedStyle(bgEl).backgroundColor.match(/[\\d.]+/g)?.[3] === '0') bgEl = bgEl.parentElement;
+          const a = lum(getComputedStyle(e).color); const b = lum(getComputedStyle(bgEl ?? document.body).backgroundColor);
+          return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05) >= 4.5; }).every(Boolean),
         overflow: document.documentElement.scrollWidth > innerWidth + 1 })`).then(JSON.parse);
-      const wantGot = { h2: T.home.title, intro: ['H1', T.buildIntro(nTopics)], cards: want, after: 4, overflow: false };
+      const wantGot = { h2: T.home.title, intro: ['H1', T.buildIntro(nTopics)], cards: want, after: 4, jump: ['↓', true],
+        order: RESULTS ? ['LABEL', 'P.line', 'SELECT'] : [], contrast: true, overflow: false };
       if (JSON.stringify(got) !== JSON.stringify(wantGot)) errors.push(`[${current}] cards: expected ${JSON.stringify(wantGot)}, got ${JSON.stringify(got)}`);
       if (fit) {
         const pos = await evaluate(`JSON.stringify({ badge: Math.round(${BADGE_TOP}), scrollY, cards: [...document.querySelectorAll('#tasks .task')].map((t) => { const r = t.getBoundingClientRect(); return [Math.round(r.top), Math.round(r.bottom)]; }),
-          lastTitle: Math.round(document.querySelector('#tasks .task:last-child .task-title').getBoundingClientRect().top),
+          peek: (() => { const t = document.querySelector('#tasks .task:last-child .task-title'); const r = t.getBoundingClientRect();
+            if (r.top < 0 || r.bottom > innerHeight) return 'outside the screen (' + Math.round(r.top) + '-' + Math.round(r.bottom) + ')';
+            const x = document.documentElement.dir === 'rtl' ? r.right - 4 : r.left + 4; const hit = document.elementFromPoint(x, r.top + r.height / 2);
+            return t.contains(hit) || hit?.closest?.('.task-go')?.contains(t) ? 'ok' : 'start covered by ' + (hit?.id || hit?.className || hit?.tagName); })(),
           purpose: Math.round(document.querySelector('#purpose').getBoundingClientRect().bottom) })`).then(JSON.parse);
         if (pos.scrollY !== 0) errors.push(`[${current}] first load should be at the top (scrollY ${pos.scrollY})`);
         if (fit === 'full' && !pos.cards.every(([t, b]) => t >= 0 && b <= pos.badge)) errors.push(`[${current}] every card must be fully visible above the badge (top ${pos.badge}) on first load: ${JSON.stringify(pos.cards)}`);
-        if (fit === 'peek' && !(pos.lastTitle < pos.badge)) errors.push(`[${current}] the last card's title row must start above the badge (title ${pos.lastTitle}, badge ${pos.badge})`);
+        if (fit === 'peek' && pos.peek !== 'ok') errors.push(`[${current}] the last card's title must be inside the screen with its start not under the badge: ${pos.peek}`);
         if (pos.purpose > pos.badge) errors.push(`[${current}] the purpose paragraph must be on the first screen (ends ${pos.purpose})`);
         await shoot(zt, `tasks-${w}x${h}${lng === 'en' ? '-en' : ''}.png`, false);
       }
@@ -1481,7 +1492,7 @@ try {
       }
     }
     await setSize(SIZES[0]);
-    console.log('  ✓ task cards: he 375×667, en 390×844 (full fit), en 375×667 (card 3 peeks), 360px; names, targets, focus');
+    console.log('  ✓ task cards: he 375×667, en 390×844 (full fit), en 375×667 (card 3 title on screen, start uncovered), 360px; names, targets, focus, contrast');
   }
 
   // Phone layout, both languages, also at 360 (a common Android width): at least 16px between the brand and the nav, a
