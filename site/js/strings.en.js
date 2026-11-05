@@ -91,6 +91,8 @@ export const S = {
     ].filter(Boolean).join(' · '),
     sourcesLabel: (n) => (n === 1 ? 'Source:' : 'Sources:'),
     personIn: (person) => `${person} in `,
+    // A source that reports a party's denial of the scenario (#34): "Denial by Yisrael Beytenu: The Jerusalem Post, 5.11".
+    denialBy: (party) => `Denial by ${party}: `,
     // 2026-10-31 -> 31 Oct
     shortDate: (iso) => dayMonth(iso),
   },
@@ -481,7 +483,7 @@ export const S = {
     orderTitle: 'Order and display',
     orderRulesResults: [
       'The parties are ordered by their number of seats in the results, and on a tie by their number of votes. All parties have the same color.',
-      'Scenarios raised in the media: up to 4 compositions reported by media outlets or proposed by a commentator, with a source and a date for each. A scenario\'s name is the composition itself, with no label. The roles (in the coalition, supporter, abstainer) follow the source. A party not mentioned counts as opposed. When a source mentions a party that ran on a joint list, the whole list is included (for example Religious Zionism and Zehut). The scenarios are in alphabetical order, and they are a starting point only, not a forecast.',
+      'Scenarios raised in the media: up to 4 compositions reported by media outlets or proposed by a commentator, with a source and a date for each. A scenario\'s name is the composition itself, with no label. The roles (in the coalition, supporter, abstainer) follow the source. A party not mentioned counts as opposed. When a source mentions a party that ran on a joint list, the whole list is included (for example Religious Zionism and Zehut). When a party in a scenario denied the report, the denial is in the source line, with its own source. The scenarios are in alphabetical order, and they are a starting point only, not a forecast.',
       'The scale numbers are not shown, and the direction of the scale (who is "right" and who is "left") carries no meaning.',
     ],
     orderRules: (order, unityPartner) => [

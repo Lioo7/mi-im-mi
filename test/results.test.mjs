@@ -120,7 +120,7 @@ test('media scenarios: valid, at most 4, and their investiture math on the CEC r
     const v = investiture(ctx, scenarios.scenarios.find((x) => x.id === id));
     return [v.for, v.against, v.abstain, v.approved, v.membersSeats];
   };
-  assert.equal(scenarios.scenarios.length, 3);
+  assert.equal(scenarios.scenarios.length, 4);
   assert.ok(scenarios.scenarios.every((sc) => !('note' in sc)), 'notes live in decisions.md, not in the data');
   // mako 28.10 + Tibi 31.10: הרשימה המשותפת supporting, רע״ם abstaining: 59 vs 53. Unlike ynet, יהדות התורה votes against.
   assert.deepEqual(vote('change-arab-not-opposing'), [59, 53, 8, true, 48]);
@@ -128,6 +128,13 @@ test('media scenarios: valid, at most 4, and their investiture math on the CEC r
   assert.deepEqual(vote('likud-yashar-right'), [61, 59, 0, true, 61]);
   // d (Amit Segal, kipa 31.10): "33 + 33" = הליכוד 27 + the full ט list 6, ישר! 21 + ביחד 12.
   assert.deepEqual(vote('segal-unity'), [66, 54, 0, true, 66]);
+  // mako 5.11 (Amit Segal): "48 חברי גוש השינוי, לצד 13 חברי הכנסת של המפלגות החרדיות, יהדות התורה וש"ס". 48 = ישר! 21 +
+  // ביחד 12 + הדמוקרטים 8 + ישראל ביתנו 7, the four parties of the change bloc (bakalpi); 13 = יהדות התורה 7 + ש״ס 6.
+  assert.deepEqual(vote('change-haredim'), [61, 59, 0, true, 61]);
+  const ch = scenarios.scenarios.find((x) => x.id === 'change-haredim');
+  assert.equal(parties.filter((p) => p.bloc === 'opposition').map((p) => p.id).sort().join(), ['yashar', 'together', 'democrats', 'yisrael-beiteinu'].sort().join());
+  // Yisrael Beytenu's denial (The Jerusalem Post, 5.11) is in the source line, generated from the party's name.
+  assert.deepEqual(ch.sources.map((x) => x.denialBy ?? null), [null, 'yisrael-beiteinu']);
 });
 
 test('media scenarios, share text (#1): the supporters\' and abstainers\' clashes on the real data', async () => {
@@ -141,18 +148,22 @@ test('media scenarios, share text (#1): the supporters\' and abstainers\' clashe
   assert.equal(peripheryClashes(ctx, sc('segal-unity')), null);
 });
 
-test('red-line summary (#14) on the real data: none in the media scenarios, two in the coalition bloc, as in the completions card', async () => {
+test('red-line summary (#14) on the real data: none in the first three media scenarios, four in the Haredi one, two in the coalition bloc', async () => {
   const { contextFor, redLinesCrossed, completions, presets } = await import('../site/js/compat.js');
   const { topics, positions, scenarios } = loadData();
   const ctx = contextFor({ meta: { ...meta, mode: 'results' }, parties, topics, positions, results });
-  for (const sc of scenarios.scenarios) assert.deepEqual(redLinesCrossed(ctx, sc.members), [], sc.id);
+  for (const sc of scenarios.scenarios.filter((x) => x.id !== 'change-haredim')) assert.deepEqual(redLinesCrossed(ctx, sc.members), [], sc.id);
+  // ישראל ביתנו's draft and inquiry red lines and the Haredi parties' draft red lines: the 4 of #31's example.
+  assert.deepEqual(redLinesCrossed(ctx, scenarios.scenarios.find((x) => x.id === 'change-haredim').members), [
+    { partyId: 'yisrael-beiteinu', topicId: 'draft' }, { partyId: 'utj', topicId: 'draft' }, { partyId: 'shas', topicId: 'draft' }, { partyId: 'yisrael-beiteinu', topicId: 'inquiry' },
+  ]);
   const bloc = presets(ctx).coalition.members;
   const crossed = redLinesCrossed(ctx, bloc);
   assert.deepEqual(crossed, [{ partyId: 'utj', topicId: 'draft' }, { partyId: 'shas', topicId: 'draft' }]);
   assert.deepEqual(completions(ctx, bloc).currentRedLines, crossed);
 });
 
-test('pivotal parties (#13) on the real data: the three media scenarios', async () => {
+test('pivotal parties (#13) on the real data: the four media scenarios', async () => {
   const { contextFor, pivotal } = await import('../site/js/compat.js');
   const { topics, positions, scenarios } = loadData();
   const ctx = contextFor({ meta: { ...meta, mode: 'results' }, parties, topics, positions, results });
@@ -170,6 +181,11 @@ test('pivotal parties (#13) on the real data: the three media scenarios', async 
   ]);
   // 66: הציונות הדתית (5) and זהות (1) can each leave.
   assert.deepEqual(rows('segal-unity'), [['likud', 'member', 39, 39, 81], ['yashar', 'member', 45, 45, 75], ['together', 'member', 54, 54, 66]]);
+  // Exactly 61: every member.
+  assert.deepEqual(rows('change-haredim'), [
+    ['yashar', 'member', 40, 40, 80], ['together', 'member', 49, 49, 71], ['democrats', 'member', 53, 53, 67],
+    ['yisrael-beiteinu', 'member', 54, 54, 66], ['utj', 'member', 54, 54, 66], ['shas', 'member', 55, 55, 65],
+  ]);
 });
 
 test('validateScenarios rejects a fifth scenario, double roles, seatless lists and undated sources', () => {
@@ -182,6 +198,7 @@ test('validateScenarios rejects a fifth scenario, double roles, seatless lists a
   assert.ok(bad({ ...one, supporters: [one.members[0]] }).some((e) => e.includes('two roles')));
   assert.ok(bad({ ...one, abstainers: ['kalkalit'] }).some((e) => e.includes('kalkalit')));
   assert.ok(bad({ ...one, sources: [{ outlet: 'x', url: 'https://x.y' }] }).some((e) => e.includes('date')));
+  assert.ok(bad({ ...one, sources: [{ ...one.sources[0], denialBy: 'likud' }] }).some((e) => e.includes('denialBy')), 'a denial names a party of the scenario');
   assert.deepEqual(validateScenarios({ ...meta, mode: 'polls' }, null, parties, results), [], 'polls mode needs no scenarios');
 });
 

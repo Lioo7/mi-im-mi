@@ -156,6 +156,7 @@ export function validateScenarios(meta, data, parties, results) {
     if (!sc.sources?.length) errors.push(`${at}: no source`);
     for (const src of sc.sources ?? []) {
       if (!src.outlet || !isDate(src.date) || !/^https:\/\/\S+$/.test(src.url ?? '')) errors.push(`${at}: each source needs outlet, YYYY-MM-DD date and an https url`);
+      if (src.denialBy != null && !all.includes(src.denialBy)) errors.push(`${at}: denialBy must be a party in the scenario (${src.denialBy})`);
     }
   }
   return errors;

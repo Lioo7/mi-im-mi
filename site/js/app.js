@@ -334,7 +334,7 @@ function renderScenarios() {
   const P = S.presets;
   const items = scenarioList().map((sc) => `<li class="scenario">
     <button type="button" class="preset" data-act="scenario" data-id="${esc(sc.id)}" data-key="scenario-${esc(sc.id)}">${esc(sc.label)}</button>
-    <p class="scen-src">${esc(P.sourcesLabel(sc.sources.length))} ${sc.sources.map((x) => C.localize(x, lang)).map((src) => `${src.by ? esc(P.personIn(src.by)) : ''}<a href="${esc(src.url)}" rel="noopener" target="_blank">${bidi(src.outlet)}</a>, ${esc(P.shortDate(src.date))}`).join(' · ')}</p>
+    <p class="scen-src">${esc(P.sourcesLabel(sc.sources.length))} ${sc.sources.map((x) => C.localize(x, lang)).map((src) => `${src.denialBy ? esc(P.denialBy(name(src.denialBy))) : ''}${src.by ? esc(P.personIn(src.by)) : ''}<a href="${esc(src.url)}" rel="noopener" target="_blank">${bidi(src.outlet)}</a>, ${esc(P.shortDate(src.date))}`).join(' · ')}</p>
   </li>`).join('');
   const asOf = P.shortDate(scenarioData.asOf);
   $('#presets').innerHTML = startFrom(P.scenariosStart(scenarioList().length, asOf), `

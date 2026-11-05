@@ -224,6 +224,11 @@ test('task cards: neutral wording, no numbers of seats, both languages', async (
   assert.ok(EN.buildPurpose.endsWith('This is not a voting recommendation.'));
 });
 
+test('scenario sources (#34): a denial is prefixed with the party that denied, in both languages', () => {
+  assert.equal(S.presets.denialBy('ישראל ביתנו') + 'ג׳רוזלם פוסט, 5.11', 'הכחשת ישראל ביתנו: ג׳רוזלם פוסט, 5.11');
+  assert.equal(EN.presets.denialBy('Yisrael Beytenu') + 'The Jerusalem Post, 5.11', 'Denial by Yisrael Beytenu: The Jerusalem Post, 5.11');
+});
+
 test('why rows and the votes line (#30): the gap sentence in both languages, the votes as unbreakable segments', () => {
   assert.equal(S.sheet.gapTitle('א', 'ב', 2), 'א ↔ ב: פער של 2 דרגות');
   assert.equal(S.sheet.gapTitle('א', 'ב', 1), 'א ↔ ב: פער של דרגה אחת');

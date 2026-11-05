@@ -690,7 +690,7 @@ try {
     // One source-line format: "מקור: <outlet>, <d.m>" / "מקורות: <a> · <b>", a person's statement as "<person> ב<outlet>".
     for (const it of scen.items) {
       const sc = scenarios.scenarios.find((x) => x.id === it.id);
-      const want = `${S.presets.sourcesLabel(sc.sources.length)} ${sc.sources.map((x) => `${x.by ? S.presets.personIn(x.by) : ''}${x.outlet}, ${S.presets.shortDate(x.date)}`).join(' · ')}`;
+      const want = `${S.presets.sourcesLabel(sc.sources.length)} ${sc.sources.map((x) => `${x.denialBy ? S.presets.denialBy(posCtx.he.byId.get(x.denialBy).name) : ''}${x.by ? S.presets.personIn(x.by) : ''}${x.outlet}, ${S.presets.shortDate(x.date)}`).join(' · ')}`;
       if (it.src.replace(/\s+/g, ' ').trim() !== want) errors.push(`[interaction] scenario ${it.id} source line "${it.src}" should read "${want}"`);
     }
     await evaluate("(() => { const d = document.querySelector('#presets details'); d.open = true; d.scrollIntoView(); })()");
@@ -1526,6 +1526,15 @@ try {
           return JSON.stringify([was, d.open, d.querySelector('summary').innerText.trim(), d.querySelectorAll('[data-act="scenario"], [data-act="preset"]').length > 0, document.querySelector('#builder-title').compareDocumentPosition(d) & Node.DOCUMENT_POSITION_FOLLOWING]); })()`);
         const sumWant = RESULTS ? T.presets.scenariosStart(loadData().scenarios.scenarios.length, T.presets.shortDate(loadData().scenarios.asOf)) : T.presets.presetsStart;
         if (disc !== JSON.stringify([false, true, sumWant, true, 4])) errors.push(`[${current}] start-from disclosure [was open, opens, summary, has items, after the builder heading]: ${disc}`);
+        // Each scenario's source line in this language (a denial carries its party's name, #34).
+        if (RESULTS) {
+          const lc = posCtx[T === S ? 'he' : 'en'];
+          const srcs = await evaluate("Object.fromEntries([...document.querySelectorAll('#presets .scenario')].map((li) => [li.querySelector('[data-act=\"scenario\"]').dataset.id, li.querySelector('.scen-src').innerText.replace(/\\s+/g, ' ').trim()]))");
+          for (const sc of loadData().scenarios.scenarios) {
+            const want = `${T.presets.sourcesLabel(sc.sources.length)} ${sc.sources.map((x) => (T === S ? x : { ...x, ...x.en })).map((x) => `${x.denialBy ? T.presets.denialBy(lc.byId.get(x.denialBy).name) : ''}${x.by ? T.presets.personIn(x.by) : ''}${x.outlet}, ${T.presets.shortDate(x.date)}`).join(' · ')}`;
+            if (srcs[sc.id] !== want) errors.push(`[${current}] scenario ${sc.id} source line "${srcs[sc.id]}" should read "${want}"`);
+          }
+        }
       }
     }
     await setSize(SIZES[0]);

@@ -1,5 +1,5 @@
 {
-  "asOf": "2026-11-01",
+  "asOf": "2026-11-06",
   "scenarios": [
     {
       "id": "change-arab-not-opposing",
@@ -28,6 +28,16 @@
       "sources": [
         { "outlet": "mako", "date": "2026-10-28", "url": "https://www.mako.co.il/news-israel-elections/2026/Article-9b8beb9041f71a1027.htm", "en": { "outlet": "N12 (Mako)" } },
         { "outlet": "כיפה", "date": "2026-10-31", "url": "https://www.kipa.co.il/%D7%97%D7%93%D7%A9%D7%95%D7%AA/1235161-0/", "by": "עמית סגל", "en": { "outlet": "Kipa", "by": "Amit Segal" } }
+      ]
+    },
+    {
+      "id": "change-haredim",
+      "members": ["yashar", "together", "democrats", "yisrael-beiteinu", "utj", "shas"],
+      "supporters": [],
+      "abstainers": [],
+      "sources": [
+        { "outlet": "mako", "date": "2026-11-05", "url": "https://www.mako.co.il/news-politics/2026_q4/Article-92982f1e9dca1a1026.htm", "en": { "outlet": "N12 (Mako)" } },
+        { "outlet": "ג׳רוזלם פוסט", "date": "2026-11-05", "url": "https://www.jpost.com/israel-election-2026/article-914006", "denialBy": "yisrael-beiteinu", "en": { "outlet": "The Jerusalem Post" } }
       ]
     }
   ]
