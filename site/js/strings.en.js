@@ -51,7 +51,7 @@ export const S = {
     buildLine: (n) => `Pick parties, give each one a role, and see where they agree and where they clash ${inTopics(n)}.`,
     closest: 'Find coalitions for a party',
     // The first two keys of the #22 order, exactly; the rest is on the method page (closestRule).
-    closestLine: 'Pick a party to see majority coalitions that include it. Listed first: those that cross fewer of its red lines; on a tie, those with fewer topics in head-on clash with it.',
+    closestLine: 'Pick a party to see majority coalitions that include it. Listed first: those that cross fewer of its red lines, and on a tie, those with fewer topics in head-on clash with it.',
     pair: 'Compare two parties',
     pairLine: (n) => `Two parties' stated positions side by side ${inTopics(n)}, with a source for each.`,
   },
@@ -277,7 +277,7 @@ export const S = {
 
   completions: {
     title: 'What is missing for a majority of 61 coalition members?',
-    note: 'Supporters and abstainers are not counted here; they affect only the confidence vote.',
+    note: 'Supporters and abstainers are not counted here. They affect only the confidence vote.',
     intro: (have) => `The coalition members have ${have} seats. These are the smallest combinations of additional parties that bring them to 61: remove any one party from a combination and it no longer gets there. Order: combinations with the fewest parties first, then by the number of seats added. This is not a recommendation. Tapping adds the parties to the coalition.`,
     currentRedLines: (n, list) => `The current coalition already crosses ${n === 1 ? '1 red line' : `${n} red lines`}: ${list}`,
     seats: (added, total) => `+${seatsN(added)} (${total} in total)`,
@@ -300,7 +300,7 @@ export const S = {
     back: (x) => `Back to ${x}`,
     intro: (x) => `Order: red lines · clashes with ${x} · clashes in the whole coalition · agreement · seats. Not a recommendation.`,
     howLink: 'How is this calculated?',
-    ownCoverage: (toX, n) => `${toX} has a stated position on ${n} of 8 topics; only those are compared.`,
+    ownCoverage: (toX, n) => `${toX} has a stated position on ${n} of 8 topics, and only those are compared.`,
     noRedLines: (toX) => `${toX} has no declared red line.`,
     agree: (n) => `${topicsN(n)} in agreement or a small gap`,
     xClash: (n, x) => `${n} in a head-on clash with ${x}`,
@@ -407,7 +407,7 @@ export const S = {
       ['MINOR', '1 step'],
       ['MAJOR', '2 steps'],
       ['CLASH', '3 or more steps, or 2 steps when one of the parties has declared it a red line'],
-      ['NONE', 'One of the parties has no stated position; not counted'],
+      ['NONE', 'One of the parties has no stated position, so it is not counted'],
     ],
     impactRule: 'When picking parties: next to each party not yet picked are three numbers relative to the current coalition. On each topic, the party\'s largest gap with the current members is checked: ✓ = agreement or a small gap (counted separately in the results summary), ✕ = a head-on clash, ? = no stated position (of the party, or of all the current members). A substantial gap counts in none of them. The numbers are for information only: they do not change the order of the parties and are not a recommendation.',
     breakdownRule: 'In the results: a topic counts as "in agreement" when all coalition members that stated a position are at the same point, "with a small gap" when its largest gap is 1 step, "with a substantial gap" when it is a substantial gap, "in a head-on clash" when it has a head-on clash, and "with no data" when at least two members have no stated position. There is no overall score.',
@@ -455,9 +455,9 @@ export const S = {
       ...(seats ? [
         'The confidence vote: for = the seats of the coalition members and the supporters. Abstaining = the seats of the abstainers. Against = everyone else, assuming every party not marked votes against. The government wins the confidence vote when there are more votes for than against (a majority of those voting).',
         'Whether the coalition members alone have 61 seats is shown separately.',
-        'Under the vote, the parties the outcome depends on, each on its own: a member without which the coalition members no longer have 61, and a member or supporter without which the confidence vote has no majority (for not greater than against; a tie included). A party that leaves counts as opposed, like any party not picked. An abstainer is checked as if it voted against. Each party is shown with the numbers without it (for vs against, and the coalition members\' seats when they drop below 61). The parties are listed by role and then in party order, with no ranking. When the government would not win the confidence vote, the list is not shown.',
+        'Under the vote, the parties the outcome depends on, each on its own: a member without which the coalition members no longer have 61, and a member or supporter without which the confidence vote has no majority (for not greater than against, a tie included). A party that leaves counts as opposed, like any party not picked. An abstainer is checked as if it voted against. Each party is shown with the numbers without it (for vs against, and the coalition members\' seats when they drop below 61). The parties are listed by role and then in party order, with no ranking. When the government would not win the confidence vote, the list is not shown.',
         'Not computed: individual Knesset members moving between positions, absences, and Knesset members voting against their faction\'s position.',
-        `What is missing for a majority of 61: the smallest combinations of parties that are not coalition members (including supporters and abstainers) that bring the coalition members alone to at least 61 seats. A combination counts as "smallest" when removing any one of its parties leaves the coalition below 61. ${linked ? 'Religious Zionism and Zehut, which ran on one list, count as one unit when neither is in the coalition. ' : ''}Order: combinations with the fewest lists first, then by the number of seats added, then by the party order. 6 are shown, and you can show all of them. For each combination we show the number of topics in a head-on clash in the resulting coalition and how many of them are new, and only the red lines that the combination crosses for the first time; red lines that the current coalition already crosses are shown once above the list. This is information, not a recommendation.`,
+        `What is missing for a majority of 61: the smallest combinations of parties that are not coalition members (including supporters and abstainers) that bring the coalition members alone to at least 61 seats. A combination counts as "smallest" when removing any one of its parties leaves the coalition below 61. ${linked ? 'Religious Zionism and Zehut, which ran on one list, count as one unit when neither is in the coalition. ' : ''}Order: combinations with the fewest lists first, then by the number of seats added, then by the party order. 6 are shown, and you can show all of them. For each combination we show the number of topics in a head-on clash in the resulting coalition and how many of them are new, and only the red lines that the combination crosses for the first time. Red lines that the current coalition already crosses are shown once above the list. This is information, not a recommendation.`,
       ] : []),
     ],
     jointTitle: 'Joint lists',
@@ -481,7 +481,7 @@ export const S = {
     orderTitle: 'Order and display',
     orderRulesResults: [
       'The parties are ordered by their number of seats in the results, and on a tie by their number of votes. All parties have the same color.',
-      'Scenarios raised in the media: up to 4 compositions reported by media outlets or proposed by a commentator, with a source and a date for each. A scenario\'s name is the composition itself, with no label. The roles (in the coalition, supporter, abstainer) follow the source; a party not mentioned counts as opposed. When a source mentions a party that ran on a joint list, the whole list is included (for example Religious Zionism and Zehut). The scenarios are in alphabetical order, and they are a starting point only, not a forecast.',
+      'Scenarios raised in the media: up to 4 compositions reported by media outlets or proposed by a commentator, with a source and a date for each. A scenario\'s name is the composition itself, with no label. The roles (in the coalition, supporter, abstainer) follow the source. A party not mentioned counts as opposed. When a source mentions a party that ran on a joint list, the whole list is included (for example Religious Zionism and Zehut). The scenarios are in alphabetical order, and they are a starting point only, not a forecast.',
       'The scale numbers are not shown, and the direction of the scale (who is "right" and who is "left") carries no meaning.',
     ],
     orderRules: (order, unityPartner) => [

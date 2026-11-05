@@ -8,12 +8,9 @@ import { S as EN } from '../site/js/strings.en.js';
 
 const { parties, topics, meta, positions, results } = loadData();
 
-// Quoted spans: "…", “…”, ״…״ and '…'. Gershayim come before the last 1–3 letters of an abbreviation (ש״ס, צה״ל,
-// יועמ״שית); a ״ followed by a longer word opens a quote, also right after a prefix letter (ל״סיפוח…״).
+import { unquoted } from './text.mjs';
+
 const HEB = '\\u05D0-\\u05EA';
-const GERSHAYIM = new RegExp(`(?<=[${HEB}])״(?=[${HEB}]{1,3}(?![${HEB}]))`, 'g');
-const QUOTED = /[״"“][^״"”]*[״"”]|(^|[\s(])'[^']+'(?=[\s,.;:)]|$)/g;
-export const unquoted = (s) => s.replace(GERSHAYIM, '\u0001').replace(QUOTED, ' ');
 
 const RULES = {
   he: [
