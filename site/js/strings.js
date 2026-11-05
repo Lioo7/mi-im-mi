@@ -247,8 +247,18 @@ export const S = {
       if (seats != null) parts.push(`${exact ? '' : 'כ-'}${seats} מנדטים`);
       return parts.length ? `בלעדיה: ${parts.join(' · ')}` : '';
     },
-    removed: (n) => `${n} הוסרה`,
+    // The inline undo line at the top of the results view (#29): what changed, "בטלו", and a close button.
+    undoReplaced: 'הקואליציה הוחלפה',
+    undoAdded: (names) => (names.length === 1 ? `נוספה: ${names[0]}` : `נוספו: ${names.join(', ')}`),
+    undoRemoved: (n) => `הוסרה: ${n}`,
     undo: 'בטלו',
+    undoClose: 'סגרו את ההודעה',
+    // Announced after undo; outside parties mirror the header's groups ("C (תומכת מבחוץ)").
+    restored: (members, outside) => {
+      const out = outside.length ? `מחוץ לקואליציה: ${outside.join(', ')}` : '';
+      if (!members.length) return `הקואליציה הקודמת שוחזרה · ${out}`;
+      return `הקואליציה הקודמת שוחזרה: ${members.join(' + ')}${out ? ` · ${out}` : ''}`;
+    },
     overall: (x, y) => `${x} מתוך ${topicsN(y)} ללא סתירה חזיתית`,
     // [text, css class, always shown]; zero counts are hidden except head-on clashes and no data.
     breakdown: (a, mi, m, c, w) => [

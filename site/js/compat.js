@@ -527,6 +527,10 @@ export function serializeState(ctx, { base, members, supporters = [], abstainers
   return s ? `?${s}` : '';
 }
 
+// The undo line (#29) shows only when there is something to restore: the previous state had at least one party in any
+// role, and the change made a difference. An empty start (e.g. from the home card) has nothing to go back to.
+export const canUndo = (ctx, prev, next) => selected(prev).length > 0 && serializeState(ctx, prev) !== serializeState(ctx, next);
+
 // The state lives in the fragment, `#<route>?b=…&m=…&o=…&a=…`, which browsers never send to the server.
 // Links from before the move carry it in the query (`?m=…#results`); they are read once and rewritten.
 export const STATE_KEYS = ['b', 'm', 'o', 'a'];
