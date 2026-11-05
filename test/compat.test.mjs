@@ -5,7 +5,7 @@ import {
   matrixCell, pairSummary, investiture, periphery, analyze, without, presets, parseState, serializeState,
   parseLocation, parsePair, locationFor, moveLegacyState, localize, contextFor,
   withLinked, lowCoverage, addImpact, breakdown, ballotOrder, selected, completions, redLinesCrossed, closestTo,
-  peripheryClashes, pivotal, coalitionGroups,
+  peripheryClashes, pivotal, coalitionGroups, canUndo,
 } from '../site/js/compat.js';
 
 const P = (partyId, topicId, position, redLine = false) => ({ partyId, topicId, position, redLine });
@@ -329,6 +329,24 @@ test('URL state round-trips roles and ignores unknown ids', () => {
   assert.deepEqual(back.abstainers, ['b', 'd']);
   assert.deepEqual(parseState('?m=a,zzz,a&b=nope', ids), { base: null, members: ['a'], supporters: [], abstainers: [] });
   assert.equal(serializeState(ctx, { base: null, members: [] }), '');
+});
+
+test('canUndo (#29): only when the previous state had a party in any role and the change made a difference', () => {
+  const ctx = fixture([]);
+  const st = (members, supporters = [], abstainers = [], base = null) => ({ base, members, supporters, abstainers });
+  // From an empty coalition (e.g. the home card), there is nothing to restore.
+  assert.equal(canUndo(ctx, st([]), st(['a', 'b'], [], [], 'a')), false);
+  // The same coalition again: nothing changed (the order of ids does not matter).
+  assert.equal(canUndo(ctx, st(['a', 'b'], [], [], 'a'), st(['b', 'a'], [], [], 'a')), false);
+  // Supporters or abstainers alone count as something to restore.
+  assert.equal(canUndo(ctx, st([], ['c']), st(['a', 'b'], [], [], 'a')), true);
+  assert.equal(canUndo(ctx, st([], [], ['d']), st(['a', 'b'], [], [], 'a')), true);
+  // A different base alone is a change.
+  assert.equal(canUndo(ctx, st(['a', 'b'], [], [], 'a'), st(['a', 'b'], [], [], 'b')), true);
+  // The three changes that offer undo: a closest coalition replaces, a completion adds, removing the friction party.
+  assert.equal(canUndo(ctx, st(['a', 'b'], ['e']), st(['c', 'd'], [], [], 'c')), true);
+  assert.equal(canUndo(ctx, st(['a']), st(['a', 'b', 'c'])), true);
+  assert.equal(canUndo(ctx, st(['a', 'b', 'c'], [], [], 'a'), st(['a', 'b'], [], [], 'a')), true);
 });
 
 test('old links: m= only means all members; o= (outside support) means supporters', () => {

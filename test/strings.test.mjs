@@ -78,6 +78,18 @@ test('English formatting: dates, counts and the share text', () => {
   assert.equal(EN.results.withoutPreview({ kind: 'clash', before: 2, after: 0 }, 52, true), 'Without it: no topic in a head-on clash instead of 2 · 52 seats');
 });
 
+test('undo line (#29): what changed, and the restored coalition with the parties outside it', () => {
+  assert.equal(S.results.undoAdded(['א']), 'נוספה: א');
+  assert.equal(S.results.undoAdded(['א', 'ב']), 'נוספו: א, ב');
+  assert.equal(EN.results.undoAdded(['A', 'B']), 'Added: A, B');
+  assert.equal(S.results.undoRemoved('א'), 'הוסרה: א');
+  assert.equal(EN.results.undoRemoved('A'), 'Removed: A');
+  assert.equal(S.results.restored(['א', 'ב'], []), 'הקואליציה הקודמת שוחזרה: א + ב');
+  assert.equal(S.results.restored(['א', 'ב'], ['ג (תומכת מבחוץ)', 'ד (נמנעת)']), 'הקואליציה הקודמת שוחזרה: א + ב · מחוץ לקואליציה: ג (תומכת מבחוץ), ד (נמנעת)');
+  assert.equal(EN.results.restored(['A', 'B'], ['C (supports from outside)', 'D (abstains)']), 'Previous coalition restored: A + B · Outside the coalition: C (supports from outside), D (abstains)');
+  assert.equal(EN.results.restored([], ['C (supports from outside)']), 'Previous coalition restored · Outside the coalition: C (supports from outside)');
+});
+
 test('closest coalitions (#22): "closest to the stated positions", never best or recommended, in both languages', () => {
   const texts = (K, M) => [
     ...Object.entries(K).map(([k, v]) => (k === 'orList' ? v(['X', 'Y']) : typeof v === 'function' ? v('X', 2, 'Y') : v)),

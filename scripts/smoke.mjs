@@ -10,7 +10,7 @@ import { mkdirSync, mkdtempSync, writeFileSync, rmSync, readFileSync, existsSync
 import { tmpdir } from 'node:os';
 import { join, extname, normalize } from 'node:path';
 import { ROOT, loadData } from './lib.mjs';
-import { contextFor, presets, serializeState, ballotOrder, completions, parseLocation, stateKeysIn, selected, locationFor, closestTo, redLinesCrossed, pivotal, investiture, coalitionGroups, analyze, peripheryClashes, pairSummary } from '../site/js/compat.js';
+import { contextFor, presets, serializeState, parseState, ballotOrder, completions, parseLocation, stateKeysIn, selected, locationFor, closestTo, redLinesCrossed, pivotal, investiture, coalitionGroups, analyze, peripheryClashes, pairSummary } from '../site/js/compat.js';
 import { PROD_HOST } from '../site/js/stats.js';
 import { S } from '../site/js/strings.js';
 import { S as EN } from '../site/js/strings.en.js';
@@ -806,7 +806,7 @@ try {
       const after = new URLSearchParams(await frag()).get('m') ?? '';
       if (!wantRows[0].split(',').every((id) => after.split(',').includes(id))) errors.push(`[interaction] tapping a completion did not add it (${after})`);
       if (await evaluate("document.querySelector('#results .completions') !== null")) errors.push('[interaction] completions card should disappear once members reach 61');
-      await evaluate("document.querySelector('#toast [data-act=\"undo\"]').click()");
+      await evaluate("document.querySelector('#results-undo [data-act=\"undo\"]').click()");
       await sleep(300);
       if ((await frag()) !== before) errors.push('[interaction] undo after a completion did not restore the coalition');
     }
@@ -948,7 +948,7 @@ try {
         const wantHash = locationFor(ctx, { base: 'likud', members: ['likud', ...want.full[0].add], supporters: [], abstainers: [] }, 'results', '', lng);
         const got = await evaluate("JSON.stringify([location.hash, document.body.dataset.view, document.querySelector('#sheet').open])");
         if (got !== JSON.stringify([wantHash, 'results', false])) errors.push(`[${tag}] tapping a row should select it on #results (${got}, want ${wantHash})`);
-        await evaluate("document.querySelector('#toast [data-act=\"undo\"]').click()");
+        await evaluate("document.querySelector('#results-undo [data-act=\"undo\"]').click()");
         await sleep(300);
         if ((await frag()) !== before) errors.push(`[${tag}] undo did not restore the coalition`);
         // Shas: its own coverage note above the list, and never in its own toggle.
@@ -1450,6 +1450,141 @@ try {
     }
     await setSize(SIZES[0]);
     console.log('  ✓ task cards: he all cards at 375×667/375×600/390×844; en all at 390×844, card 3 title at 375×667, cards 1-2 at 375×600; names, targets, focus, contrast');
+  }
+
+  // The undo line (#29): a closest coalition (results mode), a completion (with seats) and removing the friction party each
+  // show an in-flow line at the top of the results view, never a toast with a button. It names the change; "undo" restores
+  // the exact previous state (route stays #results) and announces it, members then the parties outside with their roles;
+  // × only hides it. Focus goes to the results' first heading after the change, undo and ×. Starting from an empty
+  // coalition shows no line; leaving the view clears it; a language switch keeps it. At 375×667 and 360×740, both languages.
+  {
+    const UNDO_STATE = `JSON.stringify((() => { const l = document.querySelector('#results-undo .undo-line'); const a = document.activeElement;
+      return { line: l ? l.querySelector('.undo-text').innerText : null, focus: a && a === document.querySelector('#results h2') ? 'heading' : (a?.dataset?.key || a?.id || a?.tagName),
+        live: document.querySelector('#live').textContent, toastAction: document.querySelectorAll('#toast button, #toast a, #toast [data-act]').length,
+        hash: location.hash.split('?')[0] }; })())`;
+    const LINE_LAYOUT = `(() => { const bad = []; const l = document.querySelector('#results-undo .undo-line'); if (!l) return 'no line';
+      if (getComputedStyle(l).position !== 'static') bad.push('not in the flow');
+      const r = l.getBoundingClientRect(), bar = document.querySelector('#results-bar').getBoundingClientRect(); const rtl = document.dir === 'rtl';
+      if (r.top < bar.bottom - 0.5) bad.push('under the sticky bar');
+      for (const sel of ['#results-coalition .coalition-line', '#results ${SRC_SEL}', '#results .seats-line']) for (const e of document.querySelectorAll(sel)) {
+        const b = e.getBoundingClientRect(); if (b.height && b.top < r.bottom - 0.5 && b.bottom > r.top + 0.5) bad.push('overlaps ' + sel); }
+      if (document.documentElement.scrollWidth > innerWidth) bad.push('horizontal scroll');
+      const [u, x] = l.querySelectorAll('button');
+      for (const b of [u, x]) { const q = b.getBoundingClientRect(); if (q.width < 44 || q.height < 44) bad.push('target ' + Math.round(q.width) + 'x' + Math.round(q.height));
+        if (q.left < r.left - 0.5 || q.right > r.right + 0.5) bad.push('button outside the line'); }
+      const ub = u.getBoundingClientRect(), xb = x.getBoundingClientRect();
+      if (rtl ? !(xb.right <= ub.left + 0.5 && xb.left - r.left < 6) : !(xb.left >= ub.right - 0.5 && r.right - xb.right < 6)) bad.push('close is not at the line end');
+      if (x.getAttribute('aria-label') === null || u.getAttribute('aria-describedby') !== 'undo-text') bad.push('names');
+      const src = document.querySelector('#results ${SRC_SEL}'), num = document.querySelector('#results .seats-line');
+      if (src && num && !(src.compareDocumentPosition(num) & Node.DOCUMENT_POSITION_FOLLOWING)) bad.push('source line after the numbers');
+      return bad.join('; '); })()`;
+    const ids = parties.map((p) => p.id);
+    // A preset with a friction party, preferably one with supporters (the global ctx has no positions; posCtx does).
+    const hasFriction = (p) => analyze(posCtx.he, { base: null, ...p }).friction.length > 0;
+    const fric = Object.values(pr).find((p) => p.supporters.length && hasFriction(p)) ?? Object.values(pr).find(hasFriction);
+    if (!fric) throw new Error('undo line: no preset with a friction party');
+    const pick = (party) => evaluate(`(() => { const s = document.querySelector('[data-act="closest-pick"]'); s.value = ${JSON.stringify(party)}; s.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+    let cases = 0;
+    const loaded = () => waitFor(() => evaluate("document.querySelector('#footer')?.children.length > 0"));
+    for (const size of [{ width: 375, height: 667, mobile: true, dpr: 2 }, { width: 360, height: 740, mobile: true, dpr: 2 }]) {
+      await setSize(size);
+      for (const lng of ['he', 'en']) {
+        const T = lng === 'he' ? S : EN;
+        const nm = (id) => posCtx[lng].byId.get(id).name;
+        const sfx = lng === 'he' ? '' : '&l=en';
+        const restoredFor = (qs) => { const st = parseState(qs, ids);
+          return T.results.restored(st.members.map(nm), coalitionGroups(st).outside.map((o) => `${nm(o.partyId)} (${T.results.roleName[o.role]})`)); };
+        const tagOf = (k) => `undo-${k}-${lng}@${size.width}`;
+        const runCase = async (k, start, act, wantText) => {
+          for (const mode of ['undo', 'close']) {
+            const tag = `${tagOf(k)}-${mode}`;
+            await go(`${baseUrl}${start}`);
+            await loaded();
+            await sleep(250);
+            const before = await frag();
+            const text = await act();
+            await waitFor(() => evaluate("document.body.dataset.view === 'results' && document.querySelector('#results h2') !== null"));
+            await sleep(350);
+            const after = await frag();
+            let st = JSON.parse(await evaluate(UNDO_STATE));
+            if (after === before) errors.push(`[${tag}] the change did not happen`);
+            if (st.line !== (text ?? wantText)) errors.push(`[${tag}] line "${st.line}", want "${text ?? wantText}"`);
+            if (st.focus !== 'heading') errors.push(`[${tag}] after the change focus should be on the results heading (${st.focus})`);
+            if (st.toastAction) errors.push(`[${tag}] the toast holds an action`);
+            if (mode === 'undo') {
+              const lay = await evaluate(LINE_LAYOUT);
+              if (lay) errors.push(`[${tag}] layout: ${lay}`);
+              if (size.width === 375) await shoot(size, `undo-${k}-m${lng === 'he' ? '' : '-en'}.png`, false);
+              await evaluate("document.querySelector('#results-undo [data-act=\"undo\"]').click()");
+              await sleep(350);
+              st = JSON.parse(await evaluate(UNDO_STATE));
+              if ((await frag()) !== before || st.hash !== '#results') errors.push(`[${tag}] undo should restore ${before} on #results, got ${await frag()} on ${st.hash}`);
+              if (st.line !== null) errors.push(`[${tag}] the line should go after undo`);
+              if (st.live !== restoredFor(before)) errors.push(`[${tag}] announced "${st.live}", want "${restoredFor(before)}"`);
+            } else {
+              await evaluate("document.querySelector('#results-undo [data-act=\"undo-close\"]').click()");
+              await sleep(250);
+              st = JSON.parse(await evaluate(UNDO_STATE));
+              if ((await frag()) !== after) errors.push(`[${tag}] × must not change the coalition`);
+              if (st.line !== null) errors.push(`[${tag}] × should hide the line`);
+            }
+            if (st.focus !== 'heading') errors.push(`[${tag}] after ${mode} focus should be on the results heading (${st.focus})`);
+            cases++;
+          }
+        };
+        // 1. A closest coalition, from the build-view picker with a coalition already chosen (arrives on #results).
+        if (RESULTS) {
+          await runCase('replaced', `#build?m=likud,yashar${sfx}`, async () => {
+            await pick('likud'); await sleep(300);
+            await evaluate("document.querySelector('#sheet [data-act=\"closest-apply\"]').click()");
+            return null;
+          }, T.results.undoReplaced);
+          // From an empty coalition (the home card): nothing to restore, so no line; focus still on the results heading.
+          const tag = tagOf('empty');
+          await go(`${baseUrl}#build${lng === 'he' ? '' : '?l=en'}`);
+          await loaded();
+          await pick('likud'); await sleep(300);
+          await evaluate("document.querySelector('#sheet [data-act=\"closest-apply\"]').click()");
+          await waitFor(() => evaluate("document.body.dataset.view === 'results' && document.querySelector('#results h2') !== null"));
+          await sleep(350);
+          const st = JSON.parse(await evaluate(UNDO_STATE));
+          if (st.line !== null) errors.push(`[${tag}] no undo line when starting from an empty coalition`);
+          if (st.focus !== 'heading') errors.push(`[${tag}] focus should be on the results heading (${st.focus})`);
+        }
+        // 2. A completion ("מה חסר לרוב"), when seats are shown.
+        if (!SEATS_HIDDEN) {
+          await runCase('added', `#results${serializeState(ctx, { base: null, ...pr.coalition })}${sfx}`, async () => {
+            const add = await evaluate("(() => { const b = document.querySelector('#results [data-act=\"complete\"]'); b.click(); return b.dataset.ids; })()");
+            return T.results.undoAdded(add.split(',').map(nm));
+          });
+        }
+        // 3. Removing the friction party, from a state with supporters (the announcement names them with their role).
+        await runCase('removed', `#results${serializeState(ctx, { base: null, ...fric })}${sfx}`, async () => {
+          const id = await evaluate("(() => { const b = document.querySelector('#results [data-act=\"remove-friction\"]'); b.click(); return b.dataset.id; })()");
+          return T.results.undoRemoved(nm(id));
+        });
+        // The line survives a language switch (re-rendered in the other language) and is cleared by leaving the view.
+        const tag = tagOf('lifetime');
+        await go(`${baseUrl}#results${serializeState(ctx, { base: null, ...fric })}${sfx}`);
+        await loaded();
+        await sleep(250);
+        const id = await evaluate("(() => { const b = document.querySelector('#results [data-act=\"remove-friction\"]'); b.click(); return b.dataset.id; })()");
+        await sleep(300);
+        await evaluate("document.querySelector('#lang-switch button').click()");
+        await sleep(300);
+        const O = lng === 'he' ? EN : S;
+        const other = (await evaluate("document.querySelector('#results-undo .undo-text')?.innerText ?? null"));
+        if (other !== O.results.undoRemoved(posCtx[lng === 'he' ? 'en' : 'he'].byId.get(id).name)) errors.push(`[${tag}] after a language switch the line should read in the other language (${other})`);
+        await evaluate("location.hash = '#build'");
+        await waitFor(() => evaluate("document.body.dataset.view === 'build'"));
+        await evaluate("location.hash = '#results'");
+        await waitFor(() => evaluate("document.body.dataset.view === 'results'"));
+        await sleep(250);
+        if (await evaluate("document.querySelector('#results-undo .undo-line') !== null")) errors.push(`[${tag}] leaving the results view should clear the line`);
+      }
+    }
+    await setSize(SIZES[0]);
+    console.log(`  ✓ undo line: ${cases} runs (${RESULTS ? 'closest, ' : ''}${SEATS_HIDDEN ? '' : 'completion, '}friction × undo/close × he/en × 375/360)${RESULTS ? ', empty start' : ''}, lifetime; no toast action`);
   }
 
   // Phone layout, both languages, also at 360 (a common Android width): at least 16px between the brand and the nav, a
