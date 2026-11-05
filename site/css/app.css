@@ -165,7 +165,6 @@ blockquote { margin: .4em 0 .6em; padding-inline-start: 12px; border-inline-star
 
 .toast { position: fixed; inset-inline: var(--gutter); inset-block-end: 150px; z-index: 40; max-inline-size: 480px; margin-inline: auto; background: var(--fg); color: #fff; padding: 10px 14px; border-radius: 10px; display: flex; gap: 12px; align-items: center; justify-content: space-between; }
 .toast[hidden] { display: none; }
-.toast .link-btn { color: #fff; }
 
 /* methodology */
 .method { margin-block-start: 32px; border-block-start: 1px solid var(--line); }
@@ -297,6 +296,12 @@ h2 { margin-block-start: 1.2em; }
 .poll-legal .poll-btn { font-size: .95rem; color: var(--accent); padding: 0 4px; }
 .overall .poll-legal { margin-block-start: 6px; }
 .coalition-line { margin: 10px 0 0; font-size: .95rem; font-weight: 600; }
+/* The undo line (#29): in the flow above the coalition header, never floating; the text wraps, the buttons stay at the end. */
+.undo-line { display: flex; align-items: center; gap: 4px; margin-block-start: 10px; padding-block: 0; padding-inline: 12px 2px; background: var(--chip); border-radius: 10px; }
+.undo-text { flex: 1 1 auto; min-inline-size: 0; margin: 0; padding-block: 8px; font-size: .95rem; }
+.undo-line .link-btn { flex: none; font-size: .95rem; padding-inline: 8px; }
+.undo-close { flex: none; inline-size: 44px; block-size: 44px; border: 0; border-radius: 50%; background: none; color: var(--fg); font-size: 1rem; cursor: pointer; display: grid; place-items: center; }
+.undo-close:hover { background: #dbe3f7; }
 /* Parties outside the coalition: one neutral marker everywhere (dashed outline, no fill, no colour); the role is in the text. */
 .outside { display: inline-block; max-inline-size: 100%; border: 1px dashed var(--muted); border-radius: 8px; padding: 0 .45em; overflow-wrap: anywhere; }
 .coalition-outside { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; margin-block-start: 6px; }

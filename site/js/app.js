@@ -22,7 +22,9 @@ let electionResults = null;
 let scenarioData = null;
 let state = { base: null, members: [], supporters: [], abstainers: [] };
 let lastPreset = null;
-let undoState = null;
+// The inline undo line (#29): { prev, lastPreset, kind: 'replaced' | 'added' | 'removed', ids } or null. No timer; it
+// clears on the next coalition change, undo, close, or leaving the results view. Kept across a language switch.
+let undo = null;
 // "מה חסר לרוב": rows shown before "הציגו את כל N"; the toggle resets whenever the coalition changes.
 const COMPLETIONS_SHOWN = 6;
 let showAllCompletions = false;
@@ -31,6 +33,8 @@ let showAllCompletions = false;
 const CLOSEST_SHOWN = 5;
 let closestView = { pid: null, fullAll: false, partialOpen: false, partialAll: false };
 let toastTimer;
+// Set by closest-apply from the build view: route() focuses the results heading once it has rendered.
+let focusOnArrival = false;
 // The pair view's two pickers, in the order picked (null = empty). Kept when leaving the view; written to the URL on it.
 let pair = [null, null];
 
@@ -77,7 +81,9 @@ function writeUrl() {
   history.replaceState(null, '', location.pathname + rest);
 }
 
-function setState(next, { announceParty } = {}) {
+// Every state change clears the undo line; the three changes that offer undo pass the new one (undoFor()).
+function setState(next, { announceParty, undo: nextUndo = null } = {}) {
+  undo = nextUndo;
   applyState(next);
   writeUrl();
   render();
@@ -110,9 +116,10 @@ function announce(text) {
   setTimeout(() => { live.textContent = text; }, 50);
 }
 
-function toast(html, ms = 5000) {
+// Text only: a toast never holds an action (#29); undo lives in the inline line at the top of the results view.
+function toast(text, ms = 5000) {
   const el = $('#toast');
-  el.innerHTML = html;
+  el.textContent = text;
   el.hidden = false;
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => { el.hidden = true; }, ms);
@@ -728,10 +735,38 @@ function coalitionHeader() {
       <ul class="outside-list" role="list">${outside.map((o) => `<li>${outsideChip(outsideParty(o.partyId))}</li>`).join('')}</ul></div>`;
 }
 
+// The undo line (#29): in the page flow above the coalition header, never over the status line or the numbers. The
+// text is built at render time, so a language switch re-renders it.
+function undoLine() {
+  const R = S.results;
+  const text = { replaced: () => R.undoReplaced, added: () => R.undoAdded(undo.ids.map(name)), removed: () => R.undoRemoved(name(undo.ids[0])) }[undo.kind]();
+  return `<div class="undo-line"><p class="undo-text" id="undo-text">${esc(text)}</p>
+    <button type="button" class="link-btn" data-act="undo" data-key="undo" aria-describedby="undo-text">${esc(R.undo)}</button>
+    <button type="button" class="undo-close" data-act="undo-close" data-key="undo-close" aria-label="${esc(R.undoClose)}"><span aria-hidden="true">✕</span></button></div>`;
+}
+
+// The undo entry for a change about to happen, or null when there is nothing to restore (C.canUndo).
+const undoFor = (kind, ids, next) => (C.canUndo(ctx, state, next) ? { prev: structuredClone(state), lastPreset, kind, ids } : null);
+
+// After a change from the results view, undo or close: focus the first heading of the results, so the undo line is one
+// Shift+Tab away. Without a heading (no members) the results container itself takes focus.
+function focusResultsHeading() {
+  const h = $('#results h2');
+  if (h) h.tabIndex = -1;
+  (h ?? $('#results')).focus({ preventScroll: true });
+}
+
+// The restored coalition, spoken: members, then the parties outside it with their roles, as in the header.
+function restoredText() {
+  const outside = C.coalitionGroups(state).outside.map((o) => `${name(o.partyId)} (${S.results.roleName[o.role]})`);
+  return S.results.restored(state.members.map(name), outside);
+}
+
 function renderResults() {
   const { members } = state;
   const el = $('#results');
   const chosen = C.selected(state);
+  $('#results-undo').innerHTML = undo ? undoLine() : '';
   $('#results-coalition').innerHTML = chosen.length ? coalitionHeader() : '';
   $('#results-bar').innerHTML = `
     <a class="back" href="#build">${esc(S.nav.back)}</a>
@@ -973,7 +1008,7 @@ async function share(text = shareText(C.analyze(ctx, state)), url = shareUrl()) 
   }
   try {
     await navigator.clipboard.writeText(url);
-    toast(esc(S.share.copied), 2500);
+    toast(S.share.copied, 2500);
   } catch {
     prompt(S.share.button, url);
   }
@@ -1154,7 +1189,7 @@ function route(initial = false) {
     renderChrome();
   }
   if (!initial && loc.fromFragment) {
-    if (C.serializeState(ctx, loc.state) !== C.serializeState(ctx, state)) lastPreset = null;
+    if (C.serializeState(ctx, loc.state) !== C.serializeState(ctx, state)) { lastPreset = null; undo = null; }
     applyState(loc.state);
   }
   // A pair link (or back/forward) brings its pair; the bare entry link `#pair` keeps the last one.
@@ -1167,6 +1202,7 @@ function route(initial = false) {
   const from = view;
   view = v;
   routeToken = anchor ?? v;
+  if (view !== 'results') { undo = null; focusOnArrival = false; }
   writeUrl();
   for (const id of VIEWS) $(`#view-${id}`).hidden = id !== view;
   document.body.dataset.view = view;
@@ -1177,6 +1213,8 @@ function route(initial = false) {
   if (view === 'pair' && changed && !initial) $('#pair-title')?.focus({ preventScroll: true });
   // Back from the pair view: focus returns to the card that opened it (it sits on the first screen).
   if (view === 'build' && from === 'pair' && !initial) $('[data-key="home-pair"]')?.focus({ preventScroll: true });
+  // Arriving from a closest-coalitions row (#29): the results' first heading, as after any change made there.
+  if (view === 'results' && focusOnArrival) { focusOnArrival = false; focusResultsHeading(); }
 }
 
 function render() {
@@ -1244,17 +1282,18 @@ function onClick(e) {
       lastPreset = null;
       setState({ base: null, members: [], supporters: [], abstainers: [] });
       break;
-    case 'remove-friction':
-      undoState = { ...state };
-      setState(C.dropParty(state, id), { announceParty: id });
-      toast(`${esc(S.results.removed(name(id)))} <button type="button" class="link-btn" data-act="undo">${esc(S.results.undo)}</button>`, 8000);
+    case 'remove-friction': {
+      const next = C.dropParty(state, id);
+      setState(next, { announceParty: id, undo: undoFor('removed', [id], next) });
+      focusResultsHeading();
       break;
+    }
     case 'complete': {
       const add = el.dataset.ids.split(',');
-      undoState = { ...state };
-      setState({ ...add.reduce((st, pid) => C.dropParty(st, pid), state), base: state.base, members: [...state.members, ...add] });
+      const next = { ...add.reduce((st, pid) => C.dropParty(st, pid), state), base: state.base, members: [...state.members, ...add] };
+      setState(next, { undo: undoFor('added', add, next) });
       announce(S.completions.applied(add.map(name).join(', ')));
-      toast(`${esc(S.completions.applied(add.map(name).join(', ')))} <button type="button" class="link-btn" data-act="undo">${esc(S.results.undo)}</button>`, 8000);
+      focusResultsHeading();
       break;
     }
     case 'to-periphery': {
@@ -1285,20 +1324,30 @@ function onClick(e) {
     case 'closest-apply': {
       // The coalition replaces the current one, with the party as the base (the map is colored by distance from it).
       const members = [id, ...el.dataset.ids.split(',')];
-      undoState = { ...state };
+      const next = { base: id, members, supporters: [], abstainers: [] };
+      const u = undoFor('replaced', members, next);
       lastPreset = null;
       $('#sheet').close();
-      setState({ base: id, members, supporters: [], abstainers: [] });
-      if (view !== 'results') location.hash = 'results';
+      setState(next, { undo: u });
+      // From the build view the route change re-renders asynchronously: focus the heading once it has (route()).
+      if (view !== 'results') { focusOnArrival = true; location.hash = 'results'; } else focusResultsHeading();
       const names = ordered(members).map(name).join(' + ');
       announce(S.closest.applied(names));
-      toast(`${esc(S.closest.applied(names))} <button type="button" class="link-btn" data-act="undo">${esc(S.results.undo)}</button>`, 8000);
       break;
     }
-    case 'undo':
-      if (undoState) setState(undoState);
-      undoState = null;
-      $('#toast').hidden = true;
+    case 'undo': {
+      if (!undo) break;
+      const { prev, lastPreset: lp } = undo;
+      lastPreset = lp;
+      setState(prev);
+      announce(restoredText());
+      focusResultsHeading();
+      break;
+    }
+    case 'undo-close':
+      undo = null;
+      $('#results-undo').innerHTML = '';
+      focusResultsHeading();
       break;
     case 'cell':
       cellSheet(el.dataset.party, el.dataset.topic);
