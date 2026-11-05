@@ -4,7 +4,7 @@ import {
   level, makeContext, topicStatus, crises, glue, friction, overall, newClashTopics,
   matrixCell, pairSummary, investiture, periphery, analyze, without, presets, parseState, serializeState,
   parseLocation, parsePair, locationFor, moveLegacyState, localize, contextFor,
-  withLinked, lowCoverage, addImpact, breakdown, ballotOrder, selected, completions, redLinesCrossed, closestTo,
+  withLinked, lowCoverage, addImpact, breakdown, ballotOrder, selected, completions, redLinesCrossed, closestTo, groupRedLines,
   peripheryClashes, pivotal, coalitionGroups, canUndo,
 } from '../site/js/compat.js';
 
@@ -239,6 +239,15 @@ test('redLinesCrossed (#14): the same list as completions().currentRedLines; emp
   assert.deepEqual(completions(ctx, ['a', 'b', 'c']).currentRedLines, crossed);
   assert.deepEqual(redLinesCrossed(ctx, ['a']), []);
   assert.deepEqual(redLinesCrossed(ctx, ['b', 'c', 'd']), []);
+});
+
+test('groupRedLines (#31): by topic in topic order, parties in party order; display only', () => {
+  const ctx = fixture([P('a', 't1', 0)]);
+  const lines = [{ partyId: 'c', topicId: 't2' }, { partyId: 'b', topicId: 't1' }, { partyId: 'a', topicId: 't2' }, { partyId: 'd', topicId: 't1' }];
+  assert.deepEqual(groupRedLines(ctx, lines), [{ topicId: 't1', partyIds: ['b', 'd'] }, { topicId: 't2', partyIds: ['a', 'c'] }]);
+  assert.deepEqual(groupRedLines(ctx, []), []);
+  // Every entry stays: the count shown is still the number of party-topic lines.
+  assert.equal(groupRedLines(ctx, lines).reduce((n, g) => n + g.partyIds.length, 0), lines.length);
 });
 
 test('without() removes a party from any role', () => {

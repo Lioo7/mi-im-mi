@@ -14,7 +14,7 @@ import { mkdirSync, mkdtempSync, writeFileSync, rmSync, readFileSync, existsSync
 import { tmpdir } from 'node:os';
 import { join, extname, normalize } from 'node:path';
 import { ROOT, loadData } from './lib.mjs';
-import { contextFor, presets, serializeState, parseState, ballotOrder, completions, parseLocation, stateKeysIn, selected, locationFor, closestTo, redLinesCrossed, pivotal, investiture, coalitionGroups, analyze, peripheryClashes, pairSummary, matrixCell } from '../site/js/compat.js';
+import { groupRedLines, contextFor, presets, serializeState, parseState, ballotOrder, completions, parseLocation, stateKeysIn, selected, locationFor, closestTo, redLinesCrossed, pivotal, investiture, coalitionGroups, analyze, peripheryClashes, pairSummary, matrixCell } from '../site/js/compat.js';
 import { PROD_HOST } from '../site/js/stats.js';
 import { S } from '../site/js/strings.js';
 import { S as EN } from '../site/js/strings.en.js';
@@ -135,7 +135,8 @@ function redLinesText(lng, members) {
   const c = posCtx[lng];
   const T = lng === 'he' ? S : EN;
   const r = redLinesCrossed(c, members);
-  return r.length ? `🚩 ${T.results.redLinesCrossed(r.length, r.map((x) => `${c.byId.get(x.partyId).name} · ${c.topics.find((t) => t.id === x.topicId).short}`).join(', '))}` : T.results.noRedLinesCrossed;
+  const list = groupRedLines(c, r).map((g) => `${c.topics.find((t) => t.id === g.topicId).short}: ${g.partyIds.map((id) => c.byId.get(id).name).join(', ')}`).join(' · ');
+  return r.length ? `🚩 ${T.results.redLinesCrossed(r.length, list)}` : T.results.noRedLinesCrossed;
 }
 // The results card, scoped: the header (one line when all are members; else the members, then the parties outside the
 // coalition, each in the neutral marker with its role in text), the snapshot (members-only title, the counts label only
@@ -547,6 +548,10 @@ try {
           if (got !== want) errors.push(`[${current}] red-line line should be "${want}", got "${got}"`);
           if (RESULTS && name === 'results-coalition' && !got.startsWith('🚩 2 קווים אדומים נחצו')) errors.push(`[${current}] expected 2 red lines crossed, got "${got}"`);
           if (name === 'results-opposition' && got !== S.results.noRedLinesCrossed) errors.push(`[${current}] expected no red line crossed, got "${got}"`);
+          // #31: grouped by topic (the coalition bloc: Haredi parties' draft red lines), and a box with a small radius, not a pill.
+          if (RESULTS && name === 'results-coalition' && got !== `🚩 ${S.results.redLinesCrossed(2, 'גיוס: יהדות התורה, ש״ס')}`) errors.push(`[${current}] red lines should be grouped by topic, got "${got}"`);
+          const radius = await evaluate("(() => { const t = document.querySelector('#results .overall .redlines-line .tag'); return t ? parseFloat(getComputedStyle(t).borderTopLeftRadius) : null; })()");
+          if (radius !== null && radius > 8) errors.push(`[${current}] the red-line line is a pill (radius ${radius}px), want a box with a small radius`);
           const card = await evaluate(`(() => { const c = document.querySelector('#results .completions'); if (!c) return null;
             const t = [...c.querySelectorAll('.tag-red')].map((e) => e.innerText.replace(/\\s+/g, ' ').trim()).find((x) => x.includes('כבר חוצה')); return t ? t.slice(t.indexOf(': ') + 2) : ''; })()`);
           const list = got.startsWith('🚩') ? got.slice(got.indexOf(': ') + 2) : '';

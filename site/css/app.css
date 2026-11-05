@@ -67,6 +67,8 @@ button, select { font: inherit; color: inherit; }
 
 .tag { display: inline-block; font-size: .72rem; padding: 1px 7px; border-radius: 999px; background: var(--chip); color: var(--fg); font-weight: 500; vertical-align: middle; }
 .tag-red { background: var(--clash-bg); color: var(--clash-fg); }
+/* A tag whose text can run to several lines (#31): a box with a small radius, not a pill. */
+.tag-box { border-radius: 6px; padding: 3px 8px; line-height: 1.45; max-inline-size: 100%; }
 .tag-src { background: var(--ref-bg); color: var(--ref-fg); }
 .tag-warn { background: var(--warn-bg); color: var(--warn-fg); border: 1px dashed var(--muted); white-space: normal; }
 .tag-split { background: #ece4f5; color: #4c2a7a; }

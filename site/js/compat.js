@@ -359,6 +359,13 @@ export function redLinesCrossed(ctx, members) {
   return out;
 }
 
+// Display only (#31): red-line entries grouped by topic, topics in topic order and parties in party order.
+export function groupRedLines(ctx, lines) {
+  return ctx.topics
+    .map((t) => ({ topicId: t.id, partyIds: sortByParty(ctx, lines.filter((l) => l.topicId === t.id).map((l) => l.partyId)) }))
+    .filter((g) => g.partyIds.length);
+}
+
 // "What is missing for 61?": the smallest sets of additional parties that give the members alone 61 seats
 // (supporters and abstainers do not count; any non-member may be added). Units: each non-member list with seats; a
 // soft-linked pair that ran as one list is one unit in polls mode (with results, each party is its own unit).

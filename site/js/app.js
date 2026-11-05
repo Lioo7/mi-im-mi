@@ -51,7 +51,8 @@ const isResults = () => ctx.mode === 'results';
 const showSeats = () => isResults() || meta.showSeats !== false;
 const fmtNum = (n) => n.toLocaleString('en-US');
 // Red lines as "<party> · <topic>", comma-separated (the overview line and the completions card).
-const redList = (lines) => lines.map((x) => `${name(x.partyId)} · ${topic(x.topicId).short}`).join(', ');
+// Red lines by topic (#31): "גיוס: ישראל ביתנו, יהדות התורה · חקירה: ישראל ביתנו". The count stays one per party and topic.
+const redList = (lines) => C.groupRedLines(ctx, lines).map((g) => `${topic(g.topicId).short}: ${g.partyIds.map(name).join(', ')}`).join(' · ');
 // Parties outside the coalition share one neutral marker (a dashed outline, no fill); the role is always in the text.
 const outsideChip = (text) => `<span class="outside">${esc(text)}</span>`;
 const outsideParty = (id) => S.results.outsideParty(name(id), S.results.roleName[roleOf(id)]);
@@ -873,7 +874,7 @@ function completionsCard() {
     <p class="note note-soft">${esc(K.note)}</p>
     ${isResults() ? '' : pollLegalLine()}
     <p class="muted small">${esc(K.intro(n(v.membersSeats)))}</p>
-    ${currentRedLines.length ? `<p class="small"><span class="tag tag-red"><span aria-hidden="true">🚩</span> ${esc(K.currentRedLines(currentRedLines.length, redList(currentRedLines)))}</span></p>` : ''}
+    ${currentRedLines.length ? `<p class="small"><span class="tag tag-red tag-box"><span aria-hidden="true">🚩</span> ${esc(K.currentRedLines(currentRedLines.length, redList(currentRedLines)))}</span></p>` : ''}
     ${list.length ? `<ul class="list">${items}</ul>${toggle}` : `<p>${esc(K.none)}</p>`}
   </section>`;
 }
@@ -888,7 +889,7 @@ function syncResbarHeight() {
 function redLinesLine() {
   const crossed = C.redLinesCrossed(ctx, state.members);
   return crossed.length
-    ? `<p class="small redlines-line"><span class="tag tag-red"><span aria-hidden="true">🚩</span> ${esc(S.results.redLinesCrossed(crossed.length, redList(crossed)))}</span></p>`
+    ? `<p class="small redlines-line"><span class="tag tag-red tag-box"><span aria-hidden="true">🚩</span> ${esc(S.results.redLinesCrossed(crossed.length, redList(crossed)))}</span></p>`
     : `<p class="muted small redlines-line">${esc(S.results.noRedLinesCrossed)}</p>`;
 }
 
