@@ -14,7 +14,7 @@ import { mkdirSync, mkdtempSync, writeFileSync, rmSync, readFileSync, existsSync
 import { tmpdir } from 'node:os';
 import { join, extname, normalize } from 'node:path';
 import { ROOT, loadData } from './lib.mjs';
-import { contextFor, presets, serializeState, parseState, ballotOrder, completions, parseLocation, stateKeysIn, selected, locationFor, closestTo, redLinesCrossed, pivotal, investiture, coalitionGroups, analyze, peripheryClashes, pairSummary } from '../site/js/compat.js';
+import { contextFor, presets, serializeState, parseState, ballotOrder, completions, parseLocation, stateKeysIn, selected, locationFor, closestTo, redLinesCrossed, pivotal, investiture, coalitionGroups, analyze, peripheryClashes, pairSummary, matrixCell } from '../site/js/compat.js';
 import { PROD_HOST } from '../site/js/stats.js';
 import { S } from '../site/js/strings.js';
 import { S as EN } from '../site/js/strings.en.js';
@@ -1687,6 +1687,98 @@ try {
   log('  ✓ phone layout at 360, 390 and 1280 (both languages)');
 
   const ENLARGE = (pct) => `(() => { document.documentElement.style.setProperty('font-size', '${pct}%'); document.body.style.setProperty('font-size', '${16 * pct / 100}px'); return true; })()`;
+  // Party sheet (#30): the sticky bar and its 44px close button stay fully inside the visible viewport at rest, mid-
+  // scroll, at the end, after the viewport grows (the browser's bars hide: the sheet "expands") and after it shrinks
+  // back (the bars return). Headless Chrome has no address bar, so resizing the viewport stands in for it. Also: the
+  // "why this color" rows (badge line, then the sentence) in the cell sheet and in expanded pair rows (pair view and
+  // the 2-member card), and the votes line's segments, each on one line, at normal and enlarged text.
+  const SHEET_X = `(() => { const vv = visualViewport; const d = document.querySelector('#sheet'); if (!d?.open) return 'sheet not open';
+    const h = d.querySelector('.sheet-head').getBoundingClientRect(); const x = d.querySelector('.sheet-close').getBoundingClientRect(); const s = d.getBoundingClientRect();
+    const top = vv.offsetTop, bottom = vv.offsetTop + vv.height, left = vv.offsetLeft, right = vv.offsetLeft + vv.width;
+    if (x.width < 44 || x.height < 44) return 'close is ' + x.width + 'x' + x.height;
+    if (x.top < top - .5 || x.bottom > bottom + .5 || x.left < left - .5 || x.right > right + .5) return 'close outside the visible viewport (top ' + Math.round(x.top) + ', viewport top ' + Math.round(top) + ')';
+    if (h.top < top - .5) return 'sheet bar starts above the visible viewport (' + Math.round(h.top) + ')';
+    if (x.top < h.top - .5 || x.bottom > h.bottom + .5) return 'close does not fit in the bar (bar ' + Math.round(h.height) + 'px)';
+    if (s.top < top + 8 - .5) return 'sheet leaves no room above it (' + Math.round(s.top - top) + 'px)';
+    if (s.bottom > bottom + .5) return 'sheet runs below the visible viewport';
+    return 'ok'; })()`;
+  const lineCount = (sel) => `[...document.querySelectorAll('${sel}')].map((e) => { const r = document.createRange(); r.selectNodeContents(e); return new Set([...r.getClientRects()].map((x) => Math.round(x.top))).size; })`;
+  const WHY_JS = (scope) => `(() => { const w = document.querySelector('${scope} .why-row'); if (!w) return null; const b = w.querySelector('.lv'), t = w.querySelector('.why-text');
+    if (!b || !t || w.firstElementChild !== b) return { bad: 'badge must come first' };
+    return { below: b.getBoundingClientRect().bottom <= t.getBoundingClientRect().top + 1, text: t.innerText.trim() }; })()`;
+  let sheetRuns = 0;
+  for (const w of [360, 375, 390]) {
+    for (const l of ['he', 'en']) {
+      const T = l === 'he' ? S : EN;
+      const nmL = (id) => posCtx[l].byId.get(id).name;
+      const sfx = l === 'en' ? '&l=en' : '';
+      step(`sheet-${l}@${w}`);
+      sheetRuns++;
+      const metrics = (height) => c.send('Emulation.setDeviceMetricsOverride', { width: w, height, deviceScaleFactor: 2, mobile: true });
+      await metrics(700);
+      await go(`${baseUrl}#results?m=likud,yashar,together,otzma-yehudit,shas,utj${sfx}`);
+      await waitFor(() => evaluate("document.querySelector('.party-btn[data-id=\"likud\"]') !== null"));
+      await evaluate("document.querySelector('.party-btn[data-id=\"likud\"]').click()");
+      await sleep(300);
+      const sheetCheck = async (what) => { const r = await evaluate(SHEET_X); if (r !== 'ok') errors.push(`[${current}] ${what}: ${r}`); };
+      await sheetCheck('at rest');
+      await evaluate("(() => { const d = document.querySelector('#sheet'); d.scrollTop = 120; return true; })()");
+      await sleep(150);
+      await sheetCheck('after a short scroll');
+      await metrics(800); // the bars hide
+      await sleep(250);
+      await sheetCheck('after the viewport grows');
+      await evaluate("(() => { const d = document.querySelector('#sheet'); d.scrollTop = d.scrollHeight / 2; return true; })()");
+      await sleep(150);
+      await sheetCheck('mid-scroll');
+      await metrics(744); // the address bar returns
+      await sleep(250);
+      await sheetCheck('after the viewport shrinks back');
+      await metrics(632); // and a bottom bar too (Brave)
+      await sleep(250);
+      await sheetCheck('after the viewport shrinks by both bars');
+      await evaluate("(() => { const d = document.querySelector('#sheet'); d.scrollTop = d.scrollHeight; return true; })()");
+      await sleep(150);
+      await sheetCheck('at the end');
+      if (w === 375) await shoot({ width: w, height: 632, dpr: 2, mobile: true }, `sheet-party-scrolled-${l}.png`, false);
+      // The votes line: three segments, none broken across lines, also with enlarged text.
+      for (const pct of [100, 125]) {
+        await evaluate(ENLARGE(pct));
+        await sleep(150);
+        const segs = await evaluate(lineCount('#sheet .votes-line .nw'));
+        if (RESULTS && (segs.length !== 3 || segs.some((n) => n > 1))) errors.push(`[${current}] votes line at ${pct}%: segments ${JSON.stringify(segs)} (want 3, one line each)`);
+      }
+      await evaluate(ENLARGE(100));
+      await evaluate("document.querySelector('#sheet').close()");
+      await metrics(800);
+      // Cell sheet: the why row.
+      const cell = matrixCell(posCtx[l], 'yashar', 'draft', ['likud', 'yashar', 'together', 'otzma-yehudit', 'shas', 'utj'], null);
+      await evaluate("document.querySelector('.cell[data-party=\"yashar\"][data-topic=\"draft\"]').click()");
+      await sleep(250);
+      const why = await evaluate(WHY_JS('#sheet'));
+      const wantWhy = cell.d === 0 ? T.sheet.agree(nmL('yashar'), nmL(cell.ref)) : T.sheet.gapTitle(nmL('yashar'), nmL(cell.ref), cell.d);
+      if (!why || !why.below || why.text !== wantWhy) errors.push(`[${current}] cell sheet why row: ${JSON.stringify(why)}, want "${wantWhy}" under the badge`);
+      await evaluate("document.querySelector('#sheet').close()");
+      // 2-member card and pair view: the first expanded row starts with the why row.
+      const pr2 = pairSummary(posCtx[l], 'together', 'democrats').rows;
+      const placed = pr2.findIndex((r) => r.level !== 'NONE');
+      for (const [where, url, scope] of [['2-member card', `#results?m=together,democrats${sfx}`, '#results'], ['pair view', `#pair?p=together,democrats${sfx}`, '#pair-view']]) {
+        await go(`${baseUrl}${url}`);
+        await waitFor(() => evaluate(`document.querySelectorAll('${scope} .pair-row').length === 8`));
+        await evaluate(`(() => { document.querySelectorAll('${scope} .pair-row')[${placed}].open = true; return true; })()`);
+        await sleep(150);
+        const got = await evaluate(WHY_JS(`${scope} .pair-row[open] .pair-detail`));
+        const r = pr2[placed];
+        const want = r.d === 0 ? T.sheet.agree(nmL('together'), nmL('democrats')) : T.sheet.gapTitle(nmL('together'), nmL('democrats'), r.d);
+        if (!got || !got.below || got.text !== want) errors.push(`[${current}] ${where} why row: ${JSON.stringify(got)}, want "${want}" under the badge`);
+        const first = await evaluate(`document.querySelector('${scope} .pair-row[open] .pair-detail').firstElementChild?.className`);
+        if (first !== 'why-row') errors.push(`[${current}] ${where}: the why row must open the expanded row (first: ${first})`);
+      }
+    }
+  }
+  await setSize(SIZES[0]);
+  log(`  ✓ party sheet: ${sheetRuns} runs (360/375/390 × he/en): close inside the visible viewport at rest, scrolled, grown and shrunk; why rows; votes line`);
+
   // Fit (#35): at phone widths, with normal and enlarged text (root and body at 125%, standing in for a wider device
   // font such as Samsung's Hebrew one, or user text scaling): every matrix header's text stays inside its column and the
   // viewport, is vertical with its text next to the cells, the matrix and the page never scroll sideways, the overview

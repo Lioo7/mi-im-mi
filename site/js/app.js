@@ -520,6 +520,11 @@ function pairSentence(pid, tid) {
 const isRedLine = (pid, tid) => posOf(pid, tid)?.position != null && Boolean(posOf(pid, tid).redLine);
 const redTag = () => `<span class="tag tag-red"><span aria-hidden="true">🚩</span> ${esc(S.redLine)}</span>`;
 
+// "Why this color" (#30): the badge on its own line, the sentence on the next. The cell sheet and the expanded pair
+// rows (pair view, 2-member card) share it.
+const whyRow = (level, textHtml) => `<p class="why-row">${levelBadge(level)}<span class="why-text">${textHtml}</span></p>`;
+const gapRow = (level, a, b, d) => whyRow(level, d === 0 ? esc(S.sheet.agree(a, b)) : `<strong>${esc(S.sheet.gapTitle(a, b, d))}</strong>`);
+
 function pairHtml(a, b) {
   const s = C.pairSummary(ctx, a, b);
   const rows = s.rows.map((r) => `
@@ -531,6 +536,7 @@ function pairHtml(a, b) {
         </span>
       </summary>
       <div class="pair-detail">
+        ${r.level === 'NONE' ? whyRow('NONE', esc(S.sheet.noneExplainPair)) : gapRow(r.level, name(a), name(b), r.d)}
         ${r.byRedLine ? [a, b].filter((x) => isRedLine(x, r.topicId)).map((x) => `<p>${esc(S.sheet.redByLine(name(x)))}</p>`).join('') : ''}
         <h4>${esc(name(a))}</h4>${positionBlock(a, r.topicId, { heading: false })}
         <h4>${esc(name(b))}</h4>${positionBlock(b, r.topicId, { heading: false })}
@@ -1018,8 +1024,15 @@ async function share(text = shareText(C.analyze(ctx, state)), url = shareUrl()) 
 // Every sheet has a sticky bar: an optional back link at the start, the close button at the end.
 const BACK_CHEV = '<svg class="chev chev-back" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M15 5 8 12l7 7" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
+// The visible viewport's height, for the sheet's max height (CSS --vvh, #30). Kept while the sheet is open.
+function fitSheet() {
+  const vv = window.visualViewport;
+  if (vv) $('#sheet').style.setProperty('--vvh', `${Math.floor(vv.height)}px`);
+}
+
 function openSheet(html, { back = '' } = {}) {
   const d = $('#sheet');
+  fitSheet();
   d.innerHTML = `<div class="sheet-head">${back}
     <button type="button" class="sheet-close" data-act="close-sheet" aria-label="${esc(S.sheet.close)}"><span aria-hidden="true">✕</span></button></div>
     <div class="sheet-inner">${html}</div>`;
@@ -1032,14 +1045,14 @@ function whyHtml(cell, pid, tid) {
   const T = S.sheet;
   if (cell.level === 'REF') return `<p>${esc(T.refExplain)}</p>`;
   if (cell.level === 'BASE_NULL') return `<p>${esc(S.matrix.baseNull)}</p>`;
-  if (cell.level === 'NONE' || !cell.ref) return `<p>${levelBadge('NONE')} ${esc(T.noneExplain)}</p>`;
+  if (cell.level === 'NONE' || !cell.ref) return whyRow('NONE', esc(T.noneExplain));
   const a = name(pid);
   const b = name(cell.ref);
   const la = axisLabel(tid, posOf(pid, tid)?.position);
   const lb = axisLabel(tid, posOf(cell.ref, tid)?.position);
-  if (cell.d === 0) return `<p>${levelBadge(cell.level)} ${esc(T.agree(a, b))}</p>`;
+  if (cell.d === 0) return gapRow(cell.level, a, b, 0);
   const redParty = cell.byRedLine ? (posOf(pid, tid)?.redLine ? a : b) : null;
-  return `<p>${levelBadge(cell.level)} <strong>${esc(T.gapTitle(a, b, cell.d))}</strong></p>
+  return `${gapRow(cell.level, a, b, cell.d)}
     <ul class="why"><li><strong>${esc(a)}:</strong> ${esc(la)}</li><li><strong>${esc(b)}:</strong> ${esc(lb)}</li></ul>
     ${redParty ? `<p>${esc(T.redByLine(redParty))}</p>` : ''}
     <p class="muted small">${esc(S.method.colorRule)}</p>`;
@@ -1084,7 +1097,8 @@ function partyNotes(p) {
       ? S.elected.partyResult(ctx.seatsOf(p.id), l.pct.toFixed(2), fmtNum(l.votes), l.parties.length > 1)
       : S.elected.partyBelow(l.pct.toFixed(2), electionResults.threshold);
     if (l.splitNote) notes.push(l.splitNote);
-    return seatSourceLine() + `<p class="note">${esc(result)}</p>` + notes.map((n) => `<p class="note note-soft">${bidi(n)}</p>`).join('');
+    const line = Array.isArray(result) ? result.map((x) => `<span class="nw">${esc(x)}</span>`).join(' · ') : esc(result);
+    return seatSourceLine() + `<p class="note votes-line">${line}</p>` + notes.map((n) => `<p class="note note-soft">${bidi(n)}</p>`).join('');
   }
   const seatNote = p.seatNote && showSeats();
   if (seatNote) notes.push(p.seatNote);
@@ -1380,6 +1394,7 @@ function bind() {
   document.addEventListener('click', onClick);
   window.addEventListener('hashchange', () => route());
   window.addEventListener('resize', () => { if (view === 'results') syncResbarHeight(); });
+  for (const ev of ['resize', 'scroll']) window.visualViewport?.addEventListener(ev, () => { if ($('#sheet').open) fitSheet(); });
   document.addEventListener('change', (e) => {
     const el = e.target.closest('select[data-act="compare"]');
     if (el) partySheet(el.dataset.id, el.value);

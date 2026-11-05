@@ -217,3 +217,13 @@ test('task cards: neutral wording, no numbers of seats, both languages', async (
   assert.equal(S.buildPurpose, 'העמדות לקוחות ממצעים, מהצהרות רשמיות ומהצעות חוק שהמפלגות יזמו או קידמו. זו לא המלצת הצבעה.');
   assert.ok(EN.buildPurpose.endsWith('This is not a voting recommendation.'));
 });
+
+test('why rows and the votes line (#30): the gap sentence in both languages, the votes as unbreakable segments', () => {
+  assert.equal(S.sheet.gapTitle('א', 'ב', 2), 'א ↔ ב: פער של 2 דרגות');
+  assert.equal(S.sheet.gapTitle('א', 'ב', 1), 'א ↔ ב: פער של דרגה אחת');
+  assert.equal(EN.sheet.gapTitle('A', 'B', 3), 'A ↔ B: a gap of 3 steps');
+  assert.equal(EN.sheet.gapTitle('A', 'B', 1), 'A ↔ B: a gap of 1 step');
+  assert.deepEqual(S.elected.partyResult(8, '6.44', '366,278', false), ['8 מנדטים', '6.44% מהקולות', '366,278 קולות']);
+  assert.deepEqual(EN.elected.partyResult(8, '6.44', '366,278', false), ['8 seats', '6.44% of the vote', '366,278 votes']);
+  assert.equal(S.elected.partyResult(5, '4.10', '200,000', true).length, 3);
+});

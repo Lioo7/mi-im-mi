@@ -70,6 +70,8 @@ button, select { font: inherit; color: inherit; }
 .tag-src { background: var(--ref-bg); color: var(--ref-fg); }
 .tag-warn { background: var(--warn-bg); color: var(--warn-fg); border: 1px dashed var(--muted); white-space: normal; }
 .tag-split { background: #ece4f5; color: #4c2a7a; }
+/* The votes line (#30): each segment stays whole; lines break only between segments. */
+.nw { white-space: nowrap; }
 .note-soft { font-weight: 500; border-inline-start-color: var(--muted); font-size: .9rem; }
 .footnote { margin-block-start: 12px; font-size: .85rem; color: var(--muted); }
 .footnote p { margin: 0 0 .3em; }
@@ -131,7 +133,17 @@ blockquote { margin: .4em 0 .6em; padding-inline-start: 12px; border-inline-star
 /* sheet */
 .sheet {
   border: 0; padding: 0; margin: 0; margin-block-start: auto; inline-size: 100%; max-inline-size: 720px; margin-inline: auto;
-  max-block-size: 88vh; border-radius: 16px 16px 0 0; background: var(--card); color: var(--fg);
+  border-radius: 16px 16px 0 0; background: var(--card); color: var(--fg);
+  /* Never taller than what is visible (#30). vh is the viewport with the browser's bars hidden, so 88vh alone can run
+     under the address bar once the bars come back. 100% is the box the sheet is fixed in (the visible viewport on a
+     phone); dvh and --vvh (visualViewport.height, kept by app.js while the sheet is open) follow the bars. Each line
+     falls back to the one before it in older browsers. */
+  --sheet-room: calc(16px + env(safe-area-inset-top, 0px));
+  max-block-size: 88vh;
+  max-block-size: min(88vh, calc(100% - var(--sheet-room)));
+}
+@supports (max-block-size: 1dvh) {
+  .sheet { max-block-size: min(88dvh, calc(100% - var(--sheet-room)), calc(var(--vvh, 100dvh) - var(--sheet-room))); }
 }
 .sheet::backdrop { background: rgba(20, 22, 28, .45); }
 .sheet-inner { padding: 8px var(--gutter) calc(24px + env(safe-area-inset-bottom)); }
@@ -141,11 +153,16 @@ blockquote { margin: .4em 0 .6em; padding-inline-start: 12px; border-inline-star
 .sheet-back { display: inline-flex; align-items: center; gap: 2px; text-align: start; padding-inline: 4px 8px; font-size: .95rem; min-inline-size: 0; }
 .chev-back { inline-size: 18px; block-size: 18px; font-size: 1rem; }
 [dir="rtl"] .chev-back { transform: scaleX(-1); }
-.sheet-close { flex: none; margin-inline-start: auto; inline-size: 44px; block-size: 44px; border: 0; border-radius: 50%; background: var(--chip); color: var(--fg); font-size: 1.1rem; cursor: pointer; display: grid; place-items: center; }
+.sheet-close { flex: none; margin-inline-start: auto; inline-size: 44px; block-size: 44px; min-inline-size: 44px; min-block-size: 44px; border: 0; border-radius: 50%; background: var(--chip); color: var(--fg); font-size: 1.1rem; cursor: pointer; display: grid; place-items: center; }
 .sheet-close:hover { background: #dbe3f7; }
 .sheet-close:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
 .sheet .seat-src { font-size: .85rem; color: var(--muted); margin-block-end: 4px; }
 .why { margin: .2em 0 .6em; padding-inline-start: 1.2em; }
+/* "Why this color" (#30): the badge on its own line, the sentence under it. */
+.why-row { margin: 0 0 .5em; }
+.why-row .lv { display: inline-flex; margin-block-end: 4px; }
+.why-row .why-text { display: block; }
+.pair-detail .why-row { margin-block-end: .6em; }
 .compare { display: grid; gap: 4px; margin-block: 8px 12px; font-weight: 600; }
 .closest-open { text-align: start; }
 .closest-partial { margin-block-start: 12px; }

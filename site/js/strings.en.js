@@ -171,7 +171,8 @@ export const S = {
     belowHint: 'You can see their positions, but you cannot pick them for a coalition.',
     belowPct: (pct) => `${pct}% of the vote`,
     viewPositions: (n) => `Positions of ${n}`,
-    partyResult: (seats, pct, votes, joint) => `${seatsN(seats)}${joint ? ' (part of the joint list)' : ''} · ${pct}% of the vote · ${votes} votes${joint ? ' for the list' : ''}`,
+    // Segments: each one stays whole on screen, and lines break only between them (joined by " · ").
+    partyResult: (seats, pct, votes, joint) => [`${seatsN(seats)}${joint ? ' (part of the joint list)' : ''}`, `${pct}% of the vote`, `${votes} votes${joint ? ' for the list' : ''}`],
     partyBelow: (pct, threshold) => `Did not pass the electoral threshold: ${pct}% of the vote (threshold ${threshold}%).`,
     resultsTitle: 'Election results',
     vsTitle: (d) => `Poll average (${d.replace(/ \d{4}$/, '')}) vs. results`,
@@ -355,7 +356,9 @@ export const S = {
     refExplain: 'This is the base party. The rest of the column is colored by the distance from it.',
     noneExplain: 'One of the parties has no stated position on this topic, so there is no comparison. The cell is not counted in the results.',
     agree: (a, b) => `${a} and ${b} are at the same point on the scale.`,
-    gapTitle: (a, b, d) => `${a} ↔ ${b}: ${d === 1 ? '1 step' : `${d} steps`} on the scale`,
+    gapTitle: (a, b, d) => `${a} ↔ ${b}: a gap of ${d === 1 ? '1 step' : `${d} steps`}`,
+    // In an expanded pair row there is no matrix cell, so only the first sentence of noneExplain.
+    noneExplainPair: 'One of the parties has no stated position on this topic, so there is no comparison.',
     redByLine: (party) => `${party} has declared this topic a red line, so a gap of 2 steps counts as a head-on clash.`,
     axisTitle: 'The scale for this topic',
     noPositionLabel: 'No stated position',

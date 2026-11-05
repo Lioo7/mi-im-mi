@@ -171,7 +171,8 @@ export const S = {
     belowHint: 'אפשר לראות את העמדות שלהן, אבל לא לבחור אותן לקואליציה.',
     belowPct: (pct) => `${pct}% מהקולות`,
     viewPositions: (n) => `העמדות של ${n}`,
-    partyResult: (seats, pct, votes, joint) => `${seats} מנדטים${joint ? ' (חלק מהרשימה המשותפת)' : ''} · ${pct}% מהקולות · ${votes} קולות${joint ? ' לרשימה' : ''}`,
+    // Segments: each one stays whole on screen, and lines break only between them (joined by " · ").
+    partyResult: (seats, pct, votes, joint) => [`${seats} מנדטים${joint ? ' (חלק מהרשימה המשותפת)' : ''}`, `${pct}% מהקולות`, `${votes} קולות${joint ? ' לרשימה' : ''}`],
     partyBelow: (pct, threshold) => `לא עברה את אחוז החסימה: ${pct}% מהקולות (הסף ${threshold}%).`,
     resultsTitle: 'תוצאות הבחירות',
     vsTitle: (d) => `ממוצע סקרים (${d.slice(0, 5)}) מול תוצאות`,
@@ -360,7 +361,9 @@ export const S = {
     refExplain: 'זו מפלגת הבסיס. שאר העמודה נצבעת לפי המרחק ממנה.',
     noneExplain: 'לאחת המפלגות אין עמדה מוצהרת בנושא, ולכן אין השוואה. התא לא נספר בתוצאות.',
     agree: (a, b) => `${a} ו${b} באותה נקודה בסולם.`,
-    gapTitle: (a, b, d) => `${a} ↔ ${b}: ${d === 1 ? 'דרגה אחת' : `${d} דרגות`} בסולם`,
+    gapTitle: (a, b, d) => `${a} ↔ ${b}: פער של ${d === 1 ? 'דרגה אחת' : `${d} דרגות`}`,
+    // In an expanded pair row there is no matrix cell, so only the first sentence of noneExplain.
+    noneExplainPair: 'לאחת המפלגות אין עמדה מוצהרת בנושא, ולכן אין השוואה.',
     redByLine: (party) => `${party} הצהירה שהנושא הוא קו אדום שלה, ולכן פער של 2 דרגות נחשב סתירה חזיתית.`,
     axisTitle: 'הסולם בנושא הזה',
     noPositionLabel: 'אין עמדה מוצהרת',
