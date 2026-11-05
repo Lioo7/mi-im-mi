@@ -1460,6 +1460,7 @@ try {
   {
     const UNDO_STATE = `JSON.stringify((() => { const l = document.querySelector('#results-undo .undo-line'); const a = document.activeElement;
       return { line: l ? l.querySelector('.undo-text').innerText : null, focus: a && a === document.querySelector('#results h2') ? 'heading' : (a?.dataset?.key || a?.id || a?.tagName),
+        btn: l ? (() => { const b = l.querySelector('[data-act="undo"]'); return [b.innerText.trim(), document.getElementById(b.getAttribute('aria-describedby'))?.innerText ?? null]; })() : null,
         live: document.querySelector('#live').textContent, toastAction: document.querySelectorAll('#toast button, #toast a, #toast [data-act]').length,
         hash: location.hash.split('?')[0] }; })())`;
     const LINE_LAYOUT = `(() => { const bad = []; const l = document.querySelector('#results-undo .undo-line'); if (!l) return 'no line';
@@ -1509,6 +1510,7 @@ try {
             let st = JSON.parse(await evaluate(UNDO_STATE));
             if (after === before) errors.push(`[${tag}] the change did not happen`);
             if (st.line !== (text ?? wantText)) errors.push(`[${tag}] line "${st.line}", want "${text ?? wantText}"`);
+            if (JSON.stringify(st.btn) !== JSON.stringify([T.results.undo, text ?? wantText])) errors.push(`[${tag}] restore button [name, description] ${JSON.stringify(st.btn)}, want ${JSON.stringify([T.results.undo, text ?? wantText])}`);
             if (st.focus !== 'heading') errors.push(`[${tag}] after the change focus should be on the results heading (${st.focus})`);
             if (st.toastAction) errors.push(`[${tag}] the toast holds an action`);
             if (mode === 'undo') {
