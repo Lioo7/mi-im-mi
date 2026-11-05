@@ -170,6 +170,20 @@ function renderFooter() {
     <p class="f-meta">${esc(S.updated(fmtDate(meta.dataUpdated)))} · ${esc(F.notAdvice)}</p>`;
 }
 
+// The closest-coalitions rule (#32): an intro, what is included, the numbered sort order, then the closing rules.
+function closestRuleHtml(M) {
+  const R = M.closestRule;
+  return `<h3 id="closest-rule" class="anchor" tabindex="-1">${esc(M.closestTitle)}</h3>
+    <div class="rule" id="closest-rule-body">
+      <p class="rule-intro">${esc(R.intro)}</p>
+      <h4 class="rule-sub">${esc(R.includedTitle)}</h4>
+      <ul class="rule-list">${R.included.map((t) => `<li>${esc(t)}</li>`).join('')}</ul>
+      <h4 class="rule-sub">${esc(R.orderTitle)}</h4>
+      <ol class="rule-steps">${R.order.map(([t, note]) => `<li>${esc(t)}${note ? ` <span class="rule-note">${esc(note)}</span>` : ''}</li>`).join('')}</ol>
+      ${R.after.map((t) => `<p class="rule-after">${esc(t)}</p>`).join('')}
+    </div>`;
+}
+
 function renderMethod() {
   const M = S.method;
   const coverage = ctx.parties.map((p) => {
@@ -220,7 +234,7 @@ function renderMethod() {
     <p>${esc(M.impactRule)}</p>
     <p>${esc(M.breakdownRule)}</p>
     <p>${esc(M.pairRule)}</p>
-    ${isResults() ? `<h3 id="closest-rule" class="anchor" tabindex="-1">${esc(M.closestTitle)}</h3><p>${esc(M.closestRule)}</p>` : ''}
+    ${isResults() ? closestRuleHtml(M) : ''}
 
     <h3>${esc(M.axesTitle)}</h3>
     ${ctx.topics.map((t) => `

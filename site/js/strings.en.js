@@ -413,7 +413,26 @@ export const S = {
     breakdownRule: 'In the results: a topic counts as "in agreement" when all coalition members that stated a position are at the same point, "with a small gap" when its largest gap is 1 step, "with a substantial gap" when it is a substantial gap, "in a head-on clash" when it has a head-on clash, and "with no data" when at least two members have no stated position. There is no overall score.',
     pairRule: 'The two-party comparison shows every topic in its fixed order, with the same gap levels as the rest of the site. A topic where either party has no stated position is marked "No stated position" and is not counted in the summary.',
     closestTitle: 'Coalitions closest to a party',
-    closestRule: 'The sheet of every party that passed the threshold shows the coalitions closest to its stated positions. Only minimal coalitions are included: the party plus partners that together hold at least 61 seats, where without any one of the partners there is no 61. Supporters and abstainers are not counted. The list shows the coalitions where every partner has a stated position on at least 6 of the 8 topics. Coalitions with a partner that has no position on 3 or more topics are shown separately, only on request, each with a warning: the comparison with them is partial, and the counts may be lower than reality (for example, a red line isn\'t counted when there\'s no position on that topic). In both lists the order is fixed, with no weights and no combined score: first, fewer of the party\'s own red lines crossed; then fewer topics where it is in a head-on clash with any partner; then fewer topics with a head-on clash anywhere in the coalition, between any two members; then more topics where the party agrees, or has a small gap, with every partner that stated a position (a topic counts only if the party and at least one partner stated a position on it); then more seats. On a full tie: fewer partners, then party order. A topic without a stated position is not counted. This is not a recommendation or a forecast.',
+    // The rule, as lists (#32); checked against closestTo() and completions(). order: [step, note under it or ''].
+    closestRule: {
+      intro: 'Pick a party, and see majority coalitions it is part of.',
+      includedTitle: 'Which coalitions are included',
+      included: [
+        'Only parties that passed the threshold, both the party and its partners.',
+        'Only minimal coalitions: the party and partners that together hold at least 61 seats, where every partner is needed for the majority.',
+        'Supporters and abstainers are not counted.',
+        'A coalition with a partner that has no position on 3 or more topics is shown in a separate, collapsed list (open when there are no other coalitions), with a warning: the comparison with it is partial, and the counts may be lower than reality.',
+      ],
+      orderTitle: 'The order of the list (the same in both lists, with no weights and no overall score)',
+      order: [
+        ['Fewer of the party\'s own red lines crossed.', ''],
+        ['Fewer topics where it is in a head-on clash with a partner.', ''],
+        ['Fewer topics with a head-on clash in the whole coalition.', ''],
+        ['More topics where it agrees, or has a small gap, with every partner that has a position on the topic.', 'A topic counts only if the party and at least one partner have a position on it.'],
+        ['More seats.', ''],
+      ],
+      after: ['On a full tie: fewer partners, then party order.', 'A topic without a stated position is not counted.', 'This is not a recommendation or a forecast.'],
+    },
     matrixRule: 'On the map: under "Color by" you can pick a base party, and then each cell is colored by the gap from the base. Without a base, each cell shows the party\'s most severe clash on the topic with any partner.',
     resultsRule: (seats) => `The crises: the topics with the most severe gap, by severity, distance${seats ? ', red line and then the pair\'s total seats' : ' and red line'}. The partner that creates the most friction: 3 points for each head-on clash and 1 point for each substantial gap with the other partners (the base party is not counted). A party with fewer stated positions collects fewer points.`,
     axesTitle: 'The scales',

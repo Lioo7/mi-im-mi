@@ -970,7 +970,15 @@ try {
       // The method page states the rule.
       await go(`${baseUrl}#method${lng === 'he' ? '' : '?l=en'}`);
       await waitFor(() => evaluate("document.querySelector('#method h1') !== null"));
-      if (!(await evaluate(`document.querySelector('#closest-rule')?.nextElementSibling?.innerText === ${JSON.stringify(T.method.closestRule)}`))) errors.push(`[closest-${lng}] the method page should state the closest-coalitions rule`);
+      // #32: an intro, then a real <ul> of what is included and a real <ol> of the sort order, then the closing rules.
+      const rule = await evaluate(`(() => { const b = document.querySelector('#closest-rule')?.nextElementSibling; if (!b || b.id !== 'closest-rule-body') return null; const t = (e) => e.innerText.replace(/\\s+/g, ' ').trim();
+        return { kids: [...b.children].map((e) => e.tagName.toLowerCase()), intro: t(b.querySelector('.rule-intro')), heads: [...b.querySelectorAll('h4')].map(t),
+          ul: [...b.querySelectorAll('ul.rule-list > li')].map(t), ol: [...b.querySelectorAll('ol.rule-steps > li')].map(t), after: [...b.querySelectorAll('.rule-after')].map(t),
+          inline: b.querySelectorAll('[style]').length }; })()`);
+      const R = T.method.closestRule;
+      const wantRule = { kids: ['p', 'h4', 'ul', 'h4', 'ol', ...R.after.map(() => 'p')], intro: R.intro, heads: [R.includedTitle, R.orderTitle], ul: R.included,
+        ol: R.order.map(([x, note]) => (note ? `${x} ${note}` : x)), after: R.after, inline: 0 };
+      if (JSON.stringify(rule) !== JSON.stringify(wantRule)) errors.push(`[closest-${lng}] the method page's closest-coalitions rule: ${JSON.stringify(rule)}`);
       for (const size of [SIZES[0], { tag: 's', width: 375, height: 667, mobile: true, dpr: 2 }]) {
         await setSize(size);
         const tag = `closest-${lng}@${size.width}`;

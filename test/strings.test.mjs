@@ -93,7 +93,7 @@ test('undo line (#29): what changed, and the restored coalition with the parties
 test('closest coalitions (#22): "closest to the stated positions", never best or recommended, in both languages', () => {
   const texts = (K, M) => [
     ...Object.entries(K).map(([k, v]) => (k === 'orList' ? v(['X', 'Y']) : typeof v === 'function' ? v('X', 2, 'Y') : v)),
-    K.showPartial(1, 'X'), K.redLines(0, ''), K.redLines(1, 'Y'), M.closestTitle, M.closestRule,
+    K.showPartial(1, 'X'), K.redLines(0, ''), K.redLines(1, 'Y'), M.closestTitle, ...Object.values(M.closestRule).flat(2),
   ];
   for (const [K, M] of [[S.closest, S.method], [EN.closest, EN.method]]) {
     const bad = texts(K, M).filter((t) => /הטוב|מומלצ|מועדפ|האידיאלי|\bbest\b|\brecommended\b|\bpreferred\b|\bideal\b/i.test(t));
@@ -104,8 +104,14 @@ test('closest coalitions (#22): "closest to the stated positions", never best or
   assert.equal(EN.closest.orList(['A']), 'A');
   assert.equal(S.closest.showPartial(1, 'ש״ס'), 'הציגו גם קואליציה אחת שכוללת את ש״ס');
   assert.equal(EN.closest.showPartial(117, 'A or B'), 'Also show 117 coalitions that include A or B');
-  assert.match(S.method.closestRule, /זו לא המלצה/);
-  assert.match(EN.method.closestRule, /not a recommendation/);
+  assert.ok(S.method.closestRule.after.some((t) => /זו לא המלצה/.test(t)));
+  assert.ok(EN.method.closestRule.after.some((t) => /not a recommendation/.test(t)));
+  // #32: 4 inclusion rules and the 5 sort keys of closestTo(), in its order; the duplicate "6 of 8" sentence is gone.
+  for (const M of [S.method, EN.method]) {
+    assert.equal(M.closestRule.included.length, 4);
+    assert.equal(M.closestRule.order.length, 5);
+    assert.ok(!Object.values(M.closestRule).flat(2).some((t) => /6 מתוך 8|6 of the 8|6 of 8/.test(t)));
+  }
 });
 
 test('share text: members, then the parties outside the coalition with roles and their clashes; unchanged without them', () => {

@@ -189,6 +189,12 @@ blockquote { margin: .4em 0 .6em; padding-inline-start: 12px; border-inline-star
 .method { margin-block-start: 32px; border-block-start: 1px solid var(--line); }
 .method h3 { margin-block-start: 1.2em; }
 .disclaimer { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
+/* A rule set out as lists (#32). */
+.rule-sub { font-size: .95rem; margin-block: .8em .3em; color: var(--fg); }
+.rule-list, .rule-steps { margin-block: 0 .6em; padding-inline-start: 1.4em; }
+.rule-list li, .rule-steps li { margin-block-end: .35em; }
+.rule-note { display: block; font-size: .88rem; color: var(--muted); }
+.rule-after { margin-block-end: .3em; }
 .level-rules { list-style: none; padding: 0; display: grid; gap: 6px; }
 details.axis { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; margin-block-end: 6px; }
 details.axis summary { cursor: pointer; font-weight: 600; min-block-size: 32px; }
