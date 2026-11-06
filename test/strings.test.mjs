@@ -106,10 +106,10 @@ test('closest coalitions (#22): "closest to the stated positions", never best or
   assert.equal(EN.closest.showPartial(117, 'A or B'), 'Also show 117 coalitions that include A or B');
   assert.ok(S.method.closestRule.after.some((t) => /זו לא המלצה/.test(t)));
   assert.ok(EN.method.closestRule.after.some((t) => /not a recommendation/.test(t)));
-  // #32: 4 inclusion rules and the 5 sort keys of closestTo(), in its order; the duplicate "6 of 8" sentence is gone.
+  // #32: 4 inclusion rules, and the 5 sort keys of closestTo() plus the completions order as the 6th step; no "6 of 8".
   for (const M of [S.method, EN.method]) {
     assert.equal(M.closestRule.included.length, 4);
-    assert.equal(M.closestRule.order.length, 5);
+    assert.equal(M.closestRule.order.length, 6);
     assert.ok(!Object.values(M.closestRule).flat(2).some((t) => /6 מתוך 8|6 of the 8|6 of 8/.test(t)));
   }
 });

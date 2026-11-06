@@ -976,8 +976,9 @@ try {
           ul: [...b.querySelectorAll('ul.rule-list > li')].map(t), ol: [...b.querySelectorAll('ol.rule-steps > li')].map(t), after: [...b.querySelectorAll('.rule-after')].map(t),
           inline: b.querySelectorAll('[style]').length }; })()`);
       const R = T.method.closestRule;
-      const wantRule = { kids: ['p', 'h4', 'ul', 'h4', 'ol', ...R.after.map(() => 'p')], intro: R.intro, heads: [R.includedTitle, R.orderTitle], ul: R.included,
-        ol: R.order.map(([x, note]) => (note ? `${x} ${note}` : x)), after: R.after, inline: 0 };
+      const wantRule = { kids: ['p', 'h4', 'ul', 'h4', 'p', 'ol', ...R.after.map(() => 'p')], intro: R.intro, heads: [R.includedTitle, R.orderTitle], ul: R.included,
+        ol: R.order, after: R.after, inline: 0 };
+      if (R.included.length !== 4 || R.order.length !== 6) errors.push(`[closest-${lng}] the rule should have 4 bullets and 6 steps`);
       if (JSON.stringify(rule) !== JSON.stringify(wantRule)) errors.push(`[closest-${lng}] the method page's closest-coalitions rule: ${JSON.stringify(rule)}`);
       for (const size of [SIZES[0], { tag: 's', width: 375, height: 667, mobile: true, dpr: 2 }]) {
         await setSize(size);

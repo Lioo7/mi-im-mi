@@ -181,7 +181,7 @@ function renderFooter() {
     <p class="f-meta">${esc(S.updated(fmtDate(meta.dataUpdated)))} · ${esc(F.notAdvice)}</p>`;
 }
 
-// The closest-coalitions rule (#32): an intro, what is included, the numbered sort order, then the closing rules.
+// The closest-coalitions rule (#32): an intro, what is included, how the list is ordered (6 steps), the closing line.
 function closestRuleHtml(M) {
   const R = M.closestRule;
   return `<h3 id="closest-rule" class="anchor" tabindex="-1">${esc(M.closestTitle)}</h3>
@@ -190,7 +190,8 @@ function closestRuleHtml(M) {
       <h4 class="rule-sub">${esc(R.includedTitle)}</h4>
       <ul class="rule-list">${R.included.map((t) => `<li>${esc(t)}</li>`).join('')}</ul>
       <h4 class="rule-sub">${esc(R.orderTitle)}</h4>
-      <ol class="rule-steps">${R.order.map(([t, note]) => `<li>${esc(t)}${note ? ` <span class="rule-note">${esc(note)}</span>` : ''}</li>`).join('')}</ol>
+      <p class="rule-order-intro">${esc(R.orderIntro)}</p>
+      <ol class="rule-steps">${R.order.map((t) => `<li>${esc(t)}</li>`).join('')}</ol>
       ${R.after.map((t) => `<p class="rule-after">${esc(t)}</p>`).join('')}
     </div>`;
 }
