@@ -1825,6 +1825,14 @@ try {
       if (vw <= 480) { if (!getComputedStyle(b).writingMode.startsWith('vertical')) bad.push('matrix header "' + b.textContent + '" is not vertical');
         else if (c.bottom - t.bottom > 12) bad.push('matrix header "' + b.textContent + '" is not next to the cells (' + Math.round(c.bottom - t.bottom) + 'px above)'); } });
     document.querySelectorAll('#results .seg').forEach((g) => { const l = g.querySelector('.seg-label'); if (out(textBox(l), g.getBoundingClientRect())) bad.push('overview label "' + l.textContent + '" leaves its tile'); });
+    // One card per column (#35): the header's box sits within its column, with a visible gap to the next one.
+    const hb = [...document.querySelectorAll('#matrix thead th')].map((th) => [th.getBoundingClientRect(), th.querySelector('.topic-btn').getBoundingClientRect(), th.querySelector('.topic-btn').textContent]);
+    for (const [c, b, name] of hb) if (b.left < c.left - .5 || b.right > c.right + .5) bad.push('matrix header card "' + name + '" is wider than its column');
+    const xs = hb.map(([, b]) => b).sort((p, q) => p.left - q.left);
+    // The same gap as the cells under them (the first row's cells), and at least 2px.
+    const cs = [...document.querySelectorAll('#matrix tbody tr:first-child .cell')].map((e) => e.getBoundingClientRect()).sort((p, q) => p.left - q.left);
+    const cellGap = Math.min(...cs.slice(1).map((r, i) => r.left - cs[i].right));
+    for (let i = 1; i < xs.length; i++) { const g = xs[i].left - xs[i - 1].right; if (g < Math.max(2, cellGap - 1)) bad.push('matrix header cards ' + g.toFixed(1) + 'px apart (cells: ' + cellGap.toFixed(1) + 'px)'); }
     // The confidence-vote line: each segment on one line (it wraps only between them).
     document.querySelectorAll('#results .vote-line .nw').forEach((e) => { const r = document.createRange(); r.selectNodeContents(e); if (new Set([...r.getClientRects()].map((x) => Math.round(x.top))).size > 1) bad.push('vote segment "' + e.textContent + '" breaks across lines'); });
     return bad; })()`;

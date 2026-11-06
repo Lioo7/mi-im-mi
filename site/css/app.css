@@ -258,10 +258,14 @@ details.axis summary { cursor: pointer; font-weight: 600; min-block-size: 32px; 
    the word's right end, reads top to bottom. In both the text sits at the end next to the cells. Horizontal Hebrew
    headers only fit while each word happened to fit its column, which a wider device font or larger text breaks. */
 @media (max-width: 480px) {
-  .topic-btn { writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap; inline-size: auto; min-inline-size: 6.8em; block-size: 100%; min-block-size: 0; padding: 6px 0; }
+  /* One card per column (#35): its physical width is the column's content width, like the cells under it, so the
+     headers have the same gaps as the cells (vertical text: width is the block size, so it is set physically). */
+  /* .matrix raises it above the later base rule (padding 4px 1px, min-block-size 30px), which in vertical text is a
+     30px minimum width. */
+  .matrix .topic-btn { writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap; inline-size: auto; min-inline-size: 6.8em; width: 100%; min-block-size: 0; margin: 0; padding: 6px 0; }
   /* After the rotation the bottom is the inline start in LTR and the inline end in RTL. */
-  [dir="ltr"] .topic-btn { text-align: start; }
-  [dir="rtl"] .topic-btn { text-align: end; letter-spacing: 0; }
+  [dir="ltr"] .matrix .topic-btn { text-align: start; }
+  [dir="rtl"] .matrix .topic-btn { text-align: end; letter-spacing: 0; }
 }
 .intro { font-size: 1.08rem; margin-block: 16px 4px; font-weight: 600; }
 h2 { margin-block-start: 1.2em; }
