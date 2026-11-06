@@ -367,6 +367,7 @@ h1, h2, h3 { color: var(--accent); }
 .seats-line { white-space: nowrap; }
 .seats-line { font-size: 1.05rem; }
 .seats-line.muted { white-space: normal; }
+.seats-line.vote-line { white-space: normal; }
 
 /* sticky bar: party count + button only */
 .bar { justify-content: space-between; }

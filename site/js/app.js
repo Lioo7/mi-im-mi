@@ -580,7 +580,8 @@ function voteHtml() {
   const n = (x) => S2.num(x, isResults());
   return {
     v,
-    html: `<p class="seats-line"><strong>${esc(S2.vote(n(v.for), n(v.against), n(v.abstain)))}</strong></p>
+    // Each segment ("בעד 61", "נגד 59", …) stays whole, and the line breaks only between them (#35: larger text, polls' ≈).
+    html: `<p class="seats-line vote-line"><strong>${S2.vote(n(v.for), n(v.against), n(v.abstain)).split(' · ').map((x) => `<span class="nw">${esc(x)}</span>`).join(' · ')}</strong></p>
       <p class="verdict ${v.approved ? 'is-yes' : 'is-no'}"><span aria-hidden="true">${v.approved ? '✓' : '✕'}</span> ${esc(v.approved ? S2.approved : S2.rejected)}</p>
       <p class="members-line">${esc(S2.membersLine(n(v.membersSeats), v.missing))}</p>`,
   };

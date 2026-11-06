@@ -1822,6 +1822,8 @@ try {
       if (vw <= 480) { if (!getComputedStyle(b).writingMode.startsWith('vertical')) bad.push('matrix header "' + b.textContent + '" is not vertical');
         else if (c.bottom - t.bottom > 12) bad.push('matrix header "' + b.textContent + '" is not next to the cells (' + Math.round(c.bottom - t.bottom) + 'px above)'); } });
     document.querySelectorAll('#results .seg').forEach((g) => { const l = g.querySelector('.seg-label'); if (out(textBox(l), g.getBoundingClientRect())) bad.push('overview label "' + l.textContent + '" leaves its tile'); });
+    // The confidence-vote line: each segment on one line (it wraps only between them).
+    document.querySelectorAll('#results .vote-line .nw').forEach((e) => { const r = document.createRange(); r.selectNodeContents(e); if (new Set([...r.getClientRects()].map((x) => Math.round(x.top))).size > 1) bad.push('vote segment "' + e.textContent + '" breaks across lines'); });
     return bad; })()`;
   const FIT_BUILD = `(() => { ${FIT_COMMON}
     document.querySelectorAll('.task').forEach((t, i) => { const c = t.getBoundingClientRect();
