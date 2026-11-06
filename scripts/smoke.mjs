@@ -1791,7 +1791,9 @@ try {
         await sleep(150);
         const got = await evaluate(WHY_JS(`${scope} .pair-row[open] .pair-detail`));
         const r = pr2[placed];
-        const want = r.d === 0 ? T.sheet.agree(nmL('together'), nmL('democrats')) : T.sheet.gapTitle(nmL('together'), nmL('democrats'), r.d);
+        // The card lists its members in party order (by ballot letters when seats are hidden); the pair view keeps p=.
+        const [x1, x2] = where === '2-member card' ? sortP(posCtx[l], ['together', 'democrats']) : ['together', 'democrats'];
+        const want = r.d === 0 ? T.sheet.agree(nmL(x1), nmL(x2)) : T.sheet.gapTitle(nmL(x1), nmL(x2), r.d);
         if (!got || !got.below || got.text !== want) errors.push(`[${current}] ${where} why row: ${JSON.stringify(got)}, want "${want}" under the badge`);
         const first = await evaluate(`document.querySelector('${scope} .pair-row[open] .pair-detail').firstElementChild?.className`);
         if (first !== 'why-row') errors.push(`[${current}] ${where}: the why row must open the expanded row (first: ${first})`);
@@ -1804,7 +1806,8 @@ try {
   // Fit (#35): at phone widths, with normal and enlarged text (root and body at 125%, standing in for a wider device
   // font such as Samsung's Hebrew one, or user text scaling): every matrix header's text stays inside its column and the
   // viewport, is vertical with its text next to the cells, the matrix and the page never scroll sideways, the overview
-  // labels stay inside their tiles, the header bar neither overflows nor overlaps, and the task cards hold their content.
+  // labels stay inside their tiles, the vote line breaks only between its segments, the header bar neither overflows nor
+  // overlaps, and the task cards hold their content.
   const FIT_COMMON = `const bad = []; const vw = document.documentElement.clientWidth;
     const textBox = (e) => { const r = document.createRange(); r.selectNodeContents(e); return r.getBoundingClientRect(); };
     const out = (t, c) => t.left < c.left - .5 || t.right > c.right + .5;
