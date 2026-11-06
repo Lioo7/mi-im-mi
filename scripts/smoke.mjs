@@ -1861,6 +1861,59 @@ try {
   }
   await setSize(SIZES[0]);
   log(`  ✓ fit: ${fitRuns} runs (360/375/390/412 × he/en × text 100%/125%): matrix headers, overview, header bar, task cards`);
+
+  // Never broken inside (#30/#31/#34): a party name, an outlet or person's name, or a number pair ("53 מול 67", "53 מתוך
+  // 61", "59 vs 61") stays on one line in the red-line lines, the "בלי X" rows, the completions card and the scenario
+  // sources, at 360/375 in both languages with normal and enlarged text. The pattern is built here and passed as JSON.
+  const reEsc = (x) => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const NOBREAK_JS = (sels, names) => {
+    const src = [...[...new Set(names)].sort((a, b) => b.length - a.length).map(reEsc), '≈?\\d[\\d,.]*(?: (?:מול|מתוך|vs|of) ≈?\\d[\\d,.]*)'].join('|');
+    return `(() => { const bad = []; let seen = 0; const re = new RegExp(${JSON.stringify(src)}, 'g');
+      for (const root of document.querySelectorAll(${JSON.stringify(sels.join(', '))})) {
+        const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+        for (let n = w.nextNode(); n; n = w.nextNode()) for (const m of n.data.matchAll(re)) {
+          if (!m[0].includes(' ')) continue;
+          seen++;
+          const r = document.createRange(); r.setStart(n, m.index); r.setEnd(n, m.index + m[0].length);
+          if (new Set([...r.getClientRects()].filter((x) => x.width > 0).map((x) => Math.round(x.top))).size > 1) bad.push('"' + m[0] + '" breaks across lines');
+        }
+      }
+      return { bad, seen }; })()`;
+  };
+  let nbRuns = 0;
+  let nbSeen = 0;
+  if (RESULTS) {
+    const { scenarios } = loadData();
+    for (const w of [360, 375]) {
+      await c.send('Emulation.setDeviceMetricsOverride', { width: w, height: 800, deviceScaleFactor: 2, mobile: true });
+      for (const l of ['he', 'en']) {
+        const loc = (x) => (l === 'en' ? { ...x, ...x.en } : x);
+        const names = [...posCtx[l].parties.map((p) => p.name), ...scenarios.scenarios.flatMap((sc) => sc.sources.map(loc)).flatMap((x) => [x.outlet, x.by]).filter(Boolean)];
+        const L = l === 'en' ? '&l=en' : '';
+        for (const pct of [100, 125]) {
+          step(`nobreak-${l}@${w}-${pct}%`);
+          nbRuns++;
+          for (const [url, sels, ready] of [
+            [`#results?m=yashar,together,democrats,yisrael-beiteinu,utj,shas${L}`, ['#results .redlines-line', '#results .pivotal'], "document.querySelector('#results .pivotal li') !== null"],
+            [`#results?m=yashar,together,democrats,yisrael-beiteinu${L}`, ['#results .completions'], "document.querySelector('#results .completions li') !== null"],
+            [`#build${l === 'en' ? '?l=en' : ''}`, ['#presets .scen-src'], "document.querySelector('#presets .scen-src') !== null"],
+          ]) {
+            await go(`${baseUrl}${url}`);
+            await waitFor(() => evaluate(ready));
+            await evaluate("(() => { const d = document.querySelector('#presets details'); if (d) d.open = true; return true; })()");
+            await evaluate(ENLARGE(pct));
+            await sleep(250);
+            const r = await evaluate(NOBREAK_JS(sels, names));
+            nbSeen += r.seen;
+            for (const b of r.bad) errors.push(`[${current} ${url.split('?')[0]}] ${b}`);
+          }
+        }
+      }
+    }
+    if (!nbSeen) errors.push('[nobreak] the check found no names or number pairs to check');
+    await setSize(SIZES[0]);
+    log(`  ✓ never broken inside: ${nbRuns} runs (360/375 × he/en × 100%/125%), ${nbSeen} names and number pairs checked`);
+  }
   c.close();
 } catch (e) {
   errors.push(`smoke failed: ${e.message}`);

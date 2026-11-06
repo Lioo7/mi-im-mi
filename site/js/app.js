@@ -58,6 +58,17 @@ const outsideChip = (text) => `<span class="outside">${esc(text)}</span>`;
 const outsideParty = (id) => S.results.outsideParty(name(id), S.results.roleName[roleOf(id)]);
 const passedIds = () => ctx.parties.filter((p) => ctx.passed(p.id)).map((p) => p.id);
 
+// A party name, an outlet name or a number pair never breaks inside (#30, #31, #34): plain text in, HTML out, with each
+// of the given names and every "53 מול 67" / "53 מתוך 61" / "59 vs 61" / "53 of 61" in a nowrap span. One pass, so a
+// name inside another name is not wrapped twice; longer names win.
+const reEscape = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const NUM_PAIR = '≈?\\d[\\d,.]*(?: (?:מול|מתוך|vs|of) ≈?\\d[\\d,.]*)';
+function keepWhole(text, names = []) {
+  const alts = [...new Set(names.filter(Boolean).map(esc))].sort((a, b) => b.length - a.length).map(reEscape);
+  return esc(text).replace(new RegExp([...alts, NUM_PAIR].join('|'), 'g'), (m) => `<span class="nw">${m}</span>`);
+}
+const partyNames = () => ctx.parties.map((p) => p.name);
+
 function levelBadge(level, extraClass = '') {
   const l = S.levels[level] ?? S.levels.NONE;
   return `<span class="lv lv-${level} ${extraClass}"><span aria-hidden="true">${l.icon}</span> ${esc(l.label)}</span>`;
@@ -334,7 +345,7 @@ function renderScenarios() {
   const P = S.presets;
   const items = scenarioList().map((sc) => `<li class="scenario">
     <button type="button" class="preset" data-act="scenario" data-id="${esc(sc.id)}" data-key="scenario-${esc(sc.id)}">${esc(sc.label)}</button>
-    <p class="scen-src">${esc(P.sourcesLabel(sc.sources.length))} ${sc.sources.map((x) => C.localize(x, lang)).map((src) => `${src.denialBy ? esc(P.denialBy(name(src.denialBy))) : ''}${src.by ? esc(P.personIn(src.by)) : ''}<a href="${esc(src.url)}" rel="noopener" target="_blank">${bidi(src.outlet)}</a>, ${esc(P.shortDate(src.date))}`).join(' · ')}</p>
+    <p class="scen-src">${esc(P.sourcesLabel(sc.sources.length))} ${sc.sources.map((x) => C.localize(x, lang)).map((src) => `${src.denialBy ? keepWhole(P.denialBy(name(src.denialBy)), [name(src.denialBy)]) : ''}${src.by ? keepWhole(P.personIn(src.by), [src.by]) : ''}<span class="nw"><a href="${esc(src.url)}" rel="noopener" target="_blank">${bidi(src.outlet)}</a>, ${esc(P.shortDate(src.date))}</span>`).join(' · ')}</p>
   </li>`).join('');
   const asOf = P.shortDate(scenarioData.asOf);
   $('#presets').innerHTML = startFrom(P.scenariosStart(scenarioList().length, asOf), `
@@ -601,8 +612,10 @@ function pivotalHtml() {
   const S2 = S.seats;
   const n = (x) => S2.num(x, isResults());
   const rows = C.pivotal(ctx, state).map((p) => {
-    const row = esc(S2.pivotalRow(name(p.partyId), p.role, p.breaksMajority ? n(p.vote.membersSeats) : null, n(p.vote.for), n(p.vote.against)));
-    return `<li>${p.role === 'member' ? row : row.replace(esc(name(p.partyId)), () => outsideChip(name(p.partyId)))}</li>`;
+    const text = S2.pivotalRow(name(p.partyId), p.role, p.breaksMajority ? n(p.vote.membersSeats) : null, n(p.vote.for), n(p.vote.against));
+    // Each name and number pair stays whole; a party outside the coalition gets the neutral marker instead.
+    const row = p.role === 'member' ? keepWhole(text, [name(p.partyId)]) : keepWhole(text).replace(esc(name(p.partyId)), () => outsideChip(name(p.partyId)));
+    return `<li>${row}</li>`;
   }).join('');
   return `<div class="pivotal muted small"><p>${esc(S2.pivotalIntro(v.membersMajority))}</p>${rows ? `<ul>${rows}</ul>` : `<p>${esc(S2.pivotalNone)}</p>`}</div>`;
 }
@@ -877,9 +890,9 @@ function completionsCard() {
     const red = c.newRedLines.length ? K.newRedLines(c.newRedLines.length, redList(c.newRedLines)) : K.noNewRedLines;
     return `<li><button type="button" class="row-btn completion" data-act="complete" data-ids="${c.add.join(',')}" data-key="complete-${c.add.join('-')}"
       aria-label="${esc(K.aria(names.join(', '), meta.join(', '), red))}">
-      <span class="row-title">+ ${esc(names.join(' + '))}</span>
+      <span class="row-title">+ ${keepWhole(names.join(' + '), partyNames())}</span>
       <span class="row-meta muted small">${esc(meta.join(' · '))}</span>
-      <span class="row-meta small">${c.newRedLines.length ? `<span class="tag tag-red"><span aria-hidden="true">🚩</span> ${esc(red)}</span>` : `<span class="muted">${esc(red)}</span>`}</span>
+      <span class="row-meta small">${c.newRedLines.length ? `<span class="tag tag-red"><span aria-hidden="true">🚩</span> ${keepWhole(red, partyNames())}</span>` : `<span class="muted">${esc(red)}</span>`}</span>
     </button></li>`;
   }).join('');
   const toggle = total > COMPLETIONS_SHOWN
@@ -889,7 +902,7 @@ function completionsCard() {
     <p class="note note-soft">${esc(K.note)}</p>
     ${isResults() ? '' : pollLegalLine()}
     <p class="muted small">${esc(K.intro(n(v.membersSeats)))}</p>
-    ${currentRedLines.length ? `<p class="small"><span class="tag tag-red tag-box"><span aria-hidden="true">🚩</span> ${esc(K.currentRedLines(currentRedLines.length, redList(currentRedLines)))}</span></p>` : ''}
+    ${currentRedLines.length ? `<p class="small"><span class="tag tag-red tag-box"><span aria-hidden="true">🚩</span> ${keepWhole(K.currentRedLines(currentRedLines.length, redList(currentRedLines)), partyNames())}</span></p>` : ''}
     ${list.length ? `<ul class="list">${items}</ul>${toggle}` : `<p>${esc(K.none)}</p>`}
   </section>`;
 }
@@ -904,7 +917,7 @@ function syncResbarHeight() {
 function redLinesLine() {
   const crossed = C.redLinesCrossed(ctx, state.members);
   return crossed.length
-    ? `<p class="small redlines-line"><span class="tag tag-red tag-box"><span aria-hidden="true">🚩</span> ${esc(S.results.redLinesCrossed(crossed.length, redList(crossed)))}</span></p>`
+    ? `<p class="small redlines-line"><span class="tag tag-red tag-box"><span aria-hidden="true">🚩</span> ${keepWhole(S.results.redLinesCrossed(crossed.length, redList(crossed)), partyNames())}</span></p>`
     : `<p class="muted small redlines-line">${esc(S.results.noRedLinesCrossed)}</p>`;
 }
 
