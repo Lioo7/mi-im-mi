@@ -1854,6 +1854,15 @@ try {
         await evaluate(ENLARGE(pct));
         await sleep(250);
         for (const b of await evaluate(FIT_RESULTS)) errors.push(`[${current}] ${b}`);
+        // The header on one line at normal text size (#35), also with a wider device font (simulated: +0.08em letter
+        // spacing, about 15% wider), which the tight step absorbs. It may wrap only with enlarged text.
+        if (pct === 100) {
+          const oneLine = async (ls) => evaluate(`(() => { const bar = document.querySelector('.topbar-in'); bar.style.setProperty('letter-spacing', '${ls}em'); dispatchEvent(new Event('resize'));
+            const [a, b] = [bar.querySelector('.brand'), bar.querySelector('.topnav')].map((e) => e.getBoundingClientRect()); const one = !(b.top >= a.bottom - 1 || a.top >= b.bottom - 1);
+            const fits = bar.scrollWidth <= bar.clientWidth + 1; bar.style.removeProperty('letter-spacing'); dispatchEvent(new Event('resize')); return one && fits; })()`);
+          if (!(await oneLine(0))) errors.push(`[${current}] the header bar wraps at normal text size`);
+          if (!(await oneLine(0.08))) errors.push(`[${current}] the header bar wraps with a slightly wider font (the tight step should absorb it)`);
+        }
         if (w === 375 && pct === 100) {
           // The matrix at 375 in each language, for the report (smoke/matrix-<lang>-375.png).
           const clip = await evaluate("(() => { const t = document.querySelector('#matrix .table-wrap'); const r = t.getBoundingClientRect(); return { x: 0, y: r.top + scrollY - 8, width: innerWidth, height: Math.ceil(r.height) + 16, scale: 1 }; })()");
@@ -1869,7 +1878,7 @@ try {
     }
   }
   await setSize(SIZES[0]);
-  log(`  ✓ fit: ${fitRuns} runs (360/375/390/412 × he/en × text 100%/125%): matrix headers, overview, header bar, task cards`);
+  log(`  ✓ fit: ${fitRuns} runs (360/375/390/412 × he/en × text 100%/125%): matrix headers (one card per column), overview, header bar (one line at 100%, also with a wider font), task cards`);
 
   // Never broken inside (#30/#31/#34): a party name, an outlet or person's name, or a number pair ("53 מול 67", "53 מתוך
   // 61", "59 vs 61") stays on one line in the red-line lines, the "בלי X" rows, the completions card and the scenario

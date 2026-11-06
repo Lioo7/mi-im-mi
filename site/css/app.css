@@ -244,6 +244,13 @@ details.axis summary { cursor: pointer; font-weight: 600; min-block-size: 32px; 
 /* Larger text or a wider device font: the header wraps (the language switch drops to a second line) rather than
    pushing the page sideways (#35). */
 .topbar-in { flex-wrap: wrap; row-gap: 0; }
+/* Set by app.js (fitTopbar) only when the items would wrap: a smaller brand and tighter spacing first. The 16px between
+   the brand and the nav stays. */
+.topbar-in.is-tight .brand { font-size: 1rem; gap: 5px; }
+.topbar-in.is-tight .logo { inline-size: 24px; block-size: 32px; }
+.topbar-in.is-tight .topnav { gap: 6px; }
+.topbar-in.is-tight .langswitch { gap: 4px; padding-inline-start: 6px; }
+.topbar-in.is-tight .navlink { padding-inline: 2px; }
 @media (max-width: 600px) {
   .segs { grid-template-columns: repeat(4, 1fr); }
 }

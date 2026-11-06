@@ -138,6 +138,19 @@ function toast(text, ms = 5000) {
 }
 
 // ---------- static sections ----------
+// The header stays on one line whenever it can (#35). Its items may wrap (flex-wrap), but first the tighter brand and
+// spacing (is-tight) is tried. Only when even that does not fit, as with enlarged text, does the switch drop to a
+// second line. A device font wider than ours (Samsung's Hebrew font) can need the tight step at normal text size.
+function fitTopbar() {
+  const bar = $('.topbar-in');
+  const wrapped = () => {
+    const [a, b] = [bar.querySelector('.brand'), bar.querySelector('.topnav')].map((e) => e.getBoundingClientRect());
+    return b.top >= a.bottom - 1 || a.top >= b.bottom - 1;
+  };
+  bar.classList.remove('is-tight');
+  if (wrapped()) bar.classList.add('is-tight');
+}
+
 function renderHeader() {
   // Both languages, each named in its own language: the current one as plain text, the other a button that switches.
   const sw = $('#lang-switch');
@@ -150,6 +163,7 @@ function renderHeader() {
   $('#lang-note').textContent = S.translatedNote;
   $('#brand-name').textContent = S.appName;
   $('#nav-method').innerHTML = `<span class="nav-long">${esc(S.nav.method)}</span><span class="nav-short">${esc(S.nav.methodShort)}</span>`;
+  fitTopbar();
   $('#intro').textContent = S.buildIntro(ctx.topics.length);
   $('#purpose').textContent = S.buildPurpose;
   if (isResults()) {
@@ -1423,7 +1437,8 @@ function onClick(e) {
 function bind() {
   document.addEventListener('click', onClick);
   window.addEventListener('hashchange', () => route());
-  window.addEventListener('resize', () => { if (view === 'results') syncResbarHeight(); });
+  window.addEventListener('resize', () => { fitTopbar(); if (view === 'results') syncResbarHeight(); });
+  document.fonts?.ready.then(fitTopbar);
   for (const ev of ['resize', 'scroll']) window.visualViewport?.addEventListener(ev, () => { if ($('#sheet').open) fitSheet(); });
   document.addEventListener('change', (e) => {
     const el = e.target.closest('select[data-act="compare"]');
