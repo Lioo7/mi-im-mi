@@ -6,7 +6,8 @@
 // Usage: node scripts/smoke.mjs [baseUrl]   (default: serves ./site on a local port)
 // Bounded (#27): every CDP call times out (SMOKE_STEP_MS, default 15s) with the step's name, an overall watchdog
 // (SMOKE_WATCHDOG_MS, default 20 min) ends a stuck run, and Chrome (its own process group) is killed on any exit.
-// Leftover smoke Chromes (--user-data-dir=…/smoke-chrome-*) are killed before a run, so run one smoke at a time.
+// Leftover smoke Chromes (--user-data-dir=…/smoke-chrome-<owner pid>-*) are killed before a run when their owning run has
+// ended, so runs can overlap (--mode=all runs the three modes at once, each with its own server, Chrome and folder).
 // Progress is written synchronously, and to smoke/progress.log. SMOKE_SIMULATE_HANG=1 forces a CDP call that never answers.
 import { spawn, execFileSync } from 'node:child_process';
 import { createServer } from 'node:http';
@@ -135,7 +136,7 @@ function cdp(wsUrl) {
   };
 }
 
-// Options (#37). --mode: which data mode to test; a local run serves site/ with meta.json's mode overridden, so no
+// Options (#37). --mode: which data mode to test (all: the three in parallel); a local run serves site/ with meta.json's mode overridden, so no
 // scratch copies are needed (a remote run tests the deployed mode). --only: a comma-separated list of SECTIONS.
 // --shots: save screenshots (otherwise only a failing first-load legal check saves one).
 const SECTIONS = ['views', 'legal', 'narrow', 'headers', 'interaction', 'closest', 'cells', 'fragment', 'en-views', 'en-interaction',
@@ -144,12 +145,12 @@ const MODES = { results: { mode: 'results' }, polls: { mode: 'polls', showSeats:
 const args = process.argv.slice(2);
 const opt = (k) => args.find((a) => a.startsWith(`--${k}=`))?.slice(k.length + 3);
 const base = args.find((a) => !a.startsWith('--'));
-const usage = (msg) => { logErr(`✗ ${msg}\n  usage: node scripts/smoke.mjs [baseUrl] [--mode=${Object.keys(MODES).join('|')}] [--only=<section,…>] [--shots]\n  sections: ${SECTIONS.join(', ')}`); process.exit(2); };
+const usage = (msg) => { logErr(`✗ ${msg}\n  usage: node scripts/smoke.mjs [baseUrl] [--mode=${Object.keys(MODES).join('|')}|all] [--only=<section,…>] [--shots]\n  sections: ${SECTIONS.join(', ')}`); process.exit(2); };
 for (const a of args.filter((x) => x.startsWith('--'))) if (!/^--(mode|only)=.|^--shots$/.test(a)) usage(`unknown option ${a}`);
 const dataMeta = loadData().meta;
 const dataMode = dataMeta.mode === 'results' ? 'results' : dataMeta.showSeats === false ? 'hidden' : 'polls';
 const MODE = opt('mode') ?? dataMode;
-if (!MODES[MODE]) usage(`unknown mode "${MODE}"`);
+if (!MODES[MODE] && MODE !== 'all') usage(`unknown mode "${MODE}"`);
 if (base && MODE !== dataMode) usage(`a remote run tests the deployed mode (${dataMode}), not --mode=${MODE}`);
 const SHOTS = args.includes('--shots');
 const ONLY = new Set(opt('only')?.split(',') ?? SECTIONS);
@@ -157,6 +158,31 @@ for (const s of ONLY) if (!SECTIONS.includes(s)) usage(`unknown section "${s}"`)
 OUT = join(SMOKE, base ? 'remote' : MODE);
 LOG = join(OUT, 'smoke.log');
 const rel = (p) => p.slice(ROOT.length + 1);
+
+// --mode=all: one child run per mode, at the same time. Each prints its own errors and rerun command; this prints a line
+// per mode and passes those on.
+if (MODE === 'all') {
+  rmSync(SMOKE, { recursive: true, force: true });
+  const rest = args.filter((a) => !a.startsWith('--mode='));
+  const kids = [];
+  const runs = Object.keys(MODES).map((m) => new Promise((resolve) => {
+    const t = Date.now();
+    const p = spawn(process.execPath, [process.argv[1], `--mode=${m}`, ...rest], { stdio: ['ignore', 'pipe', 'pipe'] });
+    kids.push(p);
+    let out = '';
+    let err = '';
+    p.stdout.on('data', (d) => { out += d; });
+    p.stderr.on('data', (d) => { err += d; });
+    p.on('close', (code) => resolve({ m, ok: code === 0, out, err, s: Math.round((Date.now() - t) / 1000) }));
+  }));
+  for (const sig of ['SIGINT', 'SIGTERM', 'SIGHUP']) process.on(sig, () => { for (const p of kids) p.kill('SIGTERM'); });
+  const done = await Promise.all(runs);
+  for (const r of done) {
+    const timing = r.out.split('\n').map((l) => l.trim()).find((l) => l.startsWith(`${r.m}: `)) ?? `${r.m}: ${r.s}s`;
+    writeSync(r.ok ? 1 : 2, `${r.ok ? '✓' : '✗'} ${timing}\n${r.ok ? '' : r.err}`);
+  }
+  process.exit(done.every((r) => r.ok) ? 0 : 1);
+}
 
 const { parties, topics, meta, results } = loadData();
 Object.assign(meta, MODES[MODE]);
@@ -292,15 +318,25 @@ const PIVOTAL_JS = `(() => { const o = document.querySelector('#results .overall
 const server = base ? null : await serve();
 const baseUrl = (base ?? server.url).replace(/\/?$/, '/');
 const onProd = new URL(baseUrl).hostname === PROD_HOST;
-// Leftover smoke Chromes only (matched by their profile), never the user's browser.
-try { execFileSync('pkill', ['-9', '-f', '--user-data-dir=[^ ]*/smoke-chrome-'], { stdio: 'ignore' }); } catch { /* none running */ }
-// With those gone, any smoke-chrome-* profile left in the temp dir is stale.
-for (const d of readdirSync(tmpdir()).filter((n) => n.startsWith('smoke-chrome-'))) removeDir(join(tmpdir(), d));
-const profile = mkdtempSync(join(tmpdir(), 'smoke-chrome-'));
-const port = 9300 + Math.floor(Math.random() * 100);
-// Its own process group (detached), so killing the group takes its helper processes too.
+// Leftover smoke Chromes only (matched by their profile, smoke-chrome-<owner pid>-…), never the user's browser, and only
+// when the run that started them has ended (a profile from before the owner pid counts as stale). Only processes running
+// from Chrome's own bundle: any other command line may mention such a profile (a shell running a test of this).
+const alive = (pid) => { try { process.kill(pid, 0); return true; } catch (e) { return e.code === 'EPERM'; } };
+const stale = (name) => { const owner = Number(/^smoke-chrome-(\d+)-/.exec(name)?.[1] ?? 0); return !owner || !alive(owner); };
+const CHROME_HOME = CHROME.includes('.app/') ? CHROME.slice(0, CHROME.indexOf('.app/') + 5) : CHROME;
+try {
+  for (const line of execFileSync('ps', ['-axww', '-o', 'pid=,command='], { encoding: 'utf8' }).split('\n')) {
+    const [, pid, command] = /^\s*(\d+)\s+(.*)$/.exec(line) ?? [];
+    const profileName = command?.startsWith(CHROME_HOME) && /--user-data-dir=\S*\/(smoke-chrome-[^\s/]+)/.exec(command)?.[1];
+    if (profileName && stale(profileName)) try { process.kill(Number(pid), 'SIGKILL'); } catch { /* already gone */ }
+  }
+} catch { /* no ps */ }
+for (const d of readdirSync(tmpdir()).filter((n) => n.startsWith('smoke-chrome-') && stale(n))) removeDir(join(tmpdir(), d));
+const profile = mkdtempSync(join(tmpdir(), `smoke-chrome-${process.pid}-`));
+// Its own process group (detached), so killing the group takes its helper processes too. Port 0: Chrome picks a free
+// port and writes it to DevToolsActivePort in the profile.
 const chrome = spawn(CHROME, [
-  '--headless=new', `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`,
+  '--headless=new', '--remote-debugging-port=0', `--user-data-dir=${profile}`,
   '--no-first-run', '--no-default-browser-check', '--hide-scrollbars', '--lang=he', 'about:blank',
 ], { stdio: 'ignore', detached: true });
 // Chrome may still be exiting after SIGKILL: retry briefly (synchronously, so 'exit' handlers can use it).
@@ -354,6 +390,7 @@ try {
   // Files from before the per-mode folders (smoke/*.png, progress.log).
   for (const f of readdirSync(SMOKE)) try { if (!statSync(join(SMOKE, f)).isDirectory()) rmSync(join(SMOKE, f), { force: true }); } catch { /* another run removed it */ }
   step('start');
+  const port = await waitFor(() => Number(readFileSync(join(profile, 'DevToolsActivePort'), 'utf8').split('\n')[0]));
   const targets = await waitFor(() => fetch(`http://127.0.0.1:${port}/json/list`).then((r) => r.json()));
   const page = targets.find((t) => t.type === 'page');
   const c = cdp(page.webSocketDebuggerUrl);
