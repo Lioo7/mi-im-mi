@@ -1,9 +1,11 @@
-// Smoke test: opens each view in headless Chrome at phone (390px) and desktop (1280px) width, saves screenshots,
+// Smoke test: opens each view in headless Chrome at phone (390px) and desktop (1280px) width (screenshots with --shots),
 // and fails on console errors, page overflow, routing mistakes, or a GoatCounter beacon that carries coalition data.
 // Beacons: against production every beacon is checked (and never sent); on any other host none may be sent at all.
 // Zero installs: drives Chrome over the DevTools protocol with Node's built-in WebSocket.
 // Headers: local runs send netlify.toml's headers, so the CSP is enforced; remote runs check the served header matches.
-// Usage: node scripts/smoke.mjs [baseUrl]   (default: serves ./site on a local port)
+// Usage: node scripts/smoke.mjs [baseUrl] [options]   (default: serves ./site on a local port; options below, #37)
+// --light (a deploy, #37): every file in site/ served byte for byte, every netlify.toml header, and the views at phone
+// width in both languages, so a production run still checks every beacon. The full suite runs locally before the draft.
 // Bounded (#27): every CDP call times out (SMOKE_STEP_MS, default 15s) with the step's name, an overall watchdog
 // (SMOKE_WATCHDOG_MS, default 20 min) ends a stuck run, and Chrome (its own process group) is killed on any exit.
 // Leftover smoke Chromes (--user-data-dir=…/smoke-chrome-<owner pid>-*) are killed before a run when their owning run has
@@ -139,21 +141,26 @@ function cdp(wsUrl) {
 // Options (#37). --mode: which data mode to test (all: the three in parallel); a local run serves site/ with meta.json's mode overridden, so no
 // scratch copies are needed (a remote run tests the deployed mode). --only: a comma-separated list of SECTIONS.
 // --shots: save screenshots (otherwise only a failing first-load legal check saves one).
-const SECTIONS = ['views', 'legal', 'narrow', 'headers', 'interaction', 'closest', 'cells', 'fragment', 'en-views', 'en-interaction',
+const SECTIONS = ['views', 'legal', 'narrow', 'headers', 'files', 'interaction', 'closest', 'cells', 'fragment', 'en-views', 'en-interaction',
   'pair', 'tasks', 'undo', 'layout', 'party-sheet', 'fit', 'nobreak'];
+const LIGHT_SECTIONS = ['files', 'headers', 'views', 'en-views'];
 const MODES = { results: { mode: 'results' }, polls: { mode: 'polls', showSeats: true }, hidden: { mode: 'polls', showSeats: false } };
 const args = process.argv.slice(2);
 const opt = (k) => args.find((a) => a.startsWith(`--${k}=`))?.slice(k.length + 3);
 const base = args.find((a) => !a.startsWith('--'));
-const usage = (msg) => { logErr(`✗ ${msg}\n  usage: node scripts/smoke.mjs [baseUrl] [--mode=${Object.keys(MODES).join('|')}|all] [--only=<section,…>] [--shots]\n  sections: ${SECTIONS.join(', ')}`); process.exit(2); };
-for (const a of args.filter((x) => x.startsWith('--'))) if (!/^--(mode|only)=.|^--shots$/.test(a)) usage(`unknown option ${a}`);
+const usage = (msg) => { logErr(`✗ ${msg}\n  usage: node scripts/smoke.mjs [baseUrl] [--mode=${Object.keys(MODES).join('|')}|all] [--only=<section,…> | --light] [--shots]\n  sections: ${SECTIONS.join(', ')}`); process.exit(2); };
+for (const a of args.filter((x) => x.startsWith('--'))) if (!/^--(mode|only)=.|^--(shots|light)$/.test(a)) usage(`unknown option ${a}`);
 const dataMeta = loadData().meta;
 const dataMode = dataMeta.mode === 'results' ? 'results' : dataMeta.showSeats === false ? 'hidden' : 'polls';
 const MODE = opt('mode') ?? dataMode;
 if (!MODES[MODE] && MODE !== 'all') usage(`unknown mode "${MODE}"`);
 if (base && MODE !== dataMode) usage(`a remote run tests the deployed mode (${dataMode}), not --mode=${MODE}`);
 const SHOTS = args.includes('--shots');
-const ONLY = new Set(opt('only')?.split(',') ?? SECTIONS);
+const LIGHT = args.includes('--light');
+if (LIGHT && opt('only')) usage('--light runs its own sections; leave out --only');
+const ONLY = new Set(LIGHT ? LIGHT_SECTIONS : opt('only')?.split(',') ?? SECTIONS);
+// The view sections run at phone width only in a light run.
+const VIEW_SIZES = LIGHT ? [SIZES[0]] : SIZES;
 for (const s of ONLY) if (!SECTIONS.includes(s)) usage(`unknown section "${s}"`);
 OUT = join(SMOKE, base ? 'remote' : MODE);
 LOG = join(OUT, 'smoke.log');
@@ -493,7 +500,7 @@ try {
     await setSize(z);
   };
 
-  if (sec('views')) for (const z of SIZES) {
+  if (sec('views')) for (const z of VIEW_SIZES) {
     await setSize(z);
     for (const [name, suffix, expectView] of cases) {
       step(`${name}@${z.width}`);
@@ -756,16 +763,38 @@ try {
     log(`  ✓ 360px: ${narrow.length} views × he, en (outside-party markers inside the page)`);
   }
 
-  // The served CSP is netlify.toml's. Netlify's "Powered by Netlify" badge is off (a project setting in the dashboard,
-  // #26): if it is ever turned back on, its injected script would need CSP exceptions we removed, so fail loudly.
-  const csp = siteHeaders()['Content-Security-Policy'];
+  // The served headers are netlify.toml's, every one of them (Netlify drops the space after a comma). Netlify's "Powered by
+  // Netlify" badge is off (a project setting in the dashboard, #26): if it is ever turned back on, its injected script
+  // would need CSP exceptions we removed, so fail loudly.
   if (base && sec('headers')) {
     step('headers');
-    const served = (await fetch(baseUrl, { method: 'HEAD' })).headers.get('content-security-policy');
-    if (served !== csp) errors.push(`[headers] the served CSP differs from netlify.toml:\n    served: ${served}\n    toml:   ${csp}`);
-    const html = await (await fetch(baseUrl)).text();
-    if (/\/\.netlify\/scripts\/hud|data-nf-variant/.test(html)) errors.push('[headers] Netlify injects its badge script again: turn the badge off in Project configuration > General > Powered by Netlify badge');
-    log('  ✓ served CSP matches netlify.toml; no injected badge script');
+    const res = await fetch(baseUrl);
+    const norm = (v) => v?.replace(/,\s+/g, ',');
+    for (const [k, v] of Object.entries(siteHeaders())) {
+      const served = res.headers.get(k);
+      if (norm(served) !== norm(v)) errors.push(`[headers] the served ${k} differs from netlify.toml:\n    served: ${served}\n    toml:   ${v}`);
+    }
+    if (/\/\.netlify\/scripts\/hud|data-nf-variant/.test(await res.text())) errors.push('[headers] Netlify injects its badge script again: turn the badge off in Project configuration > General > Powered by Netlify badge');
+    log(`  ✓ served headers match netlify.toml (${Object.keys(siteHeaders()).length}); no injected badge script`);
+  }
+  // The deploy serves exactly site/: every file, byte for byte (so the tested draft is what goes live).
+  if (base && sec('files')) {
+    step('files');
+    const dir = join(ROOT, 'site');
+    const files = readdirSync(dir, { recursive: true }).filter((f) => !f.split(/[\\/]/).some((x) => x.startsWith('.')) && statSync(join(dir, f)).isFile());
+    // Netlify adds a hosting comment to HTML at its edge (seen 8.11.2026; not a script, so the CSP is unaffected). That
+    // exact comment is left out of the comparison and reported; anything else that differs fails.
+    const NETLIFY_COMMENT = /<!-- This site is hosted on Netlify\.[^]*?-->\n?/;
+    const differ = [];
+    const commented = [];
+    await Promise.all(files.map(async (f) => {
+      const r = await fetch(new URL(f.split(/[\\/]/).map(encodeURIComponent).join('/'), baseUrl));
+      let got = Buffer.from(await r.arrayBuffer());
+      if (f.endsWith('.html') && NETLIFY_COMMENT.test(got.toString('utf8'))) { commented.push(f); got = Buffer.from(got.toString('utf8').replace(NETLIFY_COMMENT, '')); }
+      if (!r.ok || !got.equals(readFileSync(join(dir, f)))) differ.push(`${f} (HTTP ${r.status}, ${got.length} bytes served, ${statSync(join(dir, f)).size} in site/)`);
+    }));
+    if (differ.length) errors.push(`[files] the deploy differs from site/: ${differ.sort().join(', ')}`);
+    log(`  ✓ ${files.length} files served exactly as in site/${commented.length ? ` (Netlify's hosting comment left out of ${commented.join(', ')})` : ''}`);
   }
 
   // Interactions at phone width: pick a preset on the build view, open the poll note, go to results, open a cell, come back.
@@ -1303,7 +1332,7 @@ try {
     if (rows.some((r) => Math.abs(mid(r) - mid(rows[0])) > 8 || r.height > 56)) return 'header wraps: ' + rows.map((r) => Math.round(r.top) + '/' + Math.round(r.height)).join(' ');
     return 'ok'; })()`;
   const EN_POLL_TEXT = /\bseats?\b|\bpolls?\b|at the threshold|of 61|\(61\+\)|≈\d/i;
-  if (sec('en-views')) for (const z2 of SIZES) {
+  if (sec('en-views')) for (const z2 of VIEW_SIZES) {
     await setSize(z2);
     for (const [name, suffix, expectView] of enCases) {
       step(`en-${name}@${z2.width}`);
