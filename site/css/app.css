@@ -269,7 +269,8 @@ details.axis summary { cursor: pointer; font-weight: 600; min-block-size: 32px; 
      headers have the same gaps as the cells (vertical text: width is the block size, so it is set physically). */
   /* .matrix raises it above the later base rule (padding 4px 1px, min-block-size 30px), which in vertical text is a
      30px minimum width. */
-  .matrix .topic-btn { writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap; inline-size: auto; min-inline-size: 6.8em; width: 100%; min-block-size: 0; margin: 0; padding: 6px 0; }
+  /* 12px (#11): the base rule's .62rem (about 10px) was too small to read. */
+  .matrix .topic-btn { writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap; inline-size: auto; min-inline-size: 6.8em; width: 100%; min-block-size: 0; margin: 0; padding: 6px 0; font-size: .75rem; }
   /* After the rotation the bottom is the inline start in LTR and the inline end in RTL. */
   [dir="ltr"] .matrix .topic-btn { text-align: start; }
   [dir="rtl"] .matrix .topic-btn { text-align: end; letter-spacing: 0; }
