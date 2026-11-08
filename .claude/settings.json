@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "ask": [
+      "Bash(netlify deploy --prod *)",
+      "Bash(netlify deploy * --prod *)",
+      "Bash(netlify deploy * --prod)",
+      "Bash(netlify api restoreSiteDeploy *)",
+      "Bash(git push *)",
+      "Bash(git push)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/guard-positions.mjs" }
+        ]
+      }
+    ]
+  }
+}

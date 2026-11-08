@@ -5,3 +5,4 @@
 .DS_Store
 node_modules/
 /docs/media/*.mp4
+.claude/settings.local.json
