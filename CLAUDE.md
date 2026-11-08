@@ -2,10 +2,16 @@
 Static, Hebrew, RTL web app showing where possible coalition partners clash or agree across 8 topics, for the Knesset 26 elections (27.10.2026). Since 1.11 it runs in results mode (CEC seats, party roles, investiture vote). Since 2.11 it is also in English (`l=en`; Hebrew is authoritative). Vanilla JS, no build, no dependencies; deployed from `site/` to Netlify (`mi-im-mi-2026`, https://mi-im-mi-2026.netlify.app). Current state: README.md, this file, `docs/research/decisions.md`. PLAN.md is the historical plan (24–25.10).
 
 ## ⚠️ The site is live
-The site is no longer frozen (1.11): changes under `site/` are allowed as part of agreed work. **A production deploy still needs the user's explicit OK**, always after a draft deploy, smoke against the draft URL and the user's phone check. If you find a critical bug (wrong data shown, a broken core flow, a privacy leak, a missing legal disclaimer), report it first and wait. Open findings: GitHub Issues (`tech-debt`); the original review is `docs/review-2026-10-26.md`.
+The site is no longer frozen (1.11): changes under `site/` are allowed as part of agreed work. **A production deploy still needs the user's explicit OK**, always after the full local smoke, a draft deploy, the light check against the draft URL and the user's phone check (see Deploy). If you find a critical bug (wrong data shown, a broken core flow, a privacy leak, a missing legal disclaimer), report it first and wait. Open findings: GitHub Issues (`tech-debt`); the original review is `docs/review-2026-10-26.md`.
 
 Backlog: GitHub Issues. Run `gh issue list` before starting new work. Reference issues in commits (closes #N).
 Issue format: a one-sentence goal, short bullets, a "Done when" line. Labels: enhancement, tech-debt, research, data, priority:high.
+
+### Working in a session (#37)
+- During a fix: `node --test` and the targeted smoke sections. The full suite once, before the draft.
+- Research (sources, docs, broad code searches) goes to a subagent that returns only its conclusion. `smoke.mjs` and `app.js` are about 2,000 lines each: find the part with `grep -n` and read that range, not the whole file.
+- Read `smoke/<mode>/smoke.log` only when a run fails, and screenshots only for a visual change.
+- Between tasks, `/clear`. When compacting, keep the issue number and its agreed decisions, the commits made, any draft `deploy_id` and URL, and what still waits for the user's OK.
 
 ### Results: official since 4.11
 The CEC submitted the results to the President on 4.11.2026 (#2). `results-26.json` holds the final official votes; the seats did not change. See `docs/research/decisions.md`.
@@ -25,12 +31,17 @@ The CEC submitted the results to the President on 4.11.2026 (#2). `results-26.js
   - `research/`: public; generated, except the hand-written `decisions.md`
   - `screenshots/`
   - `review-*.md`
-- Gitignored: `research/` (`merged.json` is the research source of truth, plus third-party files), `review/` (the reviewer's CSV), `smoke/` (screenshots).
+- Gitignored: `research/` (`merged.json` is the research source of truth, plus third-party files), `review/` (the reviewer's CSV), `smoke/` (a folder per mode: `smoke.log`, screenshots with `--shots`).
 
 ## Commands
 - **Test:** `node --test`
 - **Validate:** `node scripts/validate.mjs`
-- **Smoke:** `node scripts/smoke.mjs [baseUrl]`, then look at `smoke/*.png` (`*-en.png` for English). Every case also runs with `l=en`: lang/dir, the translation notice, no Hebrew outside `lang="he"`, the same numbers, links keeping `l=en`, and the toggle. Against production every beacon is inspected (never sent); on any other host, no beacon may be sent at all. Smoke follows `meta.mode`. To test polls mode, and polls mode with seats hidden, copy `site/`, `scripts/` and `netlify.toml` to a scratch dir, set `mode` to `"polls"` (and `showSeats` to `false`) there, and run smoke in the copy. Run all three before a deploy. Local runs send `netlify.toml`'s headers (so the CSP is enforced; any violation fails the run). Remote runs check the served CSP matches `netlify.toml`, and fail if Netlify injects its badge script again (`/.netlify/scripts/hud`). First-screen fit (#26): Hebrew shows all three task cards at 375×667, 375×600 and 390×844; English shows all of them at 390×844, card 3's title at 375×667 and cards 1–2 at 375×600; the purpose line's disclaimer is always on the first screen. Smoke also fails if any request to the site carries coalition state, except the first load of an old-format link. Fit (#35): at 360/375/390/412, both languages, text at 100% and 125%, matrix headers stay in their columns (vertical on phones), and nothing scrolls sideways. Party sheet (#30): the ✕ stays inside the visible viewport while scrolling and across viewport resizes. Bounded (#27): each CDP call times out (`SMOKE_STEP_MS`, 15s), a watchdog ends the run (`SMOKE_WATCHDOG_MS`, 20 min), Chrome is always killed, and progress goes to `smoke/progress.log`. A run kills leftover `smoke-chrome-*` Chromes first, so **run one smoke at a time**. `SMOKE_SIMULATE_HANG=1` proves the timeout.
+- **Smoke:** `node scripts/smoke.mjs [baseUrl] [--mode=results|polls|hidden|all] [--only=<sections> | --light] [--shots]` (#37)
+  - **During a fix:** only the sections the change touches, in its mode (`--only=pair,fit`; the default mode is `meta.mode`; a bad name lists the sections). A failure prints its rerun command.
+  - **Before the draft deploy:** the full suite once, `--mode=all`: the three modes in parallel, about 2 min. A local run serves `meta.json` with the mode overridden, so no scratch copies. **Against a deploy:** `--light` (see Deploy).
+  - **Output:** a line per section and the first 10 errors; everything in `smoke/<mode>/smoke.log` (`smoke/remote/` for a URL). Screenshots only with `--shots` (`*-en.png` for English); look at them when the change is visual.
+  - **What it enforces** (never drop or loosen an assertion to make a run pass): every case also with `l=en` (lang/dir, the translation notice, no Hebrew outside `lang="he"`, the same numbers, links keeping `l=en`, the toggle). Beacons: against production each one is inspected (never sent); on any other host none may be sent. Local runs send `netlify.toml`'s headers, so the CSP is enforced and any violation fails; remote runs compare every served header with `netlify.toml` and fail if Netlify injects its badge script (`/.netlify/scripts/hud`). No request to the site may carry coalition state, except the first load of an old-format link. First-screen fit (#26): Hebrew shows all three task cards at 375×667, 375×600 and 390×844; English all at 390×844, card 3's title at 375×667, cards 1–2 at 375×600; the purpose line's disclaimer is always on the first screen. Fit (#35): at 360/375/390/412, both languages, text at 100% and 125%, matrix headers stay in their columns (vertical on phones) and nothing scrolls sideways. Party sheet (#30): the ✕ stays inside the visible viewport while scrolling and across resizes.
+  - **Bounded (#27):** each CDP call times out (`SMOKE_STEP_MS`, 15s), a watchdog ends the run (`SMOKE_WATCHDOG_MS`, 20 min), Chrome is always killed. Waits are conditions, not sleeps: a settle (frames, animations, short timers, fetches, scroll) capped at the old fixed time. Runs may overlap; a leftover smoke Chrome is killed only when its run has ended. `SMOKE_SIMULATE_HANG=1` proves the timeout.
 - **Local:** `python3 -m http.server -d site 8080`
 - **Export CSV:** `node scripts/export-csv.mjs` (`research/merged.json` → `review/positions_review.csv`)
 - **Import CSV:** `node scripts/import-csv.mjs review/positions_review.csv [--dry-run]`. This validates the file, prints the diff and writes `site/data/positions.json`.
@@ -38,7 +49,7 @@ The CEC submitted the results to the President on 4.11.2026 (#2). `results-26.js
 - **Translations:** `node scripts/apply-translations.mjs` (`research/translations-en.json` → `summaryEn`/`quoteTranslationEn` in `research/merged.json`, and `en` in `topics.json`). Then export, then import.
 - **Archive sources:** `node scripts/archive-sources.mjs`, then `node scripts/apply-archive.mjs`. Only snapshots listed in `research/archive-verified.json` are published. Then export, then import.
 - **OG image:** `node scripts/make-og.mjs`
-- **Deploy:** draft with `netlify deploy --dir=site`; prod with `netlify deploy --prod --dir=site`, only after the user confirms.
+- **Deploy (#37):** the full local suite (`--mode=all`) → draft: `netlify deploy --dir=site --json` (gives `deploy_id`, `deploy_url`) → `node scripts/smoke.mjs <deploy_url> --light` (every file in `site/` served byte for byte, the headers, the views at phone width in both languages) → the user's phone check on the draft → **only after the user's OK**, publish that same deploy: `netlify api restoreSiteDeploy --data '{"site_id":"4c946bab-f25b-4dcc-9f04-8653d8c4631c","deploy_id":"<deploy_id>"}'` → `node scripts/smoke.mjs https://mi-im-mi-2026.netlify.app --light` (also inspects every production beacon). If publishing fails, fall back to `netlify deploy --prod --dir=site` and say so.
 
 ## Neutrality (a product requirement)
 - One neutral color for all parties; severity colors encode distance only. Parties are ordered by poll average (by ballot letters when `showSeats` is `false`), presets alphabetically.

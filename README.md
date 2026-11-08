@@ -109,7 +109,8 @@
 python3 -m http.server -d site 8080   # האתר: http://localhost:8080
 node --test                           # בדיקות
 node scripts/validate.mjs             # אימות הנתונים
-node scripts/smoke.mjs [baseUrl]      # בדיקת smoke עם צילומי מסך
+node scripts/smoke.mjs --mode=all     # בדיקת smoke בשלושת המצבים במקביל (צילומי מסך עם --shots)
+node scripts/smoke.mjs --only=pair    # רק חלק אחד, בזמן תיקון
 ```
 
 שינויים בעמדות נעשים רק דרך `scripts/export-csv.mjs` ו-`scripts/import-csv.mjs`, שמאמת את הקובץ ומציג את ההבדלים.
