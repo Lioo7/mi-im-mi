@@ -66,7 +66,7 @@ async function waitFor(fn, ms = 10000) {
   let last = null;
   while (Date.now() < end) {
     try { const v = await within(Promise.resolve().then(fn), end - Date.now(), 'waitFor attempt'); if (v) return v; } catch (e) { last = e; }
-    await sleep(150);
+    await sleep(50);
   }
   throw new Error(`timeout after ${ms}ms [${current}]${last ? ` (last error: ${last.message})` : ''}`);
 }
@@ -431,12 +431,34 @@ try {
   // CSP violations become console errors and fail the run.
   await c.send('Page.addScriptToEvaluateOnNewDocument', { source: `document.addEventListener('securitypolicyviolation', (e) =>
     console.error('CSP violation: ' + e.effectiveDirective + ' blocked ' + (e.blockedURI || 'inline') + ' ' + (e.sample || '')));` });
+  // For settle(): the page counts its pending short timers (up to 500 ms, e.g. the live region's 50 ms; not the toast's
+  // seconds) and its fetches.
+  await c.send('Page.addScriptToEvaluateOnNewDocument', { source: `(() => { const w = window; const st = w.setTimeout, ct = w.clearTimeout, f = w.fetch;
+    const pending = new Set(); const n = w.__smoke = { timers: 0, fetches: 0, setTimeout: st.bind(w) };
+    w.setTimeout = function (fn, ms, ...a) { if (typeof fn !== 'function' || !((ms ?? 0) <= 500)) return st.call(w, fn, ms, ...a);
+      const id = st.call(w, () => { if (pending.delete(id)) n.timers--; fn(...a); }, ms); pending.add(id); n.timers++; return id; };
+    w.clearTimeout = function (id) { if (pending.delete(id)) n.timers--; return ct.call(w, id); };
+    w.fetch = function (...a) { n.fetches++; return f.apply(this, a).finally(() => { n.fetches--; }); }; })();` });
 
   if (process.env.SMOKE_SIMULATE_HANG) {
     step('simulated-hang');
     await c.send('Runtime.evaluate', { expression: 'new Promise(() => {})', awaitPromise: true });
   }
   const evaluate = async (expr) => (await c.send('Runtime.evaluate', { expression: expr, returnByValue: true, awaitPromise: true })).result.value;
+  // Waits until the page is still: two frames in a row with no running animation or transition, no pending short timer
+  // or fetch, and no scroll or viewport change. At most ms, the fixed sleep it replaces (#37).
+  const SETTLE_JS = (ms) => `new Promise((done) => { const w = window.__smoke; const end = performance.now() + ${ms}; let calm = 0, last = null;
+    const snap = () => { const s = document.querySelector('#sheet'); return [scrollX, scrollY, s ? s.scrollTop : 0, innerWidth, innerHeight, visualViewport?.offsetTop ?? 0].join(); };
+    const idle = () => !w || (w.timers === 0 && w.fetches === 0 && !document.getAnimations().some((a) => a.playState === 'running'));
+    (w ? w.setTimeout : setTimeout)(() => done(false), ${ms} + 50);
+    const tick = () => { const s = snap(); calm = idle() && s === last ? calm + 1 : 0; last = s;
+      if (calm >= 2) done(true); else if (performance.now() < end) requestAnimationFrame(tick); else done(false); };
+    requestAnimationFrame(tick); })`;
+  const settles = { n: 0, capped: 0 };
+  const settle = async (ms) => {
+    settles.n++;
+    try { if (!(await c.send('Runtime.evaluate', { expression: SETTLE_JS(ms), returnByValue: true, awaitPromise: true })).result.value) settles.capped++; } catch { await sleep(ms); }
+  };
   const ready = () => waitFor(() => evaluate("document.querySelector('#builder')?.children.length > 0"));
   // A fresh load (a URL that differs only in its fragment would otherwise be a same-document navigation).
   const go = async (url) => {
@@ -455,7 +477,7 @@ try {
       const { cssContentSize } = await c.send('Page.getLayoutMetrics');
       height = Math.min(Math.ceil(cssContentSize.height), 9000);
       await setSize(z, height);
-      await sleep(200);
+      await settle(200);
     }
     const { data } = await c.send('Page.captureScreenshot', { format: 'png' });
     writeFileSync(join(OUT, file), Buffer.from(data, 'base64'));
@@ -477,7 +499,7 @@ try {
       step(`${name}@${z.width}`);
       await go(baseUrl + suffix);
       await waitFor(() => evaluate("document.body.dataset.view !== undefined && document.querySelector('#footer')?.children.length > 0"));
-      await sleep(250);
+      await settle(250);
       const view = await evaluate('document.body.dataset.view');
       if (view !== expectView) errors.push(`[${current}] expected view "${expectView}", got "${view}"`);
       // The URL settles as <other query params>#<route>?<normalized state>: an old link's state has moved to the
@@ -700,7 +722,7 @@ try {
         step(`legal-${name}@${z.width}x${z.height}`);
         await go(baseUrl + suffix);
         await waitFor(() => evaluate("document.body.dataset.view !== undefined && document.querySelector('#footer')?.children.length > 0"));
-        await sleep(400);
+        await settle(400);
         const first = await evaluate(LEGAL_CHECK);
         if (first) { errors.push(`[${current}] first load: seat numbers visible without the full legal sentence (${first})`); await shoot(z, `legal-fail-${name}-${z.tag}.png`, false, true); }
         const scrolled = await evaluate(`(() => { const out = []; const max = document.documentElement.scrollHeight - innerHeight;
@@ -723,7 +745,7 @@ try {
         step(`narrow-${name}-${l}@360`);
         await go(baseUrl + suffix + (l === 'en' ? '&l=en' : '')); // these suffixes all carry a fragment query
         await waitFor(() => evaluate("document.body.dataset.view !== undefined && document.querySelector('#footer')?.children.length > 0"));
-        await sleep(250);
+        await settle(250);
         const bad = await evaluate(`(() => { const out = []; if (document.documentElement.scrollWidth > innerWidth + 1) out.push('horizontal page overflow');
           for (const e of document.querySelectorAll('.outside')) { const r = e.getBoundingClientRect(); if (r.width && (r.left < -1 || r.right > innerWidth + 1)) out.push('marker outside the page: ' + e.innerText); }
           return out.join(' | '); })()`);
@@ -783,12 +805,12 @@ try {
         if (it.src.replace(/\s+/g, ' ').trim() !== want) errors.push(`[interaction] scenario ${it.id} source line "${it.src}" should read "${want}"`);
       }
       await evaluate("(() => { const d = document.querySelector('#presets details'); d.open = true; d.scrollIntoView(); })()");
-      await sleep(150);
+      await settle(150);
       await shoot(z, 'interaction-scenarios-m.png', false);
       if (await evaluate("document.querySelector('#presets .scen-note') !== null")) errors.push('[interaction] scenario notes must not be rendered (they live in decisions.md)');
       const b = scenarios.scenarios.find((x) => x.supporters.length && x.abstainers.length) ?? scenarios.scenarios[0];
       await evaluate(`document.querySelector('[data-act="scenario"][data-id="${b.id}"]').click()`);
-      await sleep(300);
+      await settle(300);
       const q = new URLSearchParams(await frag());
       const ids = (k) => (q.get(k) ?? '').split(',').filter(Boolean).sort().join(',');
       if (ids('m') !== [...b.members].sort().join(',') || ids('o') !== [...b.supporters].sort().join(',') || ids('a') !== [...b.abstainers].sort().join(',')) errors.push(`[interaction] scenario tap did not set its roles (${q})`);
@@ -797,21 +819,21 @@ try {
       if (pre !== JSON.stringify([S.presets.presetsStart, false])) errors.push(`[interaction] presets disclosure: expected "${S.presets.presetsStart}", collapsed; got ${pre}`);
       await evaluate("document.querySelector('#presets details').open = true; document.querySelector('[data-act=\"preset\"][data-id=\"unity\"]').click()");
     }
-    await sleep(300);
+    await settle(300);
     await shoot(z, 'interaction-build-unity-m.png', false);
     if (!RESULTS && !SEATS_HIDDEN) {
       await evaluate("document.querySelector('#builder [data-act=\"poll-info\"]').click()");
-      await sleep(300);
+      await settle(300);
       const info = await evaluate("document.querySelector('#sheet').innerText.replace(/\\s+/g, ' ')");
       if (!info.includes(legal)) errors.push('[interaction] poll-info sheet lacks the legal sentence');
       await shoot(z, 'interaction-poll-info-m.png', false);
     }
     await evaluate("document.querySelector('#sheet').close(); document.querySelector('#bar a.btn').click()");
-    await sleep(400);
+    await settle(400);
     const afterClick = await evaluate('document.body.dataset.view');
     if (afterClick !== 'results') errors.push(`[interaction] "לתוצאות" did not open results (view "${afterClick}")`);
     await evaluate("document.querySelector('.cell')?.click()");
-    await sleep(300);
+    await settle(300);
     await shoot(z, 'interaction-cell-sheet-m.png', false);
     const dialogName = await evaluate("(() => { const d = document.querySelector('#sheet'); const t = document.getElementById(d.getAttribute('aria-labelledby') || ''); return t && d.contains(t) ? t.textContent.trim() : ''; })()");
     if (!dialogName) errors.push('[interaction] sheet dialog has no accessible name (aria-labelledby)');
@@ -821,7 +843,7 @@ try {
     if (!mq || !/^תיקון: .+ · .+/.test(mq.get('subject') ?? '') || !(mq.get('body') ?? '').includes('http')) errors.push(`[interaction] cell sheet is missing a valid corrections mailto (${mailto})`);
     if (!mailto.startsWith('mailto:lioz.akirav@gmail.com?')) errors.push('[interaction] corrections mailto must go to lioz.akirav@gmail.com');
     await evaluate("document.querySelector('#sheet').close(); document.querySelector('#results-bar .back').click()");
-    await sleep(300);
+    await settle(300);
     const backView = await evaluate('document.body.dataset.view');
     if (backView !== 'build') errors.push(`[interaction] "← עריכה" did not return to build (view "${backView}")`);
     // A position with a verified archive snapshot shows the "עותק בארכיון" link in its cell sheet.
@@ -830,7 +852,7 @@ try {
       await go(`${baseUrl}#results?m=${withArchive.partyId},together`);
       await waitFor(() => evaluate("document.body.dataset.view === 'results' && document.querySelectorAll('.cell').length > 0"));
       await evaluate(`document.querySelector('.cell[data-party="${withArchive.partyId}"][data-topic="${withArchive.topicId}"]').click()`);
-      await sleep(300);
+      await settle(300);
       const href = await evaluate("[...document.querySelectorAll('#sheet a')].find((a) => a.textContent.includes('עותק בארכיון'))?.href || ''");
       if (!/^https:\/\/web\.archive\.org\/web\/\d{14}\//.test(href)) errors.push(`[interaction] cell sheet for ${withArchive.partyId}/${withArchive.topicId} lacks its archive link (${href})`);
       await shoot(z, 'interaction-archive-link-m.png', false);
@@ -839,38 +861,38 @@ try {
     await go(baseUrl);
     await ready();
     for (const id of ['likud', 'shas', 'otzma-yehudit']) await evaluate(`document.querySelector('[data-act="toggle"][data-id="${id}"]').click()`);
-    await sleep(300);
+    await settle(300);
     const sel = await evaluate("[...document.querySelectorAll('#builder .prow-main[aria-checked=\"true\"]')].length");
     if (sel !== 3) errors.push(`[interaction] tapping rows should select 3 parties, got ${sel}`);
     await evaluate("document.querySelector('[data-act=\"role\"][data-id=\"shas\"][data-role=\"supporter\"]').click()");
-    await sleep(200);
+    await settle(200);
     if (!/o=shas/.test(await frag())) errors.push(`[interaction] supporter role did not set o= (${await frag()})`);
     await evaluate("(() => { const b = document.querySelector('[data-act=\"role\"][data-id=\"shas\"][data-role=\"abstainer\"]'); b.focus(); b.click(); })()");
-    await sleep(200);
+    await settle(200);
     const absUrl = await frag();
     if (!/a=shas/.test(absUrl) || /o=shas/.test(absUrl)) errors.push(`[interaction] abstainer role did not move shas to a= (${absUrl})`);
     if ((await evaluate("document.activeElement?.dataset.key")) !== 'role-shas-abstainer') errors.push('[interaction] focus lost after choosing a role');
     await evaluate("document.querySelector('[data-act=\"role\"][data-id=\"shas\"][data-role=\"member\"]').click()");
-    await sleep(200);
+    await settle(200);
     // Unselecting a row clears its role (back to opponent).
     await evaluate("document.querySelector('[data-act=\"role\"][data-id=\"shas\"][data-role=\"supporter\"]').click(); document.querySelector('[data-act=\"toggle\"][data-id=\"shas\"]').click()");
-    await sleep(200);
+    await settle(200);
     if (/shas/.test(await frag())) errors.push('[interaction] unselecting a supporter did not clear its role');
     await evaluate("document.querySelector('[data-act=\"toggle\"][data-id=\"shas\"]').click()");
-    await sleep(200);
+    await settle(200);
     await evaluate('window.scrollTo(0, document.querySelector("#builder .seats-box").getBoundingClientRect().top + scrollY - 10)');
-    await sleep(200);
+    await settle(200);
     await shoot(z, 'interaction-build-3-selected-m.png', false);
     // Results: base control, expanding gap card, pair view from an expanded pair.
     await evaluate("document.querySelector('#bar a.btn').click()");
-    await sleep(400);
+    await settle(400);
     if ((await evaluate('document.body.dataset.view')) !== 'results') errors.push('[interaction] "לתוצאות" from the picker did not open results');
     await go(`${baseUrl}#results?m=likud,democrats,yashar,shas`);
     await waitFor(() => evaluate("document.body.dataset.view === 'results' && document.querySelectorAll('.colorby').length > 0"));
     const baseBtns = await evaluate("document.querySelectorAll('.colorby [role=\"radio\"]').length");
     if (baseBtns !== 5) errors.push(`[interaction] base control should list הכל + 4 parties, got ${baseBtns}`);
     await evaluate("document.querySelector('.colorby [data-id=\"shas\"]').click()");
-    await sleep(300);
+    await settle(300);
     const bq = await frag();
     if (!/b=shas/.test(bq)) errors.push(`[interaction] base control did not set b= (${bq})`);
     const starLine = await evaluate("document.querySelector('#results-coalition').innerText.includes('★')");
@@ -879,16 +901,16 @@ try {
     if (!sealed) errors.push('[interaction] results have no gap cards for this coalition');
     else {
       await evaluate("document.querySelector('.gap-head').click()");
-      await sleep(300);
+      await settle(300);
       const open = await evaluate("document.querySelector('.gap-head').getAttribute('aria-expanded') === 'true' && document.querySelectorAll('.pair-list .pair-btn').length > 0");
       if (!open) errors.push('[interaction] gap card did not expand to list its pairs');
       const tagOk = await evaluate("/· (זוג מפלגות אחד|\\d+ זוגות מפלגות)/.test(document.querySelector('.gap-head .lv').textContent) && !document.body.innerText.includes('ועוד')");
       if (!tagOk) errors.push('[interaction] gap card tag must carry the pair count and no "ועוד N זוגות" line');
       await evaluate('window.scrollTo(0, document.querySelector(".gap").getBoundingClientRect().top + scrollY - 120)');
-      await sleep(200);
+      await settle(200);
       await shoot(z, 'interaction-results-base-gap-expanded-m.png', false);
       await evaluate("document.querySelector('.pair-list .pair-btn').click()");
-      await sleep(300);
+      await settle(300);
       const pairOpen = await evaluate("document.querySelector('#sheet').open && document.querySelector('#sheet .pair') !== null");
       if (!pairOpen) errors.push('[interaction] tapping a pair did not open the pair view');
       await evaluate("document.querySelector('#sheet').close()");
@@ -906,7 +928,7 @@ try {
         if (await evaluate(`location.href.includes('${pid}') || document.querySelector('[data-act="toggle"][data-id="${pid}"]') !== null`)) errors.push(`[interaction] ${pid} is under the threshold but still selectable or kept in the URL`);
         await evaluate(`document.querySelector('details.below').open = true; document.querySelector('details.below [data-id="${pid}"]').click()`);
       }
-      await sleep(300);
+      await settle(300);
       const text = await evaluate("document.querySelector('#sheet').innerText.replace(/\\s+/g, ' ')");
       if (RESULTS) {
         if (!text.includes(meta.resultsStatus)) errors.push(`[interaction] ${pid} party sheet lacks the results source line`);
@@ -924,7 +946,7 @@ try {
       await go(baseUrl);
       await ready();
       await evaluate("document.querySelector('[data-act=\"toggle\"][data-id=\"religious-zionism\"]').click()");
-      await sleep(200);
+      await settle(200);
       const m = new URLSearchParams(await frag()).get('m') ?? '';
       if (m !== 'religious-zionism') errors.push(`[interaction] results mode: selecting הציונות הדתית should not add זהות (m=${m})`);
       const notes = await evaluate("['religious-zionism', 'zehut'].map((id) => document.querySelector(`[data-act=\"toggle\"][data-id=\"${id}\"] .prow-sub`)?.innerText || '').join('|')");
@@ -934,9 +956,9 @@ try {
         await setSize(size);
         await go(`${baseUrl}#results?m=yashar,together,democrats,yisrael-beiteinu&o=joint-list&a=raam,utj`);
         await waitFor(() => evaluate("document.body.dataset.view === 'results' && document.querySelector('[data-act=\"to-periphery\"]') !== null"));
-        await sleep(200);
+        await settle(200);
         await evaluate("document.querySelector('[data-act=\"to-periphery\"]').click()");
-        await sleep(400);
+        await settle(400);
         const pos = await evaluate("(() => { const t = document.querySelector('#periphery-card h3').getBoundingClientRect(); const bar = document.querySelector('#results-bar').getBoundingClientRect(); return { top: Math.round(t.top), barBottom: Math.round(bar.bottom) }; })()");
         if (pos.top < pos.barBottom || pos.top > pos.barBottom + 60) errors.push(`[interaction@${size.width}] after the pointer jump the card title must sit just below the sticky header (title top ${pos.top}, header bottom ${pos.barBottom})`);
         if (await evaluate('document.activeElement?.closest("#periphery-card") === null')) errors.push(`[interaction@${size.width}] focus did not move to the supporters/abstainers card`);
@@ -950,7 +972,7 @@ try {
       const blocQs = serializeState(ctx, { base: null, ...pr.coalition });
       await go(`${baseUrl}#results${blocQs}`);
       await waitFor(() => evaluate("document.body.dataset.view === 'results' && document.querySelector('#footer')?.children.length > 0"));
-      await sleep(300);
+      await settle(300);
       const card = await evaluate(`(() => { const c = document.querySelector('#results .completions'); if (!c) return null;
         return { title: c.querySelector('h3').innerText, note: c.innerText.includes(${JSON.stringify(S.completions.note)}), rows: [...c.querySelectorAll('[data-act="complete"]')].map((b) => b.dataset.ids) }; })()`);
       const wantRows = completions(ctx, pr.coalition.members).list.slice(0, 6).map((x) => x.add.join(','));
@@ -959,16 +981,16 @@ try {
         if (card.title !== S.completions.title || !card.note) errors.push(`[interaction] completions card title/note wrong (${card.title})`);
         if (card.rows.join('|') !== wantRows.join('|')) errors.push(`[interaction] completions rows ${card.rows.join('|')} != ${wantRows.join('|')}`);
         await evaluate('window.scrollTo(0, document.querySelector("#results .completions").getBoundingClientRect().top + scrollY - 70)');
-        await sleep(200);
+        await settle(200);
         await shoot(z, 'interaction-completions-m.png', false);
         const before = await frag();
         await evaluate("document.querySelector('#results [data-act=\"complete\"]').click()");
-        await sleep(300);
+        await settle(300);
         const after = new URLSearchParams(await frag()).get('m') ?? '';
         if (!wantRows[0].split(',').every((id) => after.split(',').includes(id))) errors.push(`[interaction] tapping a completion did not add it (${after})`);
         if (await evaluate("document.querySelector('#results .completions') !== null")) errors.push('[interaction] completions card should disappear once members reach 61');
         await evaluate("document.querySelector('#results-undo [data-act=\"undo\"]').click()");
-        await sleep(300);
+        await settle(300);
         if ((await frag()) !== before) errors.push('[interaction] undo after a completion did not restore the coalition');
       }
       // The change bloc (48): fewest lists first, so "+ הליכוד" alone leads; 6 rows, then "הציגו את כל N" shows all.
@@ -977,7 +999,7 @@ try {
       const all = completions(ctx, change.members);
       await go(`${baseUrl}#results${serializeState(ctx, { base: null, ...change })}`);
       await waitFor(() => evaluate("document.body.dataset.view === 'results' && document.querySelector('#footer')?.children.length > 0"));
-      await sleep(300);
+      await settle(300);
       const rowsOf = () => evaluate("[...document.querySelectorAll('#results .completions [data-act=\"complete\"]')].map((b) => b.dataset.ids + '|' + b.querySelector('.row-title').innerText)");
       const first = await rowsOf();
       if (first.length !== Math.min(6, all.total)) errors.push(`[interaction] completions should show 6 rows before "show all", got ${first.length}`);
@@ -986,7 +1008,7 @@ try {
       if (all.total > 6 && toggle !== `${S.completions.showAll(all.total)}|false`) errors.push(`[interaction] completions toggle missing or wrong (${toggle})`);
       if (all.total > 6) {
         await evaluate("document.querySelector('#results [data-act=\"completions-all\"]').click()");
-        await sleep(300);
+        await settle(300);
         const expanded = await rowsOf();
         if (expanded.length !== all.total) errors.push(`[interaction] "show all" should list ${all.total} completions, got ${expanded.length}`);
         if (expanded.map((r) => r.split('|')[0]).join(';') !== all.list.map((x) => x.add.join(',')).join(';')) errors.push('[interaction] expanded completions are not in the expected order');
@@ -996,7 +1018,7 @@ try {
         const deltas = await evaluate("[...document.querySelectorAll('#results .completions [data-act=\"complete\"]')].every((b) => /\\((אין חדשים|אחד חדש|\\d+ חדשים)\\)|אין נושא בסתירה חזיתית/.test(b.innerText) && /קווים אדומים חדשים|קו אדום חדש|אין קווים אדומים חדשים/.test(b.innerText))");
         if (!deltas) errors.push('[interaction] each completion must show new clash topics and new red lines');
         await evaluate('window.scrollTo(0, document.querySelector("#results .completions").getBoundingClientRect().top + scrollY - 70)');
-        await sleep(200);
+        await settle(200);
         await shoot(z, 'interaction-completions-change-m.png', false);
       }
     }
@@ -1080,9 +1102,9 @@ try {
           await go(`${baseUrl}#results?m=likud,yashar${sfx}`);
           await waitFor(() => evaluate("document.querySelector('.party-btn[data-id=\"likud\"]') !== null"));
           await evaluate("document.querySelector('.party-btn[data-id=\"likud\"]').click()");
-          await sleep(250);
+          await settle(250);
           await evaluate("document.querySelector('#sheet [data-act=\"closest\"]').click()");
-          await sleep(300);
+          await settle(300);
           let st = await evaluate(sheetState);
           const want = await check(tag, 'likud', st);
           if (st && !st.focus) errors.push(`[${tag}] focus should move to the list's heading`);
@@ -1090,21 +1112,21 @@ try {
           if (lng === 'en') { const hebrew = await evaluate(HEBREW_OUTSIDE); if (hebrew) errors.push(`[${tag}] Hebrew outside lang="he": ${hebrew}`); }
           // Expand the silent-partner list, then both "show all".
           await evaluate("document.querySelector('#sheet [data-act=\"closest-partial\"]').click()");
-          await sleep(200);
+          await settle(200);
           st = await evaluate(sheetState);
           if (!st.partial || st.partial.map((r) => r.ids).join('|') !== want.partial.slice(0, 5).map((c) => c.add.join(',')).join('|')) errors.push(`[${tag}] expanded partial rows ${st.partial?.map((r) => r.ids).join('|')}`);
           if (st.partial && !st.partial.every((r) => r.warn)) errors.push(`[${tag}] every row with a silent partner needs its warning`);
           if (!st.toggle.endsWith('|true')) errors.push(`[${tag}] the toggle should report aria-expanded=true`);
           if (size === SIZES[0]) await shoot(size, `interaction-closest-partial-m${lng === 'he' ? '' : '-en'}.png`, false);
           for (const act of ['closest-all', 'closest-partial-all']) await evaluate(`document.querySelector('#sheet [data-act="${act}"]')?.click()`);
-          await sleep(200);
+          await settle(200);
           st = await evaluate(sheetState);
           if (st.full.length !== want.full.length || st.partial?.length !== want.partial.length) errors.push(`[${tag}] "show all" should list ${want.full.length} + ${want.partial.length}, got ${st.full.length} + ${st.partial?.length}`);
           if (st.full.map((r) => r.ids).join('|') !== want.full.map((c) => c.add.join(',')).join('|')) errors.push(`[${tag}] expanded main rows are out of order`);
           if (st.overflow) errors.push(`[${tag}] horizontal overflow with every row shown`);
           // The sheet's bar stays at the top while scrolling: back at the start, close (44px+, round) at the end.
           await evaluate("document.querySelector('#sheet').scrollTop = document.querySelector('#sheet').scrollHeight / 2");
-          await sleep(200);
+          await settle(200);
           const bar = await evaluate(`(() => { const s = document.querySelector('#sheet').getBoundingClientRect(); const h = document.querySelector('#sheet .sheet-head');
             const back = h?.querySelector('[data-act="closest-back"]')?.getBoundingClientRect(); const x = h?.querySelector('.sheet-close')?.getBoundingClientRect();
             if (!h || !back || !x) return 'missing';
@@ -1118,33 +1140,33 @@ try {
           // Tapping the first row selects it, with Likud as the base, on the results view; undo restores.
           const before = await frag();
           await evaluate("document.querySelector('#sheet [data-act=\"closest-apply\"]').click()");
-          await sleep(400);
+          await settle(400);
           const wantHash = locationFor(ctx, { base: 'likud', members: ['likud', ...want.full[0].add], supporters: [], abstainers: [] }, 'results', '', lng);
           const got = await evaluate("JSON.stringify([location.hash, document.body.dataset.view, document.querySelector('#sheet').open])");
           if (got !== JSON.stringify([wantHash, 'results', false])) errors.push(`[${tag}] tapping a row should select it on #results (${got}, want ${wantHash})`);
           await evaluate("document.querySelector('#results-undo [data-act=\"undo\"]').click()");
-          await sleep(300);
+          await settle(300);
           if ((await frag()) !== before) errors.push(`[${tag}] undo did not restore the coalition`);
           // Shas: its own coverage note above the list, and never in its own toggle.
           await go(`${baseUrl}#results?m=likud,shas${sfx}`);
           await waitFor(() => evaluate("document.querySelector('.party-btn[data-id=\"shas\"]') !== null"));
           await evaluate("document.querySelector('.party-btn[data-id=\"shas\"]').click()");
-          await sleep(250);
+          await settle(250);
           await evaluate("document.querySelector('#sheet [data-act=\"closest\"]').click()");
-          await sleep(300);
+          await settle(300);
           st = await evaluate(sheetState);
           const shas = await check(`${tag}-shas`, 'shas', st);
           if (st && !st.text.includes(T.closest.ownCoverage(T.toParty(nm('shas')), shas.ownCoverage))) errors.push(`[${tag}-shas] the party's own coverage note is missing`);
           // "How is this calculated?" closes the sheet and lands on the rule on the method page.
           await evaluate(`[...document.querySelectorAll('#sheet a[href="#closest-rule"]')].find((a) => a.innerText === ${JSON.stringify(T.closest.howLink)})?.click()`);
-          await sleep(400);
+          await settle(400);
           const how = await evaluate("JSON.stringify([document.querySelector('#sheet').open, document.body.dataset.view, (() => { const r = document.querySelector('#closest-rule')?.getBoundingClientRect(); return Boolean(r) && r.top >= 0 && r.top < innerHeight / 2; })(), document.documentElement.lang])");
           if (how !== JSON.stringify([false, 'method', true, lng])) errors.push(`[${tag}] the method link should close the sheet and show the rule (${how})`);
           // The build-view picker opens the same list (Yisrael Beytenu: its red lines lead the order) and resets.
           await go(`${baseUrl}#build${lng === 'he' ? '' : '?l=en'}`);
           await ready();
           await evaluate("(() => { const s = document.querySelector('[data-act=\"closest-pick\"]'); s.value = 'yisrael-beiteinu'; s.dispatchEvent(new Event('change', { bubbles: true })); })()");
-          await sleep(300);
+          await settle(300);
           st = await evaluate(sheetState);
           await check(`${tag}-picker`, 'yisrael-beiteinu', st);
           if ((await evaluate("document.querySelector('[data-act=\"closest-pick\"]').value")) !== '') errors.push(`[${tag}-picker] the picker should reset (no preselected party)`);
@@ -1158,7 +1180,7 @@ try {
       await go(`${baseUrl}#results?m=likud,yashar`);
       await waitFor(() => evaluate("document.querySelector('.party-btn[data-id=\"likud\"]') !== null"));
       await evaluate("document.querySelector('.party-btn[data-id=\"likud\"]').click()");
-      await sleep(250);
+      await settle(250);
       if (await evaluate("document.querySelector('[data-act=\"closest\"], [data-act=\"closest-pick\"]') !== null")) errors.push('[interaction] closest coalitions must not appear in polls mode');
       await go(`${baseUrl}#method`);
       await waitFor(() => evaluate("document.querySelector('#method h1') !== null"));
@@ -1175,7 +1197,7 @@ try {
     await go(`${baseUrl}#results?m=${withQuote.partyId},together`);
     await waitFor(() => evaluate("document.body.dataset.view === 'results' && document.querySelectorAll('.cell').length > 0"));
     await evaluate(`document.querySelector('.cell[data-party="${withQuote.partyId}"][data-topic="${withQuote.topicId}"]').click()`);
-    await sleep(300);
+    await settle(300);
     const q = await evaluate("(() => { const b = document.querySelector('#sheet blockquote'); return b ? { text: b.querySelector('.q-text')?.textContent, by: b.querySelector('.q-by')?.textContent } : null; })()");
     if (!q || !/^״.+״$/.test(q.text ?? '')) errors.push(`[interaction] quote must be wrapped in quotation marks (${JSON.stringify(q)})`);
     if (!q || !q.by.startsWith(withQuote.quoteBy) || !/\d{2}\.\d{2}\.\d{4}$/.test(q.by)) errors.push(`[interaction] quote attribution should read "<speaker>, <channel>, <date>" (${q?.by})`);
@@ -1187,7 +1209,7 @@ try {
       await go(`${baseUrl}#results?m=likud,zehut${l}`);
       await waitFor(() => evaluate("document.body.dataset.view === 'results' && document.querySelectorAll('.cell').length > 0"));
       await evaluate("document.querySelector('.cell[data-party=\"zehut\"][data-topic=\"inquiry\"]').click()");
-      await sleep(300);
+      await settle(300);
       const nr = await evaluate("(() => { const s = document.querySelector('#sheet'); return { label: s.querySelector('.pos-label')?.textContent.trim() ?? '', quote: s.querySelector('blockquote .q-text')?.textContent ?? '', by: s.querySelector('blockquote .q-by')?.textContent.trim() ?? '', src: s.querySelector('.pos .source a')?.href ?? '', tag: s.querySelector('.pos .tag-src') !== null }; })()");
       if (nr.label !== T.sheet.noPositionLabel || !nr.quote.includes('אני כלל לא מרגיש צורך בוועדת חקירה') || nr.by !== by || nr.src !== 'https://www.inn.co.il/news/700562' || nr.tag) {
         errors.push(`[interaction-${lng}] zehut × inquiry sheet should show the label, quote, "${by}" and the source, with no type tag (${JSON.stringify(nr)})`);
@@ -1197,13 +1219,13 @@ try {
       await go(`${baseUrl}#results?m=raam,likud${l}`);
       await waitFor(() => evaluate("document.body.dataset.view === 'results' && document.querySelectorAll('.cell').length > 0"));
       await evaluate("document.querySelector('.cell[data-party=\"raam\"][data-topic=\"religion\"]').click()");
-      await sleep(300);
+      await settle(300);
       const rel = await evaluate("(() => { const p = document.querySelector('#sheet .pos'); return { quote: p?.querySelector('blockquote .q-text')?.textContent ?? '', by: p?.querySelector('blockquote .q-by')?.textContent.trim() ?? '', tag: p?.querySelector('.tag-src') !== null }; })()");
       const relBy = lng === 'he' ? 'מנסור עבאס, פייסבוק, 26.08.2026 (תרגום: כיפה)' : 'Mansour Abbas, Facebook, 26 Aug 2026 (Hebrew translation: Kipa)';
       if (!rel.quote.includes('נאלצו לקבל זאת מבחינה מעשית') || rel.by !== relBy || rel.tag) errors.push(`[interaction-${lng}] רע״ם × דת should show the full quote (with the practical acceptance) and "${relBy}", with no type tag (${JSON.stringify(rel)})`);
       await evaluate("document.querySelector('#sheet').close()");
       await evaluate("document.querySelector('.cell[data-party=\"raam\"][data-topic=\"draft\"]').click()");
-      await sleep(300);
+      await settle(300);
       const note = await evaluate("(() => { const p = document.querySelector('#sheet .pos'); return { text: p?.innerText ?? '', links: [...(p?.querySelectorAll('.source a') ?? [])].map((a) => a.href) }; })()");
       const year = lng === 'he' ? "במצע הרשימה מ-1999 נכתב: 'דחיית גיוסם של הערבים בצה״ל'." : "The list's 1999 platform says: 'rejection of the conscription of Arabs into the IDF'.";
       if (!note.text.includes(year) || !note.links.includes('https://www.idi.org.il/media/16883/%D7%A8%D7%A2%D7%9E-1999.pdf')) errors.push(`[interaction-${lng}] רע״ם × גיוס should carry the dated 1999 note and link the IDI copy (${JSON.stringify(note.links)})`);
@@ -1221,7 +1243,7 @@ try {
         await go(`${baseUrl}#results?m=${pid},likud${l}`);
         await waitFor(() => evaluate("document.body.dataset.view === 'results' && document.querySelectorAll('.cell').length > 0"));
         await evaluate(`document.querySelector('.cell[data-party="${pid}"][data-topic="${tid}"]').click()`);
-        await sleep(300);
+        await settle(300);
         const d = await evaluate("(() => { const p = document.querySelector('#sheet .pos'); return { label: p?.querySelector('.pos-label')?.textContent.trim() ?? '', text: p?.innerText ?? '', links: [...(p?.querySelectorAll('.source a') ?? [])].map((a) => a.href), date: p?.querySelector('.source .muted')?.textContent.trim() ?? '' }; })()");
         const wantDate = year ? (lng === 'he' ? `משנת ${year}` : `from ${year}`) : '';
         if (d.label !== T.sheet.noPositionLabel || !d.text.includes(lng === 'he' ? he : en) || !d.links.some((h) => h.startsWith(idi)) || (year && d.date !== wantDate)) {
@@ -1235,7 +1257,7 @@ try {
     await go(`${baseUrl}#results?m=raam,together`);
     await waitFor(() => evaluate("document.body.dataset.view === 'results' && document.querySelectorAll('.cell').length > 0"));
     await evaluate('document.querySelector(\'.cell[data-party="raam"][data-topic="palestinian"]\').click()');
-    await sleep(300);
+    await settle(300);
     const ar = await evaluate("(() => { const q = [...document.querySelectorAll('#sheet blockquote .q-text')]; return q.map((e) => e.textContent).join(' | '); })()");
     if (!/[\u0600-\u06FF]/.test(ar) || !ar.includes('(תרגום חופשי של האתר)')) errors.push(`[interaction] Arabic quote must show the original plus a marked translation (${ar})`);
     log('  ✓ cell sheets: quotes, null rows, dated notes, Arabic');
@@ -1247,13 +1269,13 @@ try {
     await go(`${baseUrl}#results?m=likud,yashar`);
     await waitFor(() => evaluate("document.body.dataset.view === 'results' && document.querySelector('#footer')?.children.length > 0"));
     await evaluate("window.smokeNoReload = true; document.querySelector('#nav-method').click()");
-    await sleep(300);
+    await settle(300);
     if ((await evaluate('location.hash')) !== `#method${qsOf(['likud', 'yashar'])}`) errors.push(`[interaction] the method link should keep the coalition in the fragment (${await evaluate('location.hash')})`);
     await evaluate('history.back()');
-    await sleep(400);
+    await settle(400);
     if ((await evaluate('location.hash + "|" + document.body.dataset.view')) !== `#results${qsOf(['likud', 'yashar'])}|results`) errors.push(`[interaction] back should return to the same coalition's results (${await evaluate('location.hash')})`);
     await evaluate("location.hash = '#results?m=together,democrats'");
-    await sleep(400);
+    await settle(400);
     const pasted = await evaluate("({ hash: location.hash, line: document.querySelector('#results-coalition').innerText, same: window.smokeNoReload === true })");
     const pastedNames = ['together', 'democrats'].map((id) => ctx.byId.get(id).name);
     if (pasted.hash !== `#results${qsOf(['together', 'democrats'])}` || !pasted.same || !pastedNames.every((n) => pasted.line.includes(n)) || pasted.line.includes(ctx.byId.get('likud').name)) {
@@ -1287,7 +1309,7 @@ try {
       step(`en-${name}@${z2.width}`);
       await go(baseUrl + suffix);
       await waitFor(() => evaluate("document.body.dataset.view !== undefined && document.querySelector('#footer')?.children.length > 0"));
-      await sleep(250);
+      await settle(250);
       const page = await evaluate(`JSON.stringify({ view: document.body.dataset.view, lang: document.documentElement.lang, dir: document.documentElement.dir, title: document.title,
         note: document.querySelector('#lang-note').hidden ? '' : document.querySelector('#lang-note').innerText.trim(), url: location.search + location.hash,
         overflow: document.documentElement.scrollWidth > window.innerWidth + 1 })`).then(JSON.parse);
@@ -1362,25 +1384,25 @@ try {
     }
     await setSize(SIZES[0]);
     await evaluate("document.querySelector('#lang-switch button').focus(); document.querySelector('#lang-switch button').click()");
-    await sleep(300);
+    await settle(300);
     if (await state() !== JSON.stringify(['en', `#results${qsOf(['likud', 'yashar'])}&l=en`, 'lang-switch', true, true])) errors.push(`[${current}] the toggle should switch to English in place, keeping the coalition and focus (${await state()})`);
     await evaluate("document.querySelector('#nav-method').click()");
-    await sleep(300);
+    await settle(300);
     if ((await evaluate('location.hash')) !== `#method${qsOf(['likud', 'yashar'])}&l=en`) errors.push(`[${current}] a nav link should keep l=en (${await evaluate('location.hash')})`);
     await evaluate("history.back()");
-    await sleep(300);
+    await settle(300);
     await evaluate("document.querySelector('#lang-switch button').click()");
-    await sleep(300);
+    await settle(300);
     if ((await evaluate("document.documentElement.lang + location.hash")) !== `he#results${qsOf(['likud', 'yashar'])}`) errors.push(`[${current}] the toggle should switch back to Hebrew and drop l= (${await evaluate('location.hash')})`);
     await evaluate("location.hash = '#results?m=together,democrats&l=en'");
-    await sleep(400);
+    await settle(400);
     const pastedEn = await evaluate("JSON.stringify([document.documentElement.lang, document.querySelector('#results-coalition').innerText, window.smokeSameDoc === true])");
     if (!pastedEn.startsWith('["en",') || !pastedEn.includes('Beyachad') || !pastedEn.endsWith('true]')) errors.push(`[${current}] a pasted English link should switch the language and coalition without a reload (${pastedEn})`);
     for (const [m, pid, tid, ql] of [['yashar,likud', 'yashar', 'draft', 'he'], ['likud,raam', 'raam', 'palestinian', 'ar']]) {
       await go(`${baseUrl}#results?m=${m}&l=en`);
       await waitFor(() => evaluate("document.querySelector('[data-act=\"cell\"]') !== null"));
       await evaluate(`document.querySelector('[data-act="cell"][data-party="${pid}"][data-topic="${tid}"]').click()`);
-      await sleep(300);
+      await settle(300);
       const sheet = await evaluate(`(() => { const s = document.querySelector('#sheet'); if (!s.open) return 'not open';
         const q = s.querySelector('blockquote .q-text'); const t = s.querySelector('blockquote .q-trans'); const mail = s.querySelector('.correction a')?.href ?? '';
         return JSON.stringify([q?.lang, t?.innerText.endsWith(${JSON.stringify(EN.sheet.siteTranslation)}), new URL(mail).searchParams.get('subject')?.startsWith('Correction: ')]); })()`);
@@ -1427,14 +1449,14 @@ try {
         if (entry !== T.home.pair) errors.push(`[${current}] entry on the build view: expected "${T.home.pair}", got "${entry}"`);
         await evaluate("document.querySelector('#tasks a[href=\"#pair\"]').click()");
         await waitFor(() => evaluate("document.body.dataset.view === 'pair'"));
-        await sleep(200);
+        await settle(200);
         const opened = await evaluate("JSON.stringify([location.hash, document.activeElement?.id, document.querySelector('#pair-view .empty')?.innerText.trim()])");
         if (opened !== JSON.stringify([`#pair${L ? `?${L}` : ''}`, 'pair-title', T.pair.pickBoth])) errors.push(`[${current}] opening the pair view: ${opened}`);
         if (JSON.stringify(await options(0)) !== JSON.stringify(orderedIds)) errors.push(`[${current}] picker order: ${await options(0)}`);
         await pick(0, A);
-        await sleep(150);
+        await settle(150);
         await pick(1, B);
-        await sleep(250);
+        await settle(250);
         const want = pairWant(lng, A, B);
         const got = await evaluate(`JSON.stringify({ hash: location.hash, focus: document.activeElement?.dataset?.key, rows: document.querySelectorAll('#pair-view .pair-row').length,
           topicsInOrder: [...document.querySelectorAll('#pair-view .pair-topic')].map((e) => e.innerText.trim()),
@@ -1445,7 +1467,7 @@ try {
         if ((await options(0)).includes(B) || (await options(1)).includes(A)) errors.push(`[${current}] a picker offers the party already picked in the other one`);
         // Every row open: the null cells say so and show their dated note; nothing overflows the page.
         await evaluate("document.querySelectorAll('#pair-view details').forEach((d) => { d.open = true; })");
-        await sleep(150);
+        await settle(150);
         for (const tid of nullTopics) {
           const i = topics.findIndex((t) => t.id === tid);
           const p = posCtx[lng].idx.get(`${A}|${tid}`);
@@ -1484,16 +1506,16 @@ try {
     await waitFor(() => evaluate("document.body.dataset.view === 'pair'"));
     await pick(0, A);
     await pick(1, B);
-    await sleep(200);
+    await settle(200);
     const kept = await evaluate("JSON.stringify([location.hash, new URL(document.querySelector('#pair-view a[href^=\"https://wa.me/\"]').href).searchParams.get('text').split('\\n')[1]])");
     if (kept !== JSON.stringify([`#pair${serializeState(ctx, { base: null, members: ['likud', 'yashar'] })}&p=${A},${B}`, `${baseUrl}#pair?p=${A},${B}`])) errors.push(`[${current}] coalition around the pair view: ${kept}`);
     // The toggle keeps the view and the pair; the back link returns to the builder with the coalition.
     await evaluate("document.querySelector('#lang-switch button').click()");
-    await sleep(300);
+    await settle(300);
     const toggled = await evaluate("JSON.stringify([document.documentElement.lang, location.hash, document.querySelectorAll('#pair-view .pair-row').length])");
     if (toggled !== JSON.stringify(['en', `#pair${serializeState(ctx, { base: null, members: ['likud', 'yashar'] })}&p=${A},${B}&l=en`, topics.length])) errors.push(`[${current}] the toggle on the pair view: ${toggled}`);
     await evaluate("document.querySelector('#pair-view a.back').click()");
-    await sleep(300);
+    await settle(300);
     const backTo = await evaluate("JSON.stringify([document.body.dataset.view, location.hash, document.querySelectorAll('#builder .prow.is-on').length])");
     if (backTo !== JSON.stringify(['build', `#build${serializeState(ctx, { base: null, members: ['likud', 'yashar'] })}&l=en`, 2])) errors.push(`[${current}] back to the builder: ${backTo}`);
     // Lists under the threshold: their own labelled group (results); a clash made by a red line explains itself.
@@ -1550,7 +1572,7 @@ try {
       step(`tasks-${lng}@${w}x${h}`);
       await go(`${baseUrl}${lng === 'en' ? '#build?l=en' : ''}`);
       await ready();
-      await sleep(250);
+      await settle(250);
       const want = [[T.home.build, T.home.buildLine(nTopics)], ...(RESULTS ? [[T.home.closest, T.home.closestLine]] : []), [T.home.pair, T.home.pairLine(nTopics)]];
       const got = await evaluate(`JSON.stringify({ h2: document.querySelector('#tasks h2')?.innerText.trim(), intro: [document.querySelector('#intro').tagName, document.querySelector('#intro').innerText.trim()],
         cards: [...document.querySelectorAll('#tasks .task')].map((t) => [t.querySelector('.task-title').innerText.trim(), t.querySelector('.task-line').innerText.trim()]),
@@ -1597,9 +1619,12 @@ try {
         const L = lng === 'en' ? '?l=en' : '';
         await go(`${baseUrl}#build${L}`);
         await ready();
-        await sleep(200);
+        await settle(200);
         const h0 = await evaluate('location.hash');
         await tap('#tasks [data-key="home-build"] + .task-line');
+        // A smooth scroll: let it end (settle waits for the scroll to stop), so the check sees where it lands and nothing
+        // is still moving when the test scrolls back to the top.
+        await settle(1500);
         const reached = await waitFor(() => evaluate("(() => { const r = document.querySelector('#builder-title').getBoundingClientRect(); return document.activeElement?.id === 'builder-title' && r.top >= 0 && r.top < 80; })()"), 3000).catch(() => false);
         const hb = await evaluate('JSON.stringify([location.hash, document.querySelector("#builder-title").innerText.trim(), document.body.dataset.view])');
         if (!reached || hb !== JSON.stringify([h0, T.builder.title, 'build'])) errors.push(`[${current}] card 1 should focus the builder heading at the top, URL unchanged (${reached}, ${hb})`);
@@ -1607,24 +1632,26 @@ try {
         await evaluate('window.scrollTo(0, 0)');
         if (RESULTS) {
           await evaluate("(() => { const s = document.querySelector('#tasks [data-act=\"closest-pick\"]'); s.focus(); s.value = 'likud'; s.dispatchEvent(new Event('change', { bubbles: true })); })()");
-          await sleep(300);
+          await settle(300);
           const sheet = await evaluate("JSON.stringify([document.querySelector('#sheet').open, document.querySelector('#sheet h2')?.innerText.trim()])");
           if (sheet !== JSON.stringify([true, T.closest.title(nameIn(lng, 'likud'))])) errors.push(`[${current}] card 2 should open the closest-coalitions sheet: ${sheet}`);
           await key('Escape', 27);
-          await sleep(250);
+          await settle(250);
           const back = await evaluate("JSON.stringify([document.querySelector('#sheet').open, document.activeElement?.dataset?.key, document.querySelector('#tasks [data-act=\"closest-pick\"]').value])");
           if (back !== JSON.stringify([false, 'closest-pick', ''])) errors.push(`[${current}] closing the sheet should return focus to the card 2 picker, reset: ${back}`);
         }
         await tap('#tasks [data-key="home-pair"] + .task-line');
         await waitFor(() => evaluate("document.body.dataset.view === 'pair'"));
-        await sleep(200);
+        await settle(200);
         const pv = await evaluate('JSON.stringify([location.hash, document.activeElement?.id])');
         if (pv !== JSON.stringify([`#pair${L}`, 'pair-title'])) errors.push(`[${current}] card 3 should open #pair${L} with focus on its heading: ${pv}`);
         await evaluate('history.back()');
         await waitFor(() => evaluate("document.body.dataset.view === 'build'"));
-        await sleep(250);
-        const bk = await evaluate('JSON.stringify([location.hash, document.activeElement?.dataset?.key, scrollY])');
-        if (bk !== JSON.stringify([`#build${L}`, 'home-pair', 0])) errors.push(`[${current}] back from the pair view should focus card 3: ${bk}`);
+        // Focus returns once the view has rendered and restored its scroll: wait for that state (up to 3s), not a fixed time.
+        const BK = 'JSON.stringify([location.hash, document.activeElement?.dataset?.key, scrollY])';
+        const wantBk = JSON.stringify([`#build${L}`, 'home-pair', 0]);
+        const bk = await waitFor(async () => ((await evaluate(BK)) === wantBk ? wantBk : null), 3000).catch(() => evaluate(BK));
+        if (bk !== wantBk) errors.push(`[${current}] back from the pair view should focus card 3: ${bk}`);
         // The disclosure: collapsed, labelled, opens to the scenarios (results) or presets (polls).
         const disc = await evaluate(`(() => { const d = document.querySelector('#presets details'); const was = d.open; d.querySelector('summary').click();
           return JSON.stringify([was, d.open, d.querySelector('summary').innerText.trim(), d.querySelectorAll('[data-act="scenario"], [data-act="preset"]').length > 0, document.querySelector('#builder-title').compareDocumentPosition(d) & Node.DOCUMENT_POSITION_FOLLOWING]); })()`);
@@ -1694,11 +1721,11 @@ try {
             const tag = `${tagOf(k)}-${mode}`;
             await go(`${baseUrl}${start}`);
             await loaded();
-            await sleep(250);
+            await settle(250);
             const before = await frag();
             const text = await act();
             await waitFor(() => evaluate("document.body.dataset.view === 'results' && document.querySelector('#results h2') !== null"));
-            await sleep(350);
+            await settle(350);
             const after = await frag();
             let st = JSON.parse(await evaluate(UNDO_STATE));
             if (after === before) errors.push(`[${tag}] the change did not happen`);
@@ -1711,14 +1738,14 @@ try {
               if (lay) errors.push(`[${tag}] layout: ${lay}`);
               if (size.width === 375) await shoot(size, `undo-${k}-m${lng === 'he' ? '' : '-en'}.png`, false);
               await evaluate("document.querySelector('#results-undo [data-act=\"undo\"]').click()");
-              await sleep(350);
+              await settle(350);
               st = JSON.parse(await evaluate(UNDO_STATE));
               if ((await frag()) !== before || st.hash !== '#results') errors.push(`[${tag}] undo should restore ${before} on #results, got ${await frag()} on ${st.hash}`);
               if (st.line !== null) errors.push(`[${tag}] the line should go after undo`);
               if (st.live !== restoredFor(before)) errors.push(`[${tag}] announced "${st.live}", want "${restoredFor(before)}"`);
             } else {
               await evaluate("document.querySelector('#results-undo [data-act=\"undo-close\"]').click()");
-              await sleep(250);
+              await settle(250);
               st = JSON.parse(await evaluate(UNDO_STATE));
               if ((await frag()) !== after) errors.push(`[${tag}] × must not change the coalition`);
               if (st.line !== null) errors.push(`[${tag}] × should hide the line`);
@@ -1730,7 +1757,7 @@ try {
         // 1. A closest coalition, from the build-view picker with a coalition already chosen (arrives on #results).
         if (RESULTS) {
           await runCase('replaced', `#build?m=likud,yashar${sfx}`, async () => {
-            await pick('likud'); await sleep(300);
+            await pick('likud'); await settle(300);
             await evaluate("document.querySelector('#sheet [data-act=\"closest-apply\"]').click()");
             return null;
           }, T.results.undoReplaced);
@@ -1738,10 +1765,10 @@ try {
           const tag = tagOf('empty');
           await go(`${baseUrl}#build${lng === 'he' ? '' : '?l=en'}`);
           await loaded();
-          await pick('likud'); await sleep(300);
+          await pick('likud'); await settle(300);
           await evaluate("document.querySelector('#sheet [data-act=\"closest-apply\"]').click()");
           await waitFor(() => evaluate("document.body.dataset.view === 'results' && document.querySelector('#results h2') !== null"));
-          await sleep(350);
+          await settle(350);
           const st = JSON.parse(await evaluate(UNDO_STATE));
           if (st.line !== null) errors.push(`[${tag}] no undo line when starting from an empty coalition`);
           if (st.focus !== 'heading') errors.push(`[${tag}] focus should be on the results heading (${st.focus})`);
@@ -1762,11 +1789,11 @@ try {
         const tag = tagOf('lifetime');
         await go(`${baseUrl}#results${serializeState(ctx, { base: null, ...fric })}${sfx}`);
         await loaded();
-        await sleep(250);
+        await settle(250);
         const id = await evaluate("(() => { const b = document.querySelector('#results [data-act=\"remove-friction\"]'); b.click(); return b.dataset.id; })()");
-        await sleep(300);
+        await settle(300);
         await evaluate("document.querySelector('#lang-switch button').click()");
-        await sleep(300);
+        await settle(300);
         const O = lng === 'he' ? EN : S;
         const other = (await evaluate("document.querySelector('#results-undo .undo-text')?.innerText ?? null"));
         if (other !== O.results.undoRemoved(posCtx[lng === 'he' ? 'en' : 'he'].byId.get(id).name)) errors.push(`[${tag}] after a language switch the line should read in the other language (${other})`);
@@ -1774,7 +1801,7 @@ try {
         await waitFor(() => evaluate("document.body.dataset.view === 'build'"));
         await evaluate("location.hash = '#results'");
         await waitFor(() => evaluate("document.body.dataset.view === 'results'"));
-        await sleep(250);
+        await settle(250);
         if (await evaluate("document.querySelector('#results-undo .undo-line') !== null")) errors.push(`[${tag}] leaving the results view should clear the line`);
       }
     }
@@ -1805,7 +1832,7 @@ try {
         step(`layout-${l}@${w}`);
         await go(`${baseUrl}#results?m=likud,yashar,together${l === 'en' ? '&l=en' : ''}`);
         await waitFor(() => evaluate("document.querySelector('#results .seg') !== null && document.querySelector('#matrix .topic-btn') !== null"));
-        await sleep(250);
+        await settle(250);
         const bad = await evaluate(LAYOUT_CHECK);
         if (bad) errors.push(`[${current}] ${bad}`);
       }
@@ -1848,32 +1875,32 @@ try {
         await go(`${baseUrl}#results?m=likud,yashar,together,otzma-yehudit,shas,utj${sfx}`);
         await waitFor(() => evaluate("document.querySelector('.party-btn[data-id=\"likud\"]') !== null"));
         await evaluate("document.querySelector('.party-btn[data-id=\"likud\"]').click()");
-        await sleep(300);
+        await settle(300);
         const sheetCheck = async (what) => { const r = await evaluate(SHEET_X); if (r !== 'ok') errors.push(`[${current}] ${what}: ${r}`); };
         await sheetCheck('at rest');
         await evaluate("(() => { const d = document.querySelector('#sheet'); d.scrollTop = 120; return true; })()");
-        await sleep(150);
+        await settle(150);
         await sheetCheck('after a short scroll');
         await metrics(800); // the bars hide
-        await sleep(250);
+        await settle(250);
         await sheetCheck('after the viewport grows');
         await evaluate("(() => { const d = document.querySelector('#sheet'); d.scrollTop = d.scrollHeight / 2; return true; })()");
-        await sleep(150);
+        await settle(150);
         await sheetCheck('mid-scroll');
         await metrics(744); // the address bar returns
-        await sleep(250);
+        await settle(250);
         await sheetCheck('after the viewport shrinks back');
         await metrics(632); // and a bottom bar too (Brave)
-        await sleep(250);
+        await settle(250);
         await sheetCheck('after the viewport shrinks by both bars');
         await evaluate("(() => { const d = document.querySelector('#sheet'); d.scrollTop = d.scrollHeight; return true; })()");
-        await sleep(150);
+        await settle(150);
         await sheetCheck('at the end');
         if (w === 375) await shoot({ width: w, height: 632, dpr: 2, mobile: true }, `sheet-party-scrolled-${l}.png`, false);
         // The votes line: three segments, none broken across lines, also with enlarged text.
         for (const pct of [100, 125]) {
           await evaluate(ENLARGE(pct));
-          await sleep(150);
+          await settle(150);
           const segs = await evaluate(lineCount('#sheet .votes-line .nw'));
           if (RESULTS && (segs.length !== 3 || segs.some((n) => n > 1))) errors.push(`[${current}] votes line at ${pct}%: segments ${JSON.stringify(segs)} (want 3, one line each)`);
         }
@@ -1883,7 +1910,7 @@ try {
         // Cell sheet: the why row.
         const cell = matrixCell(posCtx[l], 'yashar', 'draft', ['likud', 'yashar', 'together', 'otzma-yehudit', 'shas', 'utj'], null);
         await evaluate("document.querySelector('.cell[data-party=\"yashar\"][data-topic=\"draft\"]').click()");
-        await sleep(250);
+        await settle(250);
         const why = await evaluate(WHY_JS('#sheet'));
         const wantWhy = cell.d === 0 ? T.sheet.agree(nmL('yashar'), nmL(cell.ref)) : T.sheet.gapTitle(nmL('yashar'), nmL(cell.ref), cell.d);
         if (!why || !why.below || why.text !== wantWhy) errors.push(`[${current}] cell sheet why row: ${JSON.stringify(why)}, want "${wantWhy}" under the badge`);
@@ -1895,7 +1922,7 @@ try {
           await go(`${baseUrl}${url}`);
           await waitFor(() => evaluate(`document.querySelectorAll('${scope} .pair-row').length === 8`));
           await evaluate(`(() => { document.querySelectorAll('${scope} .pair-row')[${placed}].open = true; return true; })()`);
-          await sleep(150);
+          await settle(150);
           const got = await evaluate(WHY_JS(`${scope} .pair-row[open] .pair-detail`));
           const r = pr2[placed];
           // The card lists its members in party order (by ballot letters when seats are hidden); the pair view keeps p=.
@@ -1960,7 +1987,7 @@ try {
           await go(`${baseUrl}#results?${FIT_MEMBERS}${l === 'en' ? '&l=en' : ''}`);
           await waitFor(() => evaluate("document.querySelectorAll('#matrix .topic-btn').length === 8 && document.querySelector('#results .seg') !== null"));
           await evaluate(ENLARGE(pct));
-          await sleep(250);
+          await settle(250);
           for (const b of await evaluate(FIT_RESULTS)) errors.push(`[${current}] ${b}`);
           // The header on one line at normal text size (#35), also with a wider device font (simulated: +0.08em letter
           // spacing, about 15% wider), which the tight step absorbs. It may wrap only with enlarged text.
@@ -1980,7 +2007,7 @@ try {
           await go(`${baseUrl}#build${l === 'en' ? '?l=en' : ''}`);
           await waitFor(() => evaluate("document.querySelectorAll('.task').length > 0"));
           await evaluate(ENLARGE(pct));
-          await sleep(250);
+          await settle(250);
           for (const b of await evaluate(FIT_BUILD)) errors.push(`[${current} build] ${b}`);
         }
       }
@@ -2032,7 +2059,7 @@ try {
             await waitFor(() => evaluate(ready));
             await evaluate("(() => { const d = document.querySelector('#presets details'); if (d) d.open = true; return true; })()");
             await evaluate(ENLARGE(pct));
-            await sleep(250);
+            await settle(250);
             const r = await evaluate(NOBREAK_JS(sels, names));
             nbSeen += r.seen;
             for (const b of r.bad) errors.push(`[${current} ${url.split('?')[0]}] ${b}`);
@@ -2049,6 +2076,7 @@ try {
   }
   endSection();
   log(`  ${MODE}: ${Math.round((Date.now() - t0) / 1000)}s (${sectionTimes.join(', ')})`);
+  toLog(`  settle: ${settles.n} waits, ${settles.capped} reached their cap`);
   c.close();
 } catch (e) {
   errors.push(`smoke failed: ${e.message}`);
