@@ -168,6 +168,7 @@ function renderHeader() {
   $('#nav-method').innerHTML = `<span class="nav-long">${esc(S.nav.method)}</span><span class="nav-short">${esc(S.nav.methodShort)}</span>`;
   fitTopbar();
   $('#intro').textContent = S.buildIntro(ctx.topics.length);
+  $('#results-h1').textContent = S.results.viewTitle;
   $('#purpose').textContent = S.buildPurpose;
   if (isResults()) {
     $('#voter-info')?.remove();
@@ -189,7 +190,7 @@ function renderHeader() {
 function renderFooter() {
   const F = S.footer;
   $('#footer').innerHTML = `
-    <p class="f-by"><a href="https://lioz.dev" rel="noopener">${esc(F.by)}</a></p>
+    <p class="f-by"><a href="https://lioz.dev" rel="noopener">${bidi(F.by)}</a></p>
     <p class="f-icons">
       <a href="https://github.com/Lioo7/mi-im-mi" rel="noopener" aria-label="${esc(F.githubLabel)}"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12 .5A11.5 11.5 0 0 0 .5 12c0 5.08 3.29 9.39 7.86 10.91.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.71.08-.7.08-.7 1.15.08 1.76 1.19 1.76 1.19 1.03 1.76 2.69 1.25 3.35.96.1-.75.4-1.25.73-1.54-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.83 1.19 3.09 0 4.42-2.69 5.39-5.25 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5Z"/></svg></a>
       <a href="mailto:lioz.akirav@gmail.com" aria-label="${esc(F.emailLabel)}"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M3 5h18a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Zm1.3 2 7.7 5.9L19.7 7H4.3ZM4 17h16V9.1l-8 6.1-8-6.1V17Z"/></svg></a>
@@ -494,7 +495,7 @@ function renderBuilder() {
 function roleControl(id, role) {
   const B = S.builder;
   return `<div class="roles" role="radiogroup" aria-label="${esc(B.roleGroup(name(id)))}">${['member', 'supporter', 'abstainer'].map((r) => `
-    <button type="button" role="radio" aria-checked="${r === role}" class="role-btn${r === role ? ' is-on' : ''}" data-act="role" data-id="${id}" data-role="${r}" data-key="role-${id}-${r}">${esc(B.roles[r])}</button>`).join('')}
+    <button type="button" role="radio" aria-checked="${r === role}" tabindex="${r === role ? 0 : -1}" class="role-btn${r === role ? ' is-on' : ''}" data-act="role" data-id="${id}" data-role="${r}" data-key="role-${id}-${r}">${esc(B.roles[r])}</button>`).join('')}
   </div>`;
 }
 
@@ -769,7 +770,7 @@ function crisesCard(r) {
       <li><button type="button" class="pair-btn" data-act="pair-sheet" data-a="${p.a}" data-b="${p.b}" data-key="pair-${c.topicId}-${p.a}-${p.b}">
         <span>${esc(name(p.a))} ↔ ${esc(name(p.b))}</span>${levelBadge(p.level)}</button></li>`).join('')}</ul>` : '';
     return `<li class="gap${open ? ' is-open' : ''}">
-      <button type="button" class="row-btn gap-head" data-act="expand" data-id="${c.topicId}" data-key="gap-${c.topicId}" aria-expanded="${open}" aria-controls="pairs-${c.topicId}" aria-label="${esc(`${topic(c.topicId).name}: ${esc(name(w.a))} ↔ ${esc(name(w.b))}, ${tag}. ${open ? R.collapse : R.expand}`)}">
+      <button type="button" class="row-btn gap-head" data-act="expand" data-id="${c.topicId}" data-key="gap-${c.topicId}" aria-expanded="${open}"${open ? ` aria-controls="pairs-${c.topicId}"` : ''} aria-label="${esc(`${topic(c.topicId).name}: ${name(w.a)} ↔ ${name(w.b)}, ${tag}. ${open ? R.collapse : R.expand}`)}">
         <span class="gap-main">
           <span class="row-title">${esc(topic(c.topicId).short)}: ${esc(name(w.a))} ↔ ${esc(name(w.b))}</span>
           <span class="row-meta"><span class="lv lv-${w.level}"><span aria-hidden="true">${S.levels[w.level].icon}</span> ${esc(tag)}</span>${w.byRedLine ? ` <span class="tag tag-red"><span aria-hidden="true">🚩</span> ${esc(S.redLine)}</span>` : ''}</span>
@@ -1055,7 +1056,7 @@ function renderMatrix() {
       <span class="colorby-label">${esc(M.colorBy)}</span>
       ${[['', M.colorByAll], ...members.map((id) => [id, name(id)])].map(([id, label]) => {
     const on = (base ?? '') === id;
-    return `<button type="button" role="radio" aria-checked="${on}" class="seg-btn${on ? ' is-on' : ''}" data-act="colorby" data-id="${id}" data-key="colorby-${id || 'all'}">${esc(label)}</button>`;
+    return `<button type="button" role="radio" aria-checked="${on}" tabindex="${on ? 0 : -1}" class="seg-btn${on ? ' is-on' : ''}" data-act="colorby" data-id="${id}" data-key="colorby-${id || 'all'}">${esc(label)}</button>`;
   }).join('')}
     </div>`;
   el.innerHTML = `
@@ -1495,8 +1496,23 @@ function onClick(e) {
   }
 }
 
+// Radio groups (#11: "צבע לפי", a party's role): one Tab stop, the checked radio. The arrows move to the next or previous
+// radio and choose it, as in the ARIA radio group pattern; in RTL the left arrow is "next". Home and End: first, last.
+function onRadioKey(e) {
+  const radio = e.target.closest?.('[role="radiogroup"] [role="radio"]');
+  const steps = { ArrowDown: 1, ArrowUp: -1, ArrowRight: document.dir === 'rtl' ? -1 : 1, ArrowLeft: document.dir === 'rtl' ? 1 : -1 };
+  if (!radio || !(e.key in steps || e.key === 'Home' || e.key === 'End')) return;
+  e.preventDefault();
+  const radios = [...radio.closest('[role="radiogroup"]').querySelectorAll('[role="radio"]')];
+  const i = radios.indexOf(radio);
+  const next = e.key === 'Home' ? radios[0] : e.key === 'End' ? radios.at(-1) : radios[(i + steps[e.key] + radios.length) % radios.length];
+  next.focus();
+  if (next !== radio) next.click();
+}
+
 function bind() {
   document.addEventListener('click', onClick);
+  document.addEventListener('keydown', onRadioKey);
   window.addEventListener('hashchange', () => route());
   window.addEventListener('resize', () => { fitTopbar(); if (view === 'results') syncResbarHeight(); });
   document.fonts?.ready.then(fitTopbar);

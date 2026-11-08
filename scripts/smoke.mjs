@@ -921,6 +921,21 @@ try {
     if ((await evaluate("document.activeElement?.dataset.key")) !== 'role-shas-abstainer') errors.push('[interaction] focus lost after choosing a role');
     await evaluate("document.querySelector('[data-act=\"role\"][data-id=\"shas\"][data-role=\"member\"]').click()");
     await settle(200);
+    // Radio groups (#11): one Tab stop per group (the checked radio), and the arrow keys choose. RTL: ← is next.
+    const RADIO_KEYS = { ArrowLeft: 37, ArrowRight: 39, Home: 36, End: 35 };
+    const press = async (k) => { for (const type of ['keyDown', 'keyUp']) await c.send('Input.dispatchKeyEvent', { type, key: k, code: k, windowsVirtualKeyCode: RADIO_KEYS[k] }); await settle(200); };
+    const ONE_STOP = `[...document.querySelectorAll('[role="radiogroup"]')].every((g) => { const z = [...g.querySelectorAll('[role="radio"]')].filter((r) => r.tabIndex === 0); return z.length === 1 && z[0].getAttribute('aria-checked') === 'true'; })`;
+    if (!(await evaluate(ONE_STOP))) errors.push('[interaction] each role group should have one Tab stop, its checked radio');
+    await evaluate("document.querySelector('[data-key=\"role-shas-member\"]').focus()");
+    for (const [k, role, q] of [['ArrowLeft', 'supporter', /o=shas/], ['End', 'abstainer', /a=shas/], ['Home', 'member', /m=[^&]*shas/], ['ArrowRight', 'abstainer', /a=shas/]]) {
+      await press(k);
+      const [f, focus] = [await frag(), await evaluate('document.activeElement?.dataset.key')];
+      if (!q.test(f) || focus !== `role-shas-${role}`) errors.push(`[interaction] ${k} in shas's role group should choose ${role} and keep focus on it (${f}, focus ${focus})`);
+    }
+    await press('Home');
+    if (await evaluate("document.querySelectorAll('#view-build h1').length") !== 1) errors.push('[interaction] the build view should have one h1');
+    const by = await evaluate("[...document.querySelectorAll('#footer .f-by bdi')].map((b) => b.textContent).join('|')");
+    if (by !== 'Lioz Akirav') errors.push(`[interaction] the footer's Latin name should be in a <bdi>, got "${by}"`);
     // Unselecting a row clears its role (back to opponent).
     await evaluate("document.querySelector('[data-act=\"role\"][data-id=\"shas\"][data-role=\"supporter\"]').click(); document.querySelector('[data-act=\"toggle\"][data-id=\"shas\"]').click()");
     await settle(200);
@@ -942,15 +957,31 @@ try {
     await settle(300);
     const bq = await frag();
     if (!/b=shas/.test(bq)) errors.push(`[interaction] base control did not set b= (${bq})`);
+    // The results view's h1 (#11), for screen readers; and "צבע לפי" by keyboard: Home is הכל, ← (RTL) the next party.
+    const h1 = await evaluate("[...document.querySelectorAll('#view-results h1')].map((h) => h.textContent).join('|')");
+    if (h1 !== S.results.viewTitle) errors.push(`[interaction] the results view should have one h1 "${S.results.viewTitle}", got "${h1}"`);
+    if (!(await evaluate(ONE_STOP))) errors.push('[interaction] "צבע לפי" should have one Tab stop, its checked radio');
+    await evaluate("document.querySelector('[data-key=\"colorby-shas\"]').focus()");
+    await press('Home');
+    const allQ = await frag();
+    if (/b=/.test(allQ) || (await evaluate('document.activeElement?.dataset.key')) !== 'colorby-all') errors.push(`[interaction] Home in "צבע לפי" should choose הכל (${allQ})`);
+    const second = await evaluate("document.querySelectorAll('.colorby [role=\"radio\"]')[1].dataset.id");
+    await press('ArrowLeft');
+    if (!new RegExp(`b=${second}`).test(await frag()) || (await evaluate('document.activeElement?.dataset.key')) !== `colorby-${second}`) errors.push(`[interaction] ← in "צבע לפי" should choose ${second} (${await frag()})`);
+    await evaluate("document.querySelector('.colorby [data-id=\"shas\"]').click()");
+    await settle(300);
     const starLine = await evaluate("document.querySelector('#results-coalition').innerText.includes('★')");
     if (!starLine) errors.push('[interaction] coalition line should mark the base with ★');
     const sealed = await evaluate("document.querySelector('.gap-head') ? 'yes' : ''");
     if (!sealed) errors.push('[interaction] results have no gap cards for this coalition');
     else {
+      // aria-controls only while the list it names exists (#11).
+      if (await evaluate("document.querySelector('.gap-head').hasAttribute('aria-controls')")) errors.push('[interaction] a closed gap card must not point aria-controls at a list that does not exist');
       await evaluate("document.querySelector('.gap-head').click()");
       await settle(300);
       const open = await evaluate("document.querySelector('.gap-head').getAttribute('aria-expanded') === 'true' && document.querySelectorAll('.pair-list .pair-btn').length > 0");
       if (!open) errors.push('[interaction] gap card did not expand to list its pairs');
+      if (!(await evaluate("document.getElementById(document.querySelector('.gap-head').getAttribute('aria-controls'))?.matches('.pair-list') === true"))) errors.push('[interaction] an open gap card should point aria-controls at its list');
       const tagOk = await evaluate("/· (זוג מפלגות אחד|\\d+ זוגות מפלגות)/.test(document.querySelector('.gap-head .lv').textContent) && !document.body.innerText.includes('ועוד')");
       if (!tagOk) errors.push('[interaction] gap card tag must carry the pair count and no "ועוד N זוגות" line');
       await evaluate('window.scrollTo(0, document.querySelector(".gap").getBoundingClientRect().top + scrollY - 120)');
