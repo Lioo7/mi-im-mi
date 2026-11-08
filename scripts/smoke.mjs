@@ -29,7 +29,9 @@ function wantSourceLine(T, sc, lc) {
 }
 
 const CHROME = process.env.CHROME_PATH ?? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
-const OUT = join(ROOT, 'smoke');
+// smoke/<mode>/ for a local run, smoke/remote/ for a remote one (set once the options are read).
+const SMOKE = join(ROOT, 'smoke');
+let OUT = SMOKE;
 const SIZES = [{ tag: 'm', width: 390, height: 844, mobile: true, dpr: 2 }, { tag: 'd', width: 1280, height: 900, mobile: false, dpr: 1 }];
 const members_in_url = (qs) => /[?&]m=/.test(qs);
 // A URL suffix split like a location; legacy links carry the state in the query, current ones in the fragment.
@@ -42,11 +44,13 @@ const STEP_MS = Number(process.env.SMOKE_STEP_MS ?? 15000);
 const WATCHDOG_MS = Number(process.env.SMOKE_WATCHDOG_MS ?? 20 * 60 * 1000);
 // The case being run; timeouts and the watchdog name it.
 let current = '';
-const PROGRESS = join(OUT, 'progress.log');
-const write = (fd, line) => { writeSync(fd, line + '\n'); try { appendFileSync(PROGRESS, line + '\n'); } catch { /* smoke/ not created yet */ } };
+// Everything (progress, results, every error) goes to smoke/<mode>/smoke.log; stdout gets the summary lines only.
+let LOG = join(OUT, 'smoke.log');
+const toLog = (text) => { try { appendFileSync(LOG, text + '\n'); } catch { /* the run's folder is not created yet */ } };
+const write = (fd, line) => { writeSync(fd, line + '\n'); toLog(line); };
 const log = (line) => write(1, line);
 const logErr = (line) => write(2, line);
-const step = (name) => { current = name; try { appendFileSync(PROGRESS, `… ${name}\n`); } catch { /* ignore */ } };
+const step = (name) => { current = name; toLog(`… ${name}`); };
 
 // Rejects when the promise takes longer than ms (the promise itself is left to settle or not).
 function within(promise, ms, label) {
@@ -148,6 +152,9 @@ if (!MODES[MODE]) usage(`unknown mode "${MODE}"`);
 if (base && MODE !== dataMode) usage(`a remote run tests the deployed mode (${dataMode}), not --mode=${MODE}`);
 const ONLY = new Set(opt('only')?.split(',') ?? SECTIONS);
 for (const s of ONLY) if (!SECTIONS.includes(s)) usage(`unknown section "${s}"`);
+OUT = join(SMOKE, base ? 'remote' : MODE);
+LOG = join(OUT, 'smoke.log');
+const rel = (p) => p.slice(ROOT.length + 1);
 
 const { parties, topics, meta, results } = loadData();
 Object.assign(meta, MODES[MODE]);
@@ -338,6 +345,8 @@ const t0 = Date.now();
 try {
   rmSync(OUT, { recursive: true, force: true });
   mkdirSync(OUT, { recursive: true });
+  // Files from before the per-mode folders (smoke/*.png, progress.log).
+  for (const f of readdirSync(SMOKE)) try { if (!statSync(join(SMOKE, f)).isDirectory()) rmSync(join(SMOKE, f), { force: true }); } catch { /* another run removed it */ }
   step('start');
   const targets = await waitFor(() => fetch(`http://127.0.0.1:${port}/json/list`).then((r) => r.json()));
   const page = targets.find((t) => t.type === 'page');
@@ -2007,10 +2016,14 @@ if (onProd && beacons.length === 0) errors.push('no GoatCounter beacon seen on p
 if (!onProd && beacons.length > 0) errors.push(`${beacons.length} GoatCounter beacon(s) sent from a non-production host (${new URL(baseUrl).host}); only ${PROD_HOST} may count`);
 
 if (errors.length) {
-  logErr(`✗ ${errors.length} error(s):\n  ` + errors.join('\n  '));
+  // stdout: the first 10 errors, each cut at 400 characters; the log has them all in full.
+  toLog(`✗ ${errors.length} error(s):\n  ` + errors.join('\n  '));
+  const cut = (e) => (e.length > 400 ? `${e.slice(0, 400)}…` : e);
+  writeSync(2, `✗ ${errors.length} error(s) [${MODE}]:\n  ${errors.slice(0, 10).map(cut).join('\n  ')}\n`
+    + `  ${errors.length > 10 ? `… ${errors.length - 10} more; ` : ''}all of them in ${rel(LOG)}\n`);
   exitCode = 1;
 } else {
-  log('✓ no console errors; screenshots in smoke/');
+  log(`✓ no console errors (log: ${rel(LOG)})`);
   log(`  GoatCounter beacons intercepted: ${beacons.length}${onProd ? ' (none carried coalition data)' : ' (none expected off production)'}`);
 }
 process.exit(exitCode);
