@@ -76,10 +76,12 @@ function siteHeaders() {
   return Object.fromEntries([...values.matchAll(/^\s*([\w-]+)\s*=\s*"(.*)"\s*$/gm)].map((m) => [m[1], m[2]]));
 }
 
-// Minimal static server for ./site (query strings ignored, like Netlify), sending netlify.toml's headers.
+// Minimal static server for ./site (query strings ignored, like Netlify), sending netlify.toml's headers. meta.json is
+// served with the tested mode (--mode) applied.
 async function serve() {
   const dir = join(ROOT, 'site');
   const headers = siteHeaders();
+  const metaFile = join(dir, 'data', 'meta.json');
   const server = createServer((req, res) => {
     const url = new URL(req.url, 'http://x');
     let path = normalize(decodeURIComponent(url.pathname)).replace(/^([.][.][/\\])+/, '');
@@ -87,7 +89,7 @@ async function serve() {
     if (existsSync(file) && statSync(file).isDirectory()) file = join(file, 'index.html');
     if (!file.startsWith(dir) || !existsSync(file)) { res.writeHead(404); res.end('not found'); return; }
     res.writeHead(200, { ...headers, 'content-type': TYPES[extname(file)] ?? 'application/octet-stream' });
-    const body = readFileSync(file);
+    const body = file === metaFile ? JSON.stringify({ ...JSON.parse(readFileSync(file, 'utf8')), ...MODES[MODE] }) : readFileSync(file);
     res.end(body);
   });
   await new Promise((r) => server.listen(0, '127.0.0.1', r));
@@ -129,7 +131,26 @@ function cdp(wsUrl) {
   };
 }
 
+// Options (#37). --mode: which data mode to test; a local run serves site/ with meta.json's mode overridden, so no
+// scratch copies are needed (a remote run tests the deployed mode). --only: a comma-separated list of SECTIONS.
+const SECTIONS = ['views', 'legal', 'narrow', 'headers', 'interaction', 'closest', 'cells', 'fragment', 'en-views', 'en-interaction',
+  'pair', 'tasks', 'undo', 'layout', 'party-sheet', 'fit', 'nobreak'];
+const MODES = { results: { mode: 'results' }, polls: { mode: 'polls', showSeats: true }, hidden: { mode: 'polls', showSeats: false } };
+const args = process.argv.slice(2);
+const opt = (k) => args.find((a) => a.startsWith(`--${k}=`))?.slice(k.length + 3);
+const base = args.find((a) => !a.startsWith('--'));
+const usage = (msg) => { logErr(`✗ ${msg}\n  usage: node scripts/smoke.mjs [baseUrl] [--mode=${Object.keys(MODES).join('|')}] [--only=<section,…>]\n  sections: ${SECTIONS.join(', ')}`); process.exit(2); };
+for (const a of args.filter((x) => x.startsWith('--'))) if (!/^--(mode|only)=./.test(a)) usage(`unknown option ${a}`);
+const dataMeta = loadData().meta;
+const dataMode = dataMeta.mode === 'results' ? 'results' : dataMeta.showSeats === false ? 'hidden' : 'polls';
+const MODE = opt('mode') ?? dataMode;
+if (!MODES[MODE]) usage(`unknown mode "${MODE}"`);
+if (base && MODE !== dataMode) usage(`a remote run tests the deployed mode (${dataMode}), not --mode=${MODE}`);
+const ONLY = new Set(opt('only')?.split(',') ?? SECTIONS);
+for (const s of ONLY) if (!SECTIONS.includes(s)) usage(`unknown section "${s}"`);
+
 const { parties, topics, meta, results } = loadData();
+Object.assign(meta, MODES[MODE]);
 const ctx = contextFor({ meta, parties, topics, positions: [], results });
 // Results mode: official CEC seats, introduced by the results status line. Polls mode: poll averages, introduced by the
 // legally required sentence, and hidden entirely with showSeats=false.
@@ -259,8 +280,6 @@ function pivotalText(lng, state) {
 const PIVOTAL_JS = `(() => { const o = document.querySelector('#results .overall'); const p = o?.querySelector('.pivotal'); if (!p) return null;
   const src = o.querySelector('${SRC_SEL}'); if (!src || !(src.compareDocumentPosition(p) & Node.DOCUMENT_POSITION_FOLLOWING)) return ['source line must come before the pivotal rows'];
   return [...p.querySelectorAll('p, li')].map((e) => e.innerText.replace(/\\s+/g, ' ').trim()); })()`;
-const args = process.argv.slice(2);
-const base = args.find((a) => !a.startsWith('--'));
 const server = base ? null : await serve();
 const baseUrl = (base ?? server.url).replace(/\/?$/, '/');
 const onProd = new URL(baseUrl).hostname === PROD_HOST;
@@ -309,6 +328,13 @@ const partyIds = new RegExp(parties.map((p) => p.id).join('|'), 'i');
 // Set by go() while an old-format link (state in the query) loads.
 let legacyNav = false;
 let exitCode = 0;
+// The section being run (--only), and how long each one took.
+let section = '';
+let sectionStart = 0;
+const sectionTimes = [];
+const endSection = () => { if (section) sectionTimes.push(`${section} ${Math.round((Date.now() - sectionStart) / 1000)}s`); section = ''; };
+const sec = (name) => { endSection(); if (!ONLY.has(name)) return false; section = name; sectionStart = Date.now(); return true; };
+const t0 = Date.now();
 try {
   rmSync(OUT, { recursive: true, force: true });
   mkdirSync(OUT, { recursive: true });
@@ -392,7 +418,7 @@ try {
     await setSize(z);
   };
 
-  for (const z of SIZES) {
+  if (sec('views')) for (const z of SIZES) {
     await setSize(z);
     for (const [name, suffix, expectView] of cases) {
       step(`${name}@${z.width}`);
@@ -597,7 +623,7 @@ try {
   // Legal sentence vs seat numbers: whenever seat totals are visible, the full sentence must
   // be visible too, except for parts already scrolled past the top (reading down, the sentence always comes first).
   // Checked on first load and at every 40px of scroll, on a regular and a short phone.
-  if (!SEATS_HIDDEN) {
+  if (!SEATS_HIDDEN && sec('legal')) {
     const LEGAL_CHECK = `(() => {
       const pts = (el, fxs, fys) => { const r = el.getBoundingClientRect(); return fxs.flatMap((fx) => fys.map((fy) => [r.left + r.width * fx, r.top + r.height * fy])); };
       const hit = (el, [x, y]) => y >= 0 && y < innerHeight && x >= 0 && x < innerWidth && el.contains(document.elementFromPoint(x, y));
@@ -635,7 +661,7 @@ try {
   }
 
   // The narrowest supported phone (360px): the outside-party markers wrap inside the page, in both languages.
-  {
+  if (sec('narrow')) {
     const z = { tag: 'n', width: 360, height: 740, mobile: true, dpr: 2 };
     await setSize(z);
     const narrow = ['results-roles', 'results-scenario-arab', 'results-pair'].map((n) => cases.find((c) => c[0] === n));
@@ -658,7 +684,7 @@ try {
   // The served CSP is netlify.toml's. Netlify's "Powered by Netlify" badge is off (a project setting in the dashboard,
   // #26): if it is ever turned back on, its injected script would need CSP exceptions we removed, so fail loudly.
   const csp = siteHeaders()['Content-Security-Policy'];
-  if (base) {
+  if (base && sec('headers')) {
     step('headers');
     const served = (await fetch(baseUrl, { method: 'HEAD' })).headers.get('content-security-policy');
     if (served !== csp) errors.push(`[headers] the served CSP differs from netlify.toml:\n    served: ${served}\n    toml:   ${csp}`);
@@ -669,256 +695,259 @@ try {
 
   // Interactions at phone width: pick a preset on the build view, open the poll note, go to results, open a cell, come back.
   const z = SIZES[0];
-  await setSize(z);
-  step('interaction@390');
-  await go(baseUrl);
-  await ready();
-  if (RESULTS) {
-    // Media scenarios replace the bloc presets: up to 4, named by composition, sorted alphabetically, each with a
-    // dated, linked source; tapping one fills members, supporters and abstainers.
-    const { scenarios } = loadData();
-    const closedAtFirst = await evaluate("document.querySelector('#presets details')?.open === false");
-    await evaluate("document.querySelector('#presets details').open = true");
-    const scen = await evaluate(`(() => { const sec = document.querySelector('#presets'); return { title: sec.querySelector('summary')?.innerText.trim(), open: ${!closedAtFirst},
-      old: sec.querySelectorAll('[data-act="preset"]').length, items: [...sec.querySelectorAll('.scenario')].map((li) => ({
-        id: li.querySelector('[data-act="scenario"]').dataset.id, label: li.querySelector('[data-act="scenario"]').innerText.trim(),
-        links: [...li.querySelectorAll('.scen-src a')].map((a) => a.href), src: li.querySelector('.scen-src').innerText })) }; })()`);
-    // #26: the scenarios sit in the builder section, collapsed, behind "או התחילו מתרחיש שעלה בתקשורת (n) · נכון ל-…".
-    if (scen.title !== S.presets.scenariosStart(scenarios.scenarios.length, S.presets.shortDate(scenarios.asOf))) errors.push(`[interaction] scenarios summary wrong (${scen.title})`);
-    if (scen.open) errors.push('[interaction] the scenarios disclosure should start collapsed');
-    if (scen.old) errors.push('[interaction] bloc presets still shown in results mode');
-    if (scen.items.length !== scenarios.scenarios.length || scen.items.length > 4) errors.push(`[interaction] expected ${scenarios.scenarios.length} scenarios, got ${scen.items.length}`);
-    const labels = scen.items.map((x) => x.label);
-    if (labels.join('|') !== [...labels].sort((a, b) => a.localeCompare(b, 'he')).join('|')) errors.push('[interaction] scenarios are not sorted alphabetically');
-    if (labels.some((l) => /אחדות|ימין|שמאל|שינוי|ממשלת/.test(l))) errors.push(`[interaction] scenario names must be compositions only (${labels.join(' | ')})`);
-    for (const it of scen.items) {
-      const sc = scenarios.scenarios.find((x) => x.id === it.id);
-      if (it.links.join() !== sc.sources.map((x) => x.url).join() && it.links.join() !== sc.sources.map((x) => new URL(x.url).href).join()) errors.push(`[interaction] scenario ${it.id} source links wrong`);
-      if (!/\d{1,2}\.\d{1,2}/.test(it.src)) errors.push(`[interaction] scenario ${it.id} source line lacks a date`);
-    }
-    // One source-line format: "מקור: <outlet>, <d.m>" / "מקורות: <a> · <b>", a person's statement as "<person> ב<outlet>".
-    for (const it of scen.items) {
-      const sc = scenarios.scenarios.find((x) => x.id === it.id);
-      const want = wantSourceLine(S, sc, posCtx.he);
-      if (it.src.replace(/\s+/g, ' ').trim() !== want) errors.push(`[interaction] scenario ${it.id} source line "${it.src}" should read "${want}"`);
-    }
-    await evaluate("(() => { const d = document.querySelector('#presets details'); d.open = true; d.scrollIntoView(); })()");
-    await sleep(150);
-    await shoot(z, 'interaction-scenarios-m.png', false);
-    if (await evaluate("document.querySelector('#presets .scen-note') !== null")) errors.push('[interaction] scenario notes must not be rendered (they live in decisions.md)');
-    const b = scenarios.scenarios.find((x) => x.supporters.length && x.abstainers.length) ?? scenarios.scenarios[0];
-    await evaluate(`document.querySelector('[data-act="scenario"][data-id="${b.id}"]').click()`);
-    await sleep(300);
-    const q = new URLSearchParams(await frag());
-    const ids = (k) => (q.get(k) ?? '').split(',').filter(Boolean).sort().join(',');
-    if (ids('m') !== [...b.members].sort().join(',') || ids('o') !== [...b.supporters].sort().join(',') || ids('a') !== [...b.abstainers].sort().join(',')) errors.push(`[interaction] scenario tap did not set its roles (${q})`);
-  } else {
-    const pre = await evaluate("JSON.stringify([document.querySelector('#presets summary')?.innerText.trim(), document.querySelector('#presets details')?.open])");
-    if (pre !== JSON.stringify([S.presets.presetsStart, false])) errors.push(`[interaction] presets disclosure: expected "${S.presets.presetsStart}", collapsed; got ${pre}`);
-    await evaluate("document.querySelector('#presets details').open = true; document.querySelector('[data-act=\"preset\"][data-id=\"unity\"]').click()");
-  }
-  await sleep(300);
-  await shoot(z, 'interaction-build-unity-m.png', false);
-  if (!RESULTS && !SEATS_HIDDEN) {
-    await evaluate("document.querySelector('#builder [data-act=\"poll-info\"]').click()");
-    await sleep(300);
-    const info = await evaluate("document.querySelector('#sheet').innerText.replace(/\\s+/g, ' ')");
-    if (!info.includes(legal)) errors.push('[interaction] poll-info sheet lacks the legal sentence');
-    await shoot(z, 'interaction-poll-info-m.png', false);
-  }
-  await evaluate("document.querySelector('#sheet').close(); document.querySelector('#bar a.btn').click()");
-  await sleep(400);
-  const afterClick = await evaluate('document.body.dataset.view');
-  if (afterClick !== 'results') errors.push(`[interaction] "לתוצאות" did not open results (view "${afterClick}")`);
-  await evaluate("document.querySelector('.cell')?.click()");
-  await sleep(300);
-  await shoot(z, 'interaction-cell-sheet-m.png', false);
-  const dialogName = await evaluate("(() => { const d = document.querySelector('#sheet'); const t = document.getElementById(d.getAttribute('aria-labelledby') || ''); return t && d.contains(t) ? t.textContent.trim() : ''; })()");
-  if (!dialogName) errors.push('[interaction] sheet dialog has no accessible name (aria-labelledby)');
-  // The cell sheet offers a corrections mailto with a prefilled subject and the page URL in the body.
-  const mailto = await evaluate("document.querySelector('#sheet a[href^=\"mailto:\"]')?.getAttribute('href') || ''");
-  const mq = mailto ? new URL(mailto).searchParams : null;
-  if (!mq || !/^תיקון: .+ · .+/.test(mq.get('subject') ?? '') || !(mq.get('body') ?? '').includes('http')) errors.push(`[interaction] cell sheet is missing a valid corrections mailto (${mailto})`);
-  if (!mailto.startsWith('mailto:lioz.akirav@gmail.com?')) errors.push('[interaction] corrections mailto must go to lioz.akirav@gmail.com');
-  await evaluate("document.querySelector('#sheet').close(); document.querySelector('#results-bar .back').click()");
-  await sleep(300);
-  const backView = await evaluate('document.body.dataset.view');
-  if (backView !== 'build') errors.push(`[interaction] "← עריכה" did not return to build (view "${backView}")`);
-  // A position with a verified archive snapshot shows the "עותק בארכיון" link in its cell sheet.
-  const withArchive = JSON.parse(readFileSync(join(ROOT, 'site', 'data', 'positions.json'), 'utf8')).find((p) => p.archiveUrl);
-  if (withArchive) {
-    await go(`${baseUrl}#results?m=${withArchive.partyId},together`);
-    await waitFor(() => evaluate("document.body.dataset.view === 'results' && document.querySelectorAll('.cell').length > 0"));
-    await evaluate(`document.querySelector('.cell[data-party="${withArchive.partyId}"][data-topic="${withArchive.topicId}"]').click()`);
-    await sleep(300);
-    const href = await evaluate("[...document.querySelectorAll('#sheet a')].find((a) => a.textContent.includes('עותק בארכיון'))?.href || ''");
-    if (!/^https:\/\/web\.archive\.org\/web\/\d{14}\//.test(href)) errors.push(`[interaction] cell sheet for ${withArchive.partyId}/${withArchive.topicId} lacks its archive link (${href})`);
-    await shoot(z, 'interaction-archive-link-m.png', false);
-  }
-  // Picker: tap a row to toggle, outside toggle, three-party build screenshot.
-  await go(baseUrl);
-  await ready();
-  for (const id of ['likud', 'shas', 'otzma-yehudit']) await evaluate(`document.querySelector('[data-act="toggle"][data-id="${id}"]').click()`);
-  await sleep(300);
-  const sel = await evaluate("[...document.querySelectorAll('#builder .prow-main[aria-checked=\"true\"]')].length");
-  if (sel !== 3) errors.push(`[interaction] tapping rows should select 3 parties, got ${sel}`);
-  await evaluate("document.querySelector('[data-act=\"role\"][data-id=\"shas\"][data-role=\"supporter\"]').click()");
-  await sleep(200);
-  if (!/o=shas/.test(await frag())) errors.push(`[interaction] supporter role did not set o= (${await frag()})`);
-  await evaluate("(() => { const b = document.querySelector('[data-act=\"role\"][data-id=\"shas\"][data-role=\"abstainer\"]'); b.focus(); b.click(); })()");
-  await sleep(200);
-  const absUrl = await frag();
-  if (!/a=shas/.test(absUrl) || /o=shas/.test(absUrl)) errors.push(`[interaction] abstainer role did not move shas to a= (${absUrl})`);
-  if ((await evaluate("document.activeElement?.dataset.key")) !== 'role-shas-abstainer') errors.push('[interaction] focus lost after choosing a role');
-  await evaluate("document.querySelector('[data-act=\"role\"][data-id=\"shas\"][data-role=\"member\"]').click()");
-  await sleep(200);
-  // Unselecting a row clears its role (back to opponent).
-  await evaluate("document.querySelector('[data-act=\"role\"][data-id=\"shas\"][data-role=\"supporter\"]').click(); document.querySelector('[data-act=\"toggle\"][data-id=\"shas\"]').click()");
-  await sleep(200);
-  if (/shas/.test(await frag())) errors.push('[interaction] unselecting a supporter did not clear its role');
-  await evaluate("document.querySelector('[data-act=\"toggle\"][data-id=\"shas\"]').click()");
-  await sleep(200);
-  await evaluate('window.scrollTo(0, document.querySelector("#builder .seats-box").getBoundingClientRect().top + scrollY - 10)');
-  await sleep(200);
-  await shoot(z, 'interaction-build-3-selected-m.png', false);
-  // Results: base control, expanding gap card, pair view from an expanded pair.
-  await evaluate("document.querySelector('#bar a.btn').click()");
-  await sleep(400);
-  if ((await evaluate('document.body.dataset.view')) !== 'results') errors.push('[interaction] "לתוצאות" from the picker did not open results');
-  await go(`${baseUrl}#results?m=likud,democrats,yashar,shas`);
-  await waitFor(() => evaluate("document.body.dataset.view === 'results' && document.querySelectorAll('.colorby').length > 0"));
-  const baseBtns = await evaluate("document.querySelectorAll('.colorby [role=\"radio\"]').length");
-  if (baseBtns !== 5) errors.push(`[interaction] base control should list הכל + 4 parties, got ${baseBtns}`);
-  await evaluate("document.querySelector('.colorby [data-id=\"shas\"]').click()");
-  await sleep(300);
-  const bq = await frag();
-  if (!/b=shas/.test(bq)) errors.push(`[interaction] base control did not set b= (${bq})`);
-  const starLine = await evaluate("document.querySelector('#results-coalition').innerText.includes('★')");
-  if (!starLine) errors.push('[interaction] coalition line should mark the base with ★');
-  const sealed = await evaluate("document.querySelector('.gap-head') ? 'yes' : ''");
-  if (!sealed) errors.push('[interaction] results have no gap cards for this coalition');
-  else {
-    await evaluate("document.querySelector('.gap-head').click()");
-    await sleep(300);
-    const open = await evaluate("document.querySelector('.gap-head').getAttribute('aria-expanded') === 'true' && document.querySelectorAll('.pair-list .pair-btn').length > 0");
-    if (!open) errors.push('[interaction] gap card did not expand to list its pairs');
-    const tagOk = await evaluate("/· (זוג מפלגות אחד|\\d+ זוגות מפלגות)/.test(document.querySelector('.gap-head .lv').textContent) && !document.body.innerText.includes('ועוד')");
-    if (!tagOk) errors.push('[interaction] gap card tag must carry the pair count and no "ועוד N זוגות" line');
-    await evaluate('window.scrollTo(0, document.querySelector(".gap").getBoundingClientRect().top + scrollY - 120)');
-    await sleep(200);
-    await shoot(z, 'interaction-results-base-gap-expanded-m.png', false);
-    await evaluate("document.querySelector('.pair-list .pair-btn').click()");
-    await sleep(300);
-    const pairOpen = await evaluate("document.querySelector('#sheet').open && document.querySelector('#sheet .pair') !== null");
-    if (!pairOpen) errors.push('[interaction] tapping a pair did not open the pair view');
-    await evaluate("document.querySelector('#sheet').close()");
-  }
-  // Party sheets: the joint-list seat note carries the source line; with seats hidden, no poll-derived text at all.
-  // In results mode a list under the threshold is opened from its section on the build view.
-  for (const pid of ['religious-zionism', 'zehut', 'kalkalit']) {
-    if (ctx.passed(pid)) {
-      await go(`${baseUrl}#results?m=likud,${pid}`);
-      await waitFor(() => evaluate("document.body.dataset.view === 'results' && document.querySelectorAll('.party-btn').length > 0"));
-      await evaluate(`document.querySelector('.party-btn[data-id="${pid}"]').click()`);
-    } else {
-      await go(`${baseUrl}#build?m=likud,${pid}`);
-      await ready();
-      if (await evaluate(`location.href.includes('${pid}') || document.querySelector('[data-act="toggle"][data-id="${pid}"]') !== null`)) errors.push(`[interaction] ${pid} is under the threshold but still selectable or kept in the URL`);
-      await evaluate(`document.querySelector('details.below').open = true; document.querySelector('details.below [data-id="${pid}"]').click()`);
-    }
-    await sleep(300);
-    const text = await evaluate("document.querySelector('#sheet').innerText.replace(/\\s+/g, ' ')");
-    if (RESULTS) {
-      if (!text.includes(meta.resultsStatus)) errors.push(`[interaction] ${pid} party sheet lacks the results source line`);
-      if (!ctx.passed(pid) && !text.includes('לא עברה את אחוז החסימה')) errors.push(`[interaction] ${pid} party sheet should say it did not pass the threshold`);
-      if (!topics.every((t) => text.includes(t.name))) errors.push(`[interaction] ${pid} party sheet should list its positions on all topics`);
-    } else if (SEATS_HIDDEN) {
-      const hit = text.match(POLL_TEXT);
-      if (hit) errors.push(`[interaction] ${pid} party sheet shows poll-derived text with seats hidden: "${hit[0]}"`);
-    } else if (/\(7\)/.test(text) && !text.includes(legal)) errors.push(`[interaction] ${pid} party sheet shows seat figures without the legal sentence`);
-    if (pid === 'religious-zionism') await shoot(z, 'interaction-party-sheet-m.png', false);
-    await evaluate("document.querySelector('#sheet').close()");
-  }
-  // Results mode: הציונות הדתית and זהות are chosen independently, each row noting the joint list.
-  if (RESULTS) {
+  if (sec('interaction')) {
+    await setSize(z);
+    step('interaction@390');
     await go(baseUrl);
     await ready();
-    await evaluate("document.querySelector('[data-act=\"toggle\"][data-id=\"religious-zionism\"]').click()");
+    if (RESULTS) {
+      // Media scenarios replace the bloc presets: up to 4, named by composition, sorted alphabetically, each with a
+      // dated, linked source; tapping one fills members, supporters and abstainers.
+      const { scenarios } = loadData();
+      const closedAtFirst = await evaluate("document.querySelector('#presets details')?.open === false");
+      await evaluate("document.querySelector('#presets details').open = true");
+      const scen = await evaluate(`(() => { const sec = document.querySelector('#presets'); return { title: sec.querySelector('summary')?.innerText.trim(), open: ${!closedAtFirst},
+        old: sec.querySelectorAll('[data-act="preset"]').length, items: [...sec.querySelectorAll('.scenario')].map((li) => ({
+          id: li.querySelector('[data-act="scenario"]').dataset.id, label: li.querySelector('[data-act="scenario"]').innerText.trim(),
+          links: [...li.querySelectorAll('.scen-src a')].map((a) => a.href), src: li.querySelector('.scen-src').innerText })) }; })()`);
+      // #26: the scenarios sit in the builder section, collapsed, behind "או התחילו מתרחיש שעלה בתקשורת (n) · נכון ל-…".
+      if (scen.title !== S.presets.scenariosStart(scenarios.scenarios.length, S.presets.shortDate(scenarios.asOf))) errors.push(`[interaction] scenarios summary wrong (${scen.title})`);
+      if (scen.open) errors.push('[interaction] the scenarios disclosure should start collapsed');
+      if (scen.old) errors.push('[interaction] bloc presets still shown in results mode');
+      if (scen.items.length !== scenarios.scenarios.length || scen.items.length > 4) errors.push(`[interaction] expected ${scenarios.scenarios.length} scenarios, got ${scen.items.length}`);
+      const labels = scen.items.map((x) => x.label);
+      if (labels.join('|') !== [...labels].sort((a, b) => a.localeCompare(b, 'he')).join('|')) errors.push('[interaction] scenarios are not sorted alphabetically');
+      if (labels.some((l) => /אחדות|ימין|שמאל|שינוי|ממשלת/.test(l))) errors.push(`[interaction] scenario names must be compositions only (${labels.join(' | ')})`);
+      for (const it of scen.items) {
+        const sc = scenarios.scenarios.find((x) => x.id === it.id);
+        if (it.links.join() !== sc.sources.map((x) => x.url).join() && it.links.join() !== sc.sources.map((x) => new URL(x.url).href).join()) errors.push(`[interaction] scenario ${it.id} source links wrong`);
+        if (!/\d{1,2}\.\d{1,2}/.test(it.src)) errors.push(`[interaction] scenario ${it.id} source line lacks a date`);
+      }
+      // One source-line format: "מקור: <outlet>, <d.m>" / "מקורות: <a> · <b>", a person's statement as "<person> ב<outlet>".
+      for (const it of scen.items) {
+        const sc = scenarios.scenarios.find((x) => x.id === it.id);
+        const want = wantSourceLine(S, sc, posCtx.he);
+        if (it.src.replace(/\s+/g, ' ').trim() !== want) errors.push(`[interaction] scenario ${it.id} source line "${it.src}" should read "${want}"`);
+      }
+      await evaluate("(() => { const d = document.querySelector('#presets details'); d.open = true; d.scrollIntoView(); })()");
+      await sleep(150);
+      await shoot(z, 'interaction-scenarios-m.png', false);
+      if (await evaluate("document.querySelector('#presets .scen-note') !== null")) errors.push('[interaction] scenario notes must not be rendered (they live in decisions.md)');
+      const b = scenarios.scenarios.find((x) => x.supporters.length && x.abstainers.length) ?? scenarios.scenarios[0];
+      await evaluate(`document.querySelector('[data-act="scenario"][data-id="${b.id}"]').click()`);
+      await sleep(300);
+      const q = new URLSearchParams(await frag());
+      const ids = (k) => (q.get(k) ?? '').split(',').filter(Boolean).sort().join(',');
+      if (ids('m') !== [...b.members].sort().join(',') || ids('o') !== [...b.supporters].sort().join(',') || ids('a') !== [...b.abstainers].sort().join(',')) errors.push(`[interaction] scenario tap did not set its roles (${q})`);
+    } else {
+      const pre = await evaluate("JSON.stringify([document.querySelector('#presets summary')?.innerText.trim(), document.querySelector('#presets details')?.open])");
+      if (pre !== JSON.stringify([S.presets.presetsStart, false])) errors.push(`[interaction] presets disclosure: expected "${S.presets.presetsStart}", collapsed; got ${pre}`);
+      await evaluate("document.querySelector('#presets details').open = true; document.querySelector('[data-act=\"preset\"][data-id=\"unity\"]').click()");
+    }
+    await sleep(300);
+    await shoot(z, 'interaction-build-unity-m.png', false);
+    if (!RESULTS && !SEATS_HIDDEN) {
+      await evaluate("document.querySelector('#builder [data-act=\"poll-info\"]').click()");
+      await sleep(300);
+      const info = await evaluate("document.querySelector('#sheet').innerText.replace(/\\s+/g, ' ')");
+      if (!info.includes(legal)) errors.push('[interaction] poll-info sheet lacks the legal sentence');
+      await shoot(z, 'interaction-poll-info-m.png', false);
+    }
+    await evaluate("document.querySelector('#sheet').close(); document.querySelector('#bar a.btn').click()");
+    await sleep(400);
+    const afterClick = await evaluate('document.body.dataset.view');
+    if (afterClick !== 'results') errors.push(`[interaction] "לתוצאות" did not open results (view "${afterClick}")`);
+    await evaluate("document.querySelector('.cell')?.click()");
+    await sleep(300);
+    await shoot(z, 'interaction-cell-sheet-m.png', false);
+    const dialogName = await evaluate("(() => { const d = document.querySelector('#sheet'); const t = document.getElementById(d.getAttribute('aria-labelledby') || ''); return t && d.contains(t) ? t.textContent.trim() : ''; })()");
+    if (!dialogName) errors.push('[interaction] sheet dialog has no accessible name (aria-labelledby)');
+    // The cell sheet offers a corrections mailto with a prefilled subject and the page URL in the body.
+    const mailto = await evaluate("document.querySelector('#sheet a[href^=\"mailto:\"]')?.getAttribute('href') || ''");
+    const mq = mailto ? new URL(mailto).searchParams : null;
+    if (!mq || !/^תיקון: .+ · .+/.test(mq.get('subject') ?? '') || !(mq.get('body') ?? '').includes('http')) errors.push(`[interaction] cell sheet is missing a valid corrections mailto (${mailto})`);
+    if (!mailto.startsWith('mailto:lioz.akirav@gmail.com?')) errors.push('[interaction] corrections mailto must go to lioz.akirav@gmail.com');
+    await evaluate("document.querySelector('#sheet').close(); document.querySelector('#results-bar .back').click()");
+    await sleep(300);
+    const backView = await evaluate('document.body.dataset.view');
+    if (backView !== 'build') errors.push(`[interaction] "← עריכה" did not return to build (view "${backView}")`);
+    // A position with a verified archive snapshot shows the "עותק בארכיון" link in its cell sheet.
+    const withArchive = JSON.parse(readFileSync(join(ROOT, 'site', 'data', 'positions.json'), 'utf8')).find((p) => p.archiveUrl);
+    if (withArchive) {
+      await go(`${baseUrl}#results?m=${withArchive.partyId},together`);
+      await waitFor(() => evaluate("document.body.dataset.view === 'results' && document.querySelectorAll('.cell').length > 0"));
+      await evaluate(`document.querySelector('.cell[data-party="${withArchive.partyId}"][data-topic="${withArchive.topicId}"]').click()`);
+      await sleep(300);
+      const href = await evaluate("[...document.querySelectorAll('#sheet a')].find((a) => a.textContent.includes('עותק בארכיון'))?.href || ''");
+      if (!/^https:\/\/web\.archive\.org\/web\/\d{14}\//.test(href)) errors.push(`[interaction] cell sheet for ${withArchive.partyId}/${withArchive.topicId} lacks its archive link (${href})`);
+      await shoot(z, 'interaction-archive-link-m.png', false);
+    }
+    // Picker: tap a row to toggle, outside toggle, three-party build screenshot.
+    await go(baseUrl);
+    await ready();
+    for (const id of ['likud', 'shas', 'otzma-yehudit']) await evaluate(`document.querySelector('[data-act="toggle"][data-id="${id}"]').click()`);
+    await sleep(300);
+    const sel = await evaluate("[...document.querySelectorAll('#builder .prow-main[aria-checked=\"true\"]')].length");
+    if (sel !== 3) errors.push(`[interaction] tapping rows should select 3 parties, got ${sel}`);
+    await evaluate("document.querySelector('[data-act=\"role\"][data-id=\"shas\"][data-role=\"supporter\"]').click()");
     await sleep(200);
-    const m = new URLSearchParams(await frag()).get('m') ?? '';
-    if (m !== 'religious-zionism') errors.push(`[interaction] results mode: selecting הציונות הדתית should not add זהות (m=${m})`);
-    const notes = await evaluate("['religious-zionism', 'zehut'].map((id) => document.querySelector(`[data-act=\"toggle\"][data-id=\"${id}\"] .prow-sub`)?.innerText || '').join('|')");
-    if (!notes.split('|').every((t) => t.includes('רצו ברשימה משותפת (ט)'))) errors.push(`[interaction] joint-list note missing on the ט rows (${notes})`);
-    // The snapshot's pointer scrolls to the supporters/abstainers card, with its title below the sticky header.
-    for (const size of SIZES) {
-      await setSize(size);
-      await go(`${baseUrl}#results?m=yashar,together,democrats,yisrael-beiteinu&o=joint-list&a=raam,utj`);
-      await waitFor(() => evaluate("document.body.dataset.view === 'results' && document.querySelector('[data-act=\"to-periphery\"]') !== null"));
-      await sleep(200);
-      await evaluate("document.querySelector('[data-act=\"to-periphery\"]').click()");
-      await sleep(400);
-      const pos = await evaluate("(() => { const t = document.querySelector('#periphery-card h3').getBoundingClientRect(); const bar = document.querySelector('#results-bar').getBoundingClientRect(); return { top: Math.round(t.top), barBottom: Math.round(bar.bottom) }; })()");
-      if (pos.top < pos.barBottom || pos.top > pos.barBottom + 60) errors.push(`[interaction@${size.width}] after the pointer jump the card title must sit just below the sticky header (title top ${pos.top}, header bottom ${pos.barBottom})`);
-      if (await evaluate('document.activeElement?.closest("#periphery-card") === null')) errors.push(`[interaction@${size.width}] focus did not move to the supporters/abstainers card`);
-      if ((await evaluate('document.body.dataset.view')) !== 'results') errors.push(`[interaction@${size.width}] pointer must not change the view`);
-      if (size === SIZES[0]) await shoot(size, 'interaction-periphery-jump-m.png', false);
-    }
-    await setSize(z);
-  }
-  // "מה חסר לרוב של 61": the coalition bloc is short; each row is minimal, tapping one adds it, undo restores.
-  if (!SEATS_HIDDEN) {
-    const blocQs = serializeState(ctx, { base: null, ...pr.coalition });
-    await go(`${baseUrl}#results${blocQs}`);
-    await waitFor(() => evaluate("document.body.dataset.view === 'results' && document.querySelector('#footer')?.children.length > 0"));
+    if (!/o=shas/.test(await frag())) errors.push(`[interaction] supporter role did not set o= (${await frag()})`);
+    await evaluate("(() => { const b = document.querySelector('[data-act=\"role\"][data-id=\"shas\"][data-role=\"abstainer\"]'); b.focus(); b.click(); })()");
+    await sleep(200);
+    const absUrl = await frag();
+    if (!/a=shas/.test(absUrl) || /o=shas/.test(absUrl)) errors.push(`[interaction] abstainer role did not move shas to a= (${absUrl})`);
+    if ((await evaluate("document.activeElement?.dataset.key")) !== 'role-shas-abstainer') errors.push('[interaction] focus lost after choosing a role');
+    await evaluate("document.querySelector('[data-act=\"role\"][data-id=\"shas\"][data-role=\"member\"]').click()");
+    await sleep(200);
+    // Unselecting a row clears its role (back to opponent).
+    await evaluate("document.querySelector('[data-act=\"role\"][data-id=\"shas\"][data-role=\"supporter\"]').click(); document.querySelector('[data-act=\"toggle\"][data-id=\"shas\"]').click()");
+    await sleep(200);
+    if (/shas/.test(await frag())) errors.push('[interaction] unselecting a supporter did not clear its role');
+    await evaluate("document.querySelector('[data-act=\"toggle\"][data-id=\"shas\"]').click()");
+    await sleep(200);
+    await evaluate('window.scrollTo(0, document.querySelector("#builder .seats-box").getBoundingClientRect().top + scrollY - 10)');
+    await sleep(200);
+    await shoot(z, 'interaction-build-3-selected-m.png', false);
+    // Results: base control, expanding gap card, pair view from an expanded pair.
+    await evaluate("document.querySelector('#bar a.btn').click()");
+    await sleep(400);
+    if ((await evaluate('document.body.dataset.view')) !== 'results') errors.push('[interaction] "לתוצאות" from the picker did not open results');
+    await go(`${baseUrl}#results?m=likud,democrats,yashar,shas`);
+    await waitFor(() => evaluate("document.body.dataset.view === 'results' && document.querySelectorAll('.colorby').length > 0"));
+    const baseBtns = await evaluate("document.querySelectorAll('.colorby [role=\"radio\"]').length");
+    if (baseBtns !== 5) errors.push(`[interaction] base control should list הכל + 4 parties, got ${baseBtns}`);
+    await evaluate("document.querySelector('.colorby [data-id=\"shas\"]').click()");
     await sleep(300);
-    const card = await evaluate(`(() => { const c = document.querySelector('#results .completions'); if (!c) return null;
-      return { title: c.querySelector('h3').innerText, note: c.innerText.includes(${JSON.stringify(S.completions.note)}), rows: [...c.querySelectorAll('[data-act="complete"]')].map((b) => b.dataset.ids) }; })()`);
-    const wantRows = completions(ctx, pr.coalition.members).list.slice(0, 6).map((x) => x.add.join(','));
-    if (!card) errors.push('[interaction] completions card missing for a coalition short of 61');
+    const bq = await frag();
+    if (!/b=shas/.test(bq)) errors.push(`[interaction] base control did not set b= (${bq})`);
+    const starLine = await evaluate("document.querySelector('#results-coalition').innerText.includes('★')");
+    if (!starLine) errors.push('[interaction] coalition line should mark the base with ★');
+    const sealed = await evaluate("document.querySelector('.gap-head') ? 'yes' : ''");
+    if (!sealed) errors.push('[interaction] results have no gap cards for this coalition');
     else {
-      if (card.title !== S.completions.title || !card.note) errors.push(`[interaction] completions card title/note wrong (${card.title})`);
-      if (card.rows.join('|') !== wantRows.join('|')) errors.push(`[interaction] completions rows ${card.rows.join('|')} != ${wantRows.join('|')}`);
-      await evaluate('window.scrollTo(0, document.querySelector("#results .completions").getBoundingClientRect().top + scrollY - 70)');
+      await evaluate("document.querySelector('.gap-head').click()");
+      await sleep(300);
+      const open = await evaluate("document.querySelector('.gap-head').getAttribute('aria-expanded') === 'true' && document.querySelectorAll('.pair-list .pair-btn').length > 0");
+      if (!open) errors.push('[interaction] gap card did not expand to list its pairs');
+      const tagOk = await evaluate("/· (זוג מפלגות אחד|\\d+ זוגות מפלגות)/.test(document.querySelector('.gap-head .lv').textContent) && !document.body.innerText.includes('ועוד')");
+      if (!tagOk) errors.push('[interaction] gap card tag must carry the pair count and no "ועוד N זוגות" line');
+      await evaluate('window.scrollTo(0, document.querySelector(".gap").getBoundingClientRect().top + scrollY - 120)');
       await sleep(200);
-      await shoot(z, 'interaction-completions-m.png', false);
-      const before = await frag();
-      await evaluate("document.querySelector('#results [data-act=\"complete\"]').click()");
+      await shoot(z, 'interaction-results-base-gap-expanded-m.png', false);
+      await evaluate("document.querySelector('.pair-list .pair-btn').click()");
       await sleep(300);
-      const after = new URLSearchParams(await frag()).get('m') ?? '';
-      if (!wantRows[0].split(',').every((id) => after.split(',').includes(id))) errors.push(`[interaction] tapping a completion did not add it (${after})`);
-      if (await evaluate("document.querySelector('#results .completions') !== null")) errors.push('[interaction] completions card should disappear once members reach 61');
-      await evaluate("document.querySelector('#results-undo [data-act=\"undo\"]').click()");
-      await sleep(300);
-      if ((await frag()) !== before) errors.push('[interaction] undo after a completion did not restore the coalition');
+      const pairOpen = await evaluate("document.querySelector('#sheet').open && document.querySelector('#sheet .pair') !== null");
+      if (!pairOpen) errors.push('[interaction] tapping a pair did not open the pair view');
+      await evaluate("document.querySelector('#sheet').close()");
     }
-    // The change bloc (48): fewest lists first, so "+ הליכוד" alone leads; 6 rows, then "הציגו את כל N" shows all.
-    // With רע״ם supporting, a completion that adds it is tagged "(כיום תומכת)".
-    const change = { members: ['yashar', 'together', 'democrats', 'yisrael-beiteinu'], supporters: ['raam'] };
-    const all = completions(ctx, change.members);
-    await go(`${baseUrl}#results${serializeState(ctx, { base: null, ...change })}`);
-    await waitFor(() => evaluate("document.body.dataset.view === 'results' && document.querySelector('#footer')?.children.length > 0"));
-    await sleep(300);
-    const rowsOf = () => evaluate("[...document.querySelectorAll('#results .completions [data-act=\"complete\"]')].map((b) => b.dataset.ids + '|' + b.querySelector('.row-title').innerText)");
-    const first = await rowsOf();
-    if (first.length !== Math.min(6, all.total)) errors.push(`[interaction] completions should show 6 rows before "show all", got ${first.length}`);
-    if (RESULTS && !first[0]?.startsWith('likud|')) errors.push(`[interaction] change bloc: "+ הליכוד" should come first (${first[0]})`);
-    const toggle = await evaluate("(() => { const t = document.querySelector('#results [data-act=\"completions-all\"]'); return t ? t.innerText + '|' + t.getAttribute('aria-expanded') : ''; })()");
-    if (all.total > 6 && toggle !== `${S.completions.showAll(all.total)}|false`) errors.push(`[interaction] completions toggle missing or wrong (${toggle})`);
-    if (all.total > 6) {
-      await evaluate("document.querySelector('#results [data-act=\"completions-all\"]').click()");
+    // Party sheets: the joint-list seat note carries the source line; with seats hidden, no poll-derived text at all.
+    // In results mode a list under the threshold is opened from its section on the build view.
+    for (const pid of ['religious-zionism', 'zehut', 'kalkalit']) {
+      if (ctx.passed(pid)) {
+        await go(`${baseUrl}#results?m=likud,${pid}`);
+        await waitFor(() => evaluate("document.body.dataset.view === 'results' && document.querySelectorAll('.party-btn').length > 0"));
+        await evaluate(`document.querySelector('.party-btn[data-id="${pid}"]').click()`);
+      } else {
+        await go(`${baseUrl}#build?m=likud,${pid}`);
+        await ready();
+        if (await evaluate(`location.href.includes('${pid}') || document.querySelector('[data-act="toggle"][data-id="${pid}"]') !== null`)) errors.push(`[interaction] ${pid} is under the threshold but still selectable or kept in the URL`);
+        await evaluate(`document.querySelector('details.below').open = true; document.querySelector('details.below [data-id="${pid}"]').click()`);
+      }
       await sleep(300);
-      const expanded = await rowsOf();
-      if (expanded.length !== all.total) errors.push(`[interaction] "show all" should list ${all.total} completions, got ${expanded.length}`);
-      if (expanded.map((r) => r.split('|')[0]).join(';') !== all.list.map((x) => x.add.join(',')).join(';')) errors.push('[interaction] expanded completions are not in the expected order');
-      const tagged = expanded.filter((r) => r.split('|')[0].split(',').includes('raam'));
-      if (!tagged.length || !tagged.every((r) => r.includes('רע״ם (כיום תומכת)'))) errors.push(`[interaction] completions adding a supporter must tag it "(כיום תומכת)" (${tagged[0]})`);
-      if (expanded.some((r) => !r.split('|')[0].split(',').includes('raam') && r.includes('(כיום'))) errors.push('[interaction] only current supporters/abstainers get a "(כיום …)" tag');
-      const deltas = await evaluate("[...document.querySelectorAll('#results .completions [data-act=\"complete\"]')].every((b) => /\\((אין חדשים|אחד חדש|\\d+ חדשים)\\)|אין נושא בסתירה חזיתית/.test(b.innerText) && /קווים אדומים חדשים|קו אדום חדש|אין קווים אדומים חדשים/.test(b.innerText))");
-      if (!deltas) errors.push('[interaction] each completion must show new clash topics and new red lines');
-      await evaluate('window.scrollTo(0, document.querySelector("#results .completions").getBoundingClientRect().top + scrollY - 70)');
+      const text = await evaluate("document.querySelector('#sheet').innerText.replace(/\\s+/g, ' ')");
+      if (RESULTS) {
+        if (!text.includes(meta.resultsStatus)) errors.push(`[interaction] ${pid} party sheet lacks the results source line`);
+        if (!ctx.passed(pid) && !text.includes('לא עברה את אחוז החסימה')) errors.push(`[interaction] ${pid} party sheet should say it did not pass the threshold`);
+        if (!topics.every((t) => text.includes(t.name))) errors.push(`[interaction] ${pid} party sheet should list its positions on all topics`);
+      } else if (SEATS_HIDDEN) {
+        const hit = text.match(POLL_TEXT);
+        if (hit) errors.push(`[interaction] ${pid} party sheet shows poll-derived text with seats hidden: "${hit[0]}"`);
+      } else if (/\(7\)/.test(text) && !text.includes(legal)) errors.push(`[interaction] ${pid} party sheet shows seat figures without the legal sentence`);
+      if (pid === 'religious-zionism') await shoot(z, 'interaction-party-sheet-m.png', false);
+      await evaluate("document.querySelector('#sheet').close()");
+    }
+    // Results mode: הציונות הדתית and זהות are chosen independently, each row noting the joint list.
+    if (RESULTS) {
+      await go(baseUrl);
+      await ready();
+      await evaluate("document.querySelector('[data-act=\"toggle\"][data-id=\"religious-zionism\"]').click()");
       await sleep(200);
-      await shoot(z, 'interaction-completions-change-m.png', false);
+      const m = new URLSearchParams(await frag()).get('m') ?? '';
+      if (m !== 'religious-zionism') errors.push(`[interaction] results mode: selecting הציונות הדתית should not add זהות (m=${m})`);
+      const notes = await evaluate("['religious-zionism', 'zehut'].map((id) => document.querySelector(`[data-act=\"toggle\"][data-id=\"${id}\"] .prow-sub`)?.innerText || '').join('|')");
+      if (!notes.split('|').every((t) => t.includes('רצו ברשימה משותפת (ט)'))) errors.push(`[interaction] joint-list note missing on the ט rows (${notes})`);
+      // The snapshot's pointer scrolls to the supporters/abstainers card, with its title below the sticky header.
+      for (const size of SIZES) {
+        await setSize(size);
+        await go(`${baseUrl}#results?m=yashar,together,democrats,yisrael-beiteinu&o=joint-list&a=raam,utj`);
+        await waitFor(() => evaluate("document.body.dataset.view === 'results' && document.querySelector('[data-act=\"to-periphery\"]') !== null"));
+        await sleep(200);
+        await evaluate("document.querySelector('[data-act=\"to-periphery\"]').click()");
+        await sleep(400);
+        const pos = await evaluate("(() => { const t = document.querySelector('#periphery-card h3').getBoundingClientRect(); const bar = document.querySelector('#results-bar').getBoundingClientRect(); return { top: Math.round(t.top), barBottom: Math.round(bar.bottom) }; })()");
+        if (pos.top < pos.barBottom || pos.top > pos.barBottom + 60) errors.push(`[interaction@${size.width}] after the pointer jump the card title must sit just below the sticky header (title top ${pos.top}, header bottom ${pos.barBottom})`);
+        if (await evaluate('document.activeElement?.closest("#periphery-card") === null')) errors.push(`[interaction@${size.width}] focus did not move to the supporters/abstainers card`);
+        if ((await evaluate('document.body.dataset.view')) !== 'results') errors.push(`[interaction@${size.width}] pointer must not change the view`);
+        if (size === SIZES[0]) await shoot(size, 'interaction-periphery-jump-m.png', false);
+      }
+      await setSize(z);
     }
+    // "מה חסר לרוב של 61": the coalition bloc is short; each row is minimal, tapping one adds it, undo restores.
+    if (!SEATS_HIDDEN) {
+      const blocQs = serializeState(ctx, { base: null, ...pr.coalition });
+      await go(`${baseUrl}#results${blocQs}`);
+      await waitFor(() => evaluate("document.body.dataset.view === 'results' && document.querySelector('#footer')?.children.length > 0"));
+      await sleep(300);
+      const card = await evaluate(`(() => { const c = document.querySelector('#results .completions'); if (!c) return null;
+        return { title: c.querySelector('h3').innerText, note: c.innerText.includes(${JSON.stringify(S.completions.note)}), rows: [...c.querySelectorAll('[data-act="complete"]')].map((b) => b.dataset.ids) }; })()`);
+      const wantRows = completions(ctx, pr.coalition.members).list.slice(0, 6).map((x) => x.add.join(','));
+      if (!card) errors.push('[interaction] completions card missing for a coalition short of 61');
+      else {
+        if (card.title !== S.completions.title || !card.note) errors.push(`[interaction] completions card title/note wrong (${card.title})`);
+        if (card.rows.join('|') !== wantRows.join('|')) errors.push(`[interaction] completions rows ${card.rows.join('|')} != ${wantRows.join('|')}`);
+        await evaluate('window.scrollTo(0, document.querySelector("#results .completions").getBoundingClientRect().top + scrollY - 70)');
+        await sleep(200);
+        await shoot(z, 'interaction-completions-m.png', false);
+        const before = await frag();
+        await evaluate("document.querySelector('#results [data-act=\"complete\"]').click()");
+        await sleep(300);
+        const after = new URLSearchParams(await frag()).get('m') ?? '';
+        if (!wantRows[0].split(',').every((id) => after.split(',').includes(id))) errors.push(`[interaction] tapping a completion did not add it (${after})`);
+        if (await evaluate("document.querySelector('#results .completions') !== null")) errors.push('[interaction] completions card should disappear once members reach 61');
+        await evaluate("document.querySelector('#results-undo [data-act=\"undo\"]').click()");
+        await sleep(300);
+        if ((await frag()) !== before) errors.push('[interaction] undo after a completion did not restore the coalition');
+      }
+      // The change bloc (48): fewest lists first, so "+ הליכוד" alone leads; 6 rows, then "הציגו את כל N" shows all.
+      // With רע״ם supporting, a completion that adds it is tagged "(כיום תומכת)".
+      const change = { members: ['yashar', 'together', 'democrats', 'yisrael-beiteinu'], supporters: ['raam'] };
+      const all = completions(ctx, change.members);
+      await go(`${baseUrl}#results${serializeState(ctx, { base: null, ...change })}`);
+      await waitFor(() => evaluate("document.body.dataset.view === 'results' && document.querySelector('#footer')?.children.length > 0"));
+      await sleep(300);
+      const rowsOf = () => evaluate("[...document.querySelectorAll('#results .completions [data-act=\"complete\"]')].map((b) => b.dataset.ids + '|' + b.querySelector('.row-title').innerText)");
+      const first = await rowsOf();
+      if (first.length !== Math.min(6, all.total)) errors.push(`[interaction] completions should show 6 rows before "show all", got ${first.length}`);
+      if (RESULTS && !first[0]?.startsWith('likud|')) errors.push(`[interaction] change bloc: "+ הליכוד" should come first (${first[0]})`);
+      const toggle = await evaluate("(() => { const t = document.querySelector('#results [data-act=\"completions-all\"]'); return t ? t.innerText + '|' + t.getAttribute('aria-expanded') : ''; })()");
+      if (all.total > 6 && toggle !== `${S.completions.showAll(all.total)}|false`) errors.push(`[interaction] completions toggle missing or wrong (${toggle})`);
+      if (all.total > 6) {
+        await evaluate("document.querySelector('#results [data-act=\"completions-all\"]').click()");
+        await sleep(300);
+        const expanded = await rowsOf();
+        if (expanded.length !== all.total) errors.push(`[interaction] "show all" should list ${all.total} completions, got ${expanded.length}`);
+        if (expanded.map((r) => r.split('|')[0]).join(';') !== all.list.map((x) => x.add.join(',')).join(';')) errors.push('[interaction] expanded completions are not in the expected order');
+        const tagged = expanded.filter((r) => r.split('|')[0].split(',').includes('raam'));
+        if (!tagged.length || !tagged.every((r) => r.includes('רע״ם (כיום תומכת)'))) errors.push(`[interaction] completions adding a supporter must tag it "(כיום תומכת)" (${tagged[0]})`);
+        if (expanded.some((r) => !r.split('|')[0].split(',').includes('raam') && r.includes('(כיום'))) errors.push('[interaction] only current supporters/abstainers get a "(כיום …)" tag');
+        const deltas = await evaluate("[...document.querySelectorAll('#results .completions [data-act=\"complete\"]')].every((b) => /\\((אין חדשים|אחד חדש|\\d+ חדשים)\\)|אין נושא בסתירה חזיתית/.test(b.innerText) && /קווים אדומים חדשים|קו אדום חדש|אין קווים אדומים חדשים/.test(b.innerText))");
+        if (!deltas) errors.push('[interaction] each completion must show new clash topics and new red lines');
+        await evaluate('window.scrollTo(0, document.querySelector("#results .completions").getBoundingClientRect().top + scrollY - 70)');
+        await sleep(200);
+        await shoot(z, 'interaction-completions-change-m.png', false);
+      }
+    }
+    log('  ✓ interactions');
   }
   // Hebrew text outside an element with lang="he" (an untranslated string on the English page).
   const HEBREW_OUTSIDE = `(() => { const out = []; const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
@@ -928,247 +957,257 @@ try {
   // Closest coalitions to a party (#22, results mode): from the party sheet and the build-view picker, in both languages,
   // on a regular and a short phone. Rows match closestTo() and show every sort key; coalitions with a silent partner are
   // collapsed behind a toggle naming exactly those partners (never X); tapping a row selects it with X as the base.
-  if (RESULTS) {
-    const { positions } = loadData();
-    for (const lng of ['he', 'en']) {
-      const T = lng === 'he' ? S : EN;
-      const lc = contextFor({ meta, parties, topics, positions, results }, lng);
-      const nm = (id) => lc.byId.get(id).name;
-      const sfx = lng === 'he' ? '' : '&l=en';
-      // The row's numbers in sort order; the red-line part only when the party declared red lines.
-      const rowText = (x, c, own) => [
-        own ? T.closest.redLines(c.redLines.length, c.redLines.map((r) => lc.topics.find((t) => t.id === r.topicId).short).join(', ')) : null,
-        T.closest.xClash(c.xClash, nm(x)), T.closest.wholeClash(c.wholeClash), T.closest.agree(c.agree), T.closest.seats(c.seats)].filter(Boolean);
-      const sheetState = `(() => { const s = document.querySelector('#sheet'); if (!s.open) return null;
-        const rows = (root) => [...(root?.querySelectorAll('[data-act="closest-apply"]') ?? [])].map((b) => ({ ids: b.dataset.ids, text: b.innerText.replace(/\\s+/g, ' '), warn: b.querySelector('.tag-warn') !== null }));
-        const src = s.querySelector('.seat-src'); const first = s.querySelector('[data-act="closest-apply"]'); const part = s.querySelector('#closest-partial-list');
-        const toggle = s.querySelector('[data-act="closest-partial"]');
-        return { title: s.querySelector('h2')?.innerText, focus: document.activeElement === s.querySelector('h2'),
-          src: src?.innerText ?? '', srcFirst: Boolean(src && first && (src.compareDocumentPosition(first) & Node.DOCUMENT_POSITION_FOLLOWING)),
-          srcVisible: Boolean(src) && src.getBoundingClientRect().top >= 0 && src.getBoundingClientRect().bottom <= innerHeight,
-          full: rows(s.querySelector('.sheet-inner > .closest-list')), partial: part && !part.hidden ? rows(part) : null,
-          toggle: toggle ? toggle.innerText.replace(/^[▸▾]\\s*/, '') + '|' + toggle.getAttribute('aria-expanded') : '',
-          note: s.innerText.includes(${JSON.stringify(T.closest.partialNote)}), text: s.innerText.replace(/\\s+/g, ' '),
-          overflow: s.scrollWidth > s.clientWidth + 1 || document.documentElement.scrollWidth > innerWidth + 1 }; })()`;
-      const check = async (tag, x, st) => {
-        const want = closestTo(lc, x);
-        const silent = [...new Set(want.partial.flatMap((c) => c.low.map((l) => l.partyId)))].sort((a, b) => lc.order.get(a) - lc.order.get(b)).map(nm);
-        if (!st) { errors.push(`[${tag}] the closest-coalitions sheet did not open`); return want; }
-        if (st.title !== T.closest.title(nm(x))) errors.push(`[${tag}] title "${st.title}"`);
-        if (!st.src.includes(lng === 'he' ? meta.resultsStatus : meta.en.resultsStatus) || !st.srcFirst || !st.srcVisible) errors.push(`[${tag}] the results status line must come first and be visible`);
-        if (st.full.map((r) => r.ids).join('|') !== want.full.slice(0, 5).map((c) => c.add.join(',')).join('|')) errors.push(`[${tag}] main rows ${st.full.map((r) => r.ids).join('|')}`);
-        st.full.forEach((r, i) => {
-          let at = 0;
-          for (const t of rowText(x, want.full[i], want.ownRedLines > 0)) {
-            const k = r.text.indexOf(t, at);
-            if (k < 0) { errors.push(`[${tag}] row ${r.ids}: "${t}" missing or out of sort order in "${r.text}"`); break; }
-            at = k + t.length;
-          }
-          if (!want.ownRedLines && r.text.includes(T.closest.redLines(0, ''))) errors.push(`[${tag}] row ${r.ids} shows red lines for a party that declared none`);
-          if (r.warn) errors.push(`[${tag}] main-list row ${r.ids} has a missing-data warning`);
-        });
-        if (want.partial.length) {
-          if (st.partial !== null) errors.push(`[${tag}] the list with silent partners should be collapsed on load`);
-          if (st.toggle !== `${T.closest.showPartial(want.partial.length, T.closest.orList(silent))}|false`) errors.push(`[${tag}] toggle "${st.toggle}"`);
-          if (silent.includes(nm(x)) || st.toggle.includes(nm(x))) errors.push(`[${tag}] the toggle must not name the party itself`);
-          if (!st.note) errors.push(`[${tag}] the partial-comparison sentence is missing`);
-        }
-        if (st.overflow) errors.push(`[${tag}] horizontal overflow in the sheet`);
-        return want;
-      };
-      // The method page states the rule.
-      await go(`${baseUrl}#method${lng === 'he' ? '' : '?l=en'}`);
-      await waitFor(() => evaluate("document.querySelector('#method h1') !== null"));
-      // #32: an intro, then a real <ul> of what is included and a real <ol> of the sort order, then the closing rules.
-      const rule = await evaluate(`(() => { const b = document.querySelector('#closest-rule')?.nextElementSibling; if (!b || b.id !== 'closest-rule-body') return null; const t = (e) => e.innerText.replace(/\\s+/g, ' ').trim();
-        return { kids: [...b.children].map((e) => e.tagName.toLowerCase()), intro: t(b.querySelector('.rule-intro')), heads: [...b.querySelectorAll('h4')].map(t),
-          ul: [...b.querySelectorAll('ul.rule-list > li')].map(t), ol: [...b.querySelectorAll('ol.rule-steps > li')].map(t), after: [...b.querySelectorAll('.rule-after')].map(t),
-          inline: b.querySelectorAll('[style]').length }; })()`);
-      const R = T.method.closestRule;
-      const wantRule = { kids: ['p', 'h4', 'ul', 'h4', 'p', 'ol', ...R.after.map(() => 'p')], intro: R.intro, heads: [R.includedTitle, R.orderTitle], ul: R.included,
-        ol: R.order, after: R.after, inline: 0 };
-      if (R.included.length !== 4 || R.order.length !== 6) errors.push(`[closest-${lng}] the rule should have 4 bullets and 6 steps`);
-      if (JSON.stringify(rule) !== JSON.stringify(wantRule)) errors.push(`[closest-${lng}] the method page's closest-coalitions rule: ${JSON.stringify(rule)}`);
-      for (const size of [SIZES[0], { tag: 's', width: 375, height: 667, mobile: true, dpr: 2 }]) {
-        await setSize(size);
-        const tag = `closest-${lng}@${size.width}`;
-        // Likud, from its party sheet.
-        await go(`${baseUrl}#results?m=likud,yashar${sfx}`);
-        await waitFor(() => evaluate("document.querySelector('.party-btn[data-id=\"likud\"]') !== null"));
-        await evaluate("document.querySelector('.party-btn[data-id=\"likud\"]').click()");
-        await sleep(250);
-        await evaluate("document.querySelector('#sheet [data-act=\"closest\"]').click()");
-        await sleep(300);
-        let st = await evaluate(sheetState);
-        const want = await check(tag, 'likud', st);
-        if (st && !st.focus) errors.push(`[${tag}] focus should move to the list's heading`);
-        if (size === SIZES[0]) await shoot(size, `interaction-closest-m${lng === 'he' ? '' : '-en'}.png`, false);
-        if (lng === 'en') { const hebrew = await evaluate(HEBREW_OUTSIDE); if (hebrew) errors.push(`[${tag}] Hebrew outside lang="he": ${hebrew}`); }
-        // Expand the silent-partner list, then both "show all".
-        await evaluate("document.querySelector('#sheet [data-act=\"closest-partial\"]').click()");
-        await sleep(200);
-        st = await evaluate(sheetState);
-        if (!st.partial || st.partial.map((r) => r.ids).join('|') !== want.partial.slice(0, 5).map((c) => c.add.join(',')).join('|')) errors.push(`[${tag}] expanded partial rows ${st.partial?.map((r) => r.ids).join('|')}`);
-        if (st.partial && !st.partial.every((r) => r.warn)) errors.push(`[${tag}] every row with a silent partner needs its warning`);
-        if (!st.toggle.endsWith('|true')) errors.push(`[${tag}] the toggle should report aria-expanded=true`);
-        if (size === SIZES[0]) await shoot(size, `interaction-closest-partial-m${lng === 'he' ? '' : '-en'}.png`, false);
-        for (const act of ['closest-all', 'closest-partial-all']) await evaluate(`document.querySelector('#sheet [data-act="${act}"]')?.click()`);
-        await sleep(200);
-        st = await evaluate(sheetState);
-        if (st.full.length !== want.full.length || st.partial?.length !== want.partial.length) errors.push(`[${tag}] "show all" should list ${want.full.length} + ${want.partial.length}, got ${st.full.length} + ${st.partial?.length}`);
-        if (st.full.map((r) => r.ids).join('|') !== want.full.map((c) => c.add.join(',')).join('|')) errors.push(`[${tag}] expanded main rows are out of order`);
-        if (st.overflow) errors.push(`[${tag}] horizontal overflow with every row shown`);
-        // The sheet's bar stays at the top while scrolling: back at the start, close (44px+, round) at the end.
-        await evaluate("document.querySelector('#sheet').scrollTop = document.querySelector('#sheet').scrollHeight / 2");
-        await sleep(200);
-        const bar = await evaluate(`(() => { const s = document.querySelector('#sheet').getBoundingClientRect(); const h = document.querySelector('#sheet .sheet-head');
-          const back = h?.querySelector('[data-act="closest-back"]')?.getBoundingClientRect(); const x = h?.querySelector('.sheet-close')?.getBoundingClientRect();
-          if (!h || !back || !x) return 'missing';
-          if (document.querySelector('#sheet').scrollTop < 200) return 'did not scroll';
-          if (Math.abs(h.getBoundingClientRect().top - s.top) > 1) return 'bar not at the top: ' + Math.round(h.getBoundingClientRect().top - s.top);
-          if (x.width < 44 || x.height < 44) return 'close ' + x.width + 'x' + x.height;
-          const rtl = document.dir === 'rtl'; if (rtl ? !(back.left > x.right) : !(back.right < x.left)) return 'back and close on the wrong sides';
-          return 'ok'; })()`);
-        if (bar !== 'ok') errors.push(`[${tag}] sticky sheet bar: ${bar}`);
-        if (size === SIZES[0]) await shoot(size, `interaction-closest-scrolled-m${lng === 'he' ? '' : '-en'}.png`, false);
-        // Tapping the first row selects it, with Likud as the base, on the results view; undo restores.
-        const before = await frag();
-        await evaluate("document.querySelector('#sheet [data-act=\"closest-apply\"]').click()");
-        await sleep(400);
-        const wantHash = locationFor(ctx, { base: 'likud', members: ['likud', ...want.full[0].add], supporters: [], abstainers: [] }, 'results', '', lng);
-        const got = await evaluate("JSON.stringify([location.hash, document.body.dataset.view, document.querySelector('#sheet').open])");
-        if (got !== JSON.stringify([wantHash, 'results', false])) errors.push(`[${tag}] tapping a row should select it on #results (${got}, want ${wantHash})`);
-        await evaluate("document.querySelector('#results-undo [data-act=\"undo\"]').click()");
-        await sleep(300);
-        if ((await frag()) !== before) errors.push(`[${tag}] undo did not restore the coalition`);
-        // Shas: its own coverage note above the list, and never in its own toggle.
-        await go(`${baseUrl}#results?m=likud,shas${sfx}`);
-        await waitFor(() => evaluate("document.querySelector('.party-btn[data-id=\"shas\"]') !== null"));
-        await evaluate("document.querySelector('.party-btn[data-id=\"shas\"]').click()");
-        await sleep(250);
-        await evaluate("document.querySelector('#sheet [data-act=\"closest\"]').click()");
-        await sleep(300);
-        st = await evaluate(sheetState);
-        const shas = await check(`${tag}-shas`, 'shas', st);
-        if (st && !st.text.includes(T.closest.ownCoverage(T.toParty(nm('shas')), shas.ownCoverage))) errors.push(`[${tag}-shas] the party's own coverage note is missing`);
-        // "How is this calculated?" closes the sheet and lands on the rule on the method page.
-        await evaluate(`[...document.querySelectorAll('#sheet a[href="#closest-rule"]')].find((a) => a.innerText === ${JSON.stringify(T.closest.howLink)})?.click()`);
-        await sleep(400);
-        const how = await evaluate("JSON.stringify([document.querySelector('#sheet').open, document.body.dataset.view, (() => { const r = document.querySelector('#closest-rule')?.getBoundingClientRect(); return Boolean(r) && r.top >= 0 && r.top < innerHeight / 2; })(), document.documentElement.lang])");
-        if (how !== JSON.stringify([false, 'method', true, lng])) errors.push(`[${tag}] the method link should close the sheet and show the rule (${how})`);
-        // The build-view picker opens the same list (Yisrael Beytenu: its red lines lead the order) and resets.
-        await go(`${baseUrl}#build${lng === 'he' ? '' : '?l=en'}`);
-        await ready();
-        await evaluate("(() => { const s = document.querySelector('[data-act=\"closest-pick\"]'); s.value = 'yisrael-beiteinu'; s.dispatchEvent(new Event('change', { bubbles: true })); })()");
-        await sleep(300);
-        st = await evaluate(sheetState);
-        await check(`${tag}-picker`, 'yisrael-beiteinu', st);
-        if ((await evaluate("document.querySelector('[data-act=\"closest-pick\"]').value")) !== '') errors.push(`[${tag}-picker] the picker should reset (no preselected party)`);
-        if (size === SIZES[0] && lng === 'he') await shoot(size, 'interaction-closest-picker-m.png', false);
-        await evaluate("document.querySelector('#sheet').close()");
-      }
-    }
+  if (sec('closest')) {
     await setSize(z);
-    log('  ✓ closest coalitions');
-  } else {
-    await go(`${baseUrl}#results?m=likud,yashar`);
-    await waitFor(() => evaluate("document.querySelector('.party-btn[data-id=\"likud\"]') !== null"));
-    await evaluate("document.querySelector('.party-btn[data-id=\"likud\"]').click()");
-    await sleep(250);
-    if (await evaluate("document.querySelector('[data-act=\"closest\"], [data-act=\"closest-pick\"]') !== null")) errors.push('[interaction] closest coalitions must not appear in polls mode');
-    await go(`${baseUrl}#method`);
-    await waitFor(() => evaluate("document.querySelector('#method h1') !== null"));
-    if (await evaluate("document.querySelector('#closest-rule') !== null")) errors.push('[interaction] the closest-coalitions rule must not appear on the method page in polls mode');
-    await evaluate("document.querySelector('#sheet').close()");
-  }
-
-  // A cell sheet with a quote renders it in quotation marks with an attribution line underneath.
-  const withQuote = JSON.parse(readFileSync(join(ROOT, 'site', 'data', 'positions.json'), 'utf8')).find((p) => p.quote && p.quoteBy && p.sourceDate);
-  await go(`${baseUrl}#results?m=${withQuote.partyId},together`);
-  await waitFor(() => evaluate("document.body.dataset.view === 'results' && document.querySelectorAll('.cell').length > 0"));
-  await evaluate(`document.querySelector('.cell[data-party="${withQuote.partyId}"][data-topic="${withQuote.topicId}"]').click()`);
-  await sleep(300);
-  const q = await evaluate("(() => { const b = document.querySelector('#sheet blockquote'); return b ? { text: b.querySelector('.q-text')?.textContent, by: b.querySelector('.q-by')?.textContent } : null; })()");
-  if (!q || !/^״.+״$/.test(q.text ?? '')) errors.push(`[interaction] quote must be wrapped in quotation marks (${JSON.stringify(q)})`);
-  if (!q || !q.by.startsWith(withQuote.quoteBy) || !/\d{2}\.\d{2}\.\d{4}$/.test(q.by)) errors.push(`[interaction] quote attribution should read "<speaker>, <channel>, <date>" (${q?.by})`);
-  await shoot(z, 'interaction-cell-quote-m.png', false);
-  // Null rows show what was found: the "no stated position" label, the quote with its attribution, and the source; a dated
-  // note from an older platform links its source as the additional source.
-  for (const [lng, T, by] of [['he', S, 'משה פייגלין, ערוץ 7, 02.07.2026'], ['en', EN, 'Moshe Feiglin, Arutz Sheva (Israel National News), 2 Jul 2026']]) {
-    const l = lng === 'he' ? '' : '&l=en';
-    await go(`${baseUrl}#results?m=likud,zehut${l}`);
-    await waitFor(() => evaluate("document.body.dataset.view === 'results' && document.querySelectorAll('.cell').length > 0"));
-    await evaluate("document.querySelector('.cell[data-party=\"zehut\"][data-topic=\"inquiry\"]').click()");
-    await sleep(300);
-    const nr = await evaluate("(() => { const s = document.querySelector('#sheet'); return { label: s.querySelector('.pos-label')?.textContent.trim() ?? '', quote: s.querySelector('blockquote .q-text')?.textContent ?? '', by: s.querySelector('blockquote .q-by')?.textContent.trim() ?? '', src: s.querySelector('.pos .source a')?.href ?? '', tag: s.querySelector('.pos .tag-src') !== null }; })()");
-    if (nr.label !== T.sheet.noPositionLabel || !nr.quote.includes('אני כלל לא מרגיש צורך בוועדת חקירה') || nr.by !== by || nr.src !== 'https://www.inn.co.il/news/700562' || nr.tag) {
-      errors.push(`[interaction-${lng}] zehut × inquiry sheet should show the label, quote, "${by}" and the source, with no type tag (${JSON.stringify(nr)})`);
-    }
-    await shoot(z, `interaction-null-quote-m${lng === 'he' ? '' : '-en'}.png`, false);
-    await evaluate("document.querySelector('#sheet').close()");
-    await go(`${baseUrl}#results?m=raam,likud${l}`);
-    await waitFor(() => evaluate("document.body.dataset.view === 'results' && document.querySelectorAll('.cell').length > 0"));
-    await evaluate("document.querySelector('.cell[data-party=\"raam\"][data-topic=\"religion\"]').click()");
-    await sleep(300);
-    const rel = await evaluate("(() => { const p = document.querySelector('#sheet .pos'); return { quote: p?.querySelector('blockquote .q-text')?.textContent ?? '', by: p?.querySelector('blockquote .q-by')?.textContent.trim() ?? '', tag: p?.querySelector('.tag-src') !== null }; })()");
-    const relBy = lng === 'he' ? 'מנסור עבאס, פייסבוק, 26.08.2026 (תרגום: כיפה)' : 'Mansour Abbas, Facebook, 26 Aug 2026 (Hebrew translation: Kipa)';
-    if (!rel.quote.includes('נאלצו לקבל זאת מבחינה מעשית') || rel.by !== relBy || rel.tag) errors.push(`[interaction-${lng}] רע״ם × דת should show the full quote (with the practical acceptance) and "${relBy}", with no type tag (${JSON.stringify(rel)})`);
-    await evaluate("document.querySelector('#sheet').close()");
-    await evaluate("document.querySelector('.cell[data-party=\"raam\"][data-topic=\"draft\"]').click()");
-    await sleep(300);
-    const note = await evaluate("(() => { const p = document.querySelector('#sheet .pos'); return { text: p?.innerText ?? '', links: [...(p?.querySelectorAll('.source a') ?? [])].map((a) => a.href) }; })()");
-    const year = lng === 'he' ? "במצע הרשימה מ-1999 נכתב: 'דחיית גיוסם של הערבים בצה״ל'." : "The list's 1999 platform says: 'rejection of the conscription of Arabs into the IDF'.";
-    if (!note.text.includes(year) || !note.links.includes('https://www.idi.org.il/media/16883/%D7%A8%D7%A2%D7%9E-1999.pdf')) errors.push(`[interaction-${lng}] רע״ם × גיוס should carry the dated 1999 note and link the IDI copy (${JSON.stringify(note.links)})`);
-    await shoot(z, `interaction-dated-note-m${lng === 'he' ? '' : '-en'}.png`, false);
-    await evaluate("document.querySelector('#sheet').close()");
-    // The four dated notes from older platforms (approved 3.11): the year and document type, and the IDI copy linked.
-    // Cells with no current source take the IDI copy as their source, dated by the year alone.
-    const IDI = { otzma: 'https://www.idi.org.il/media/13907/', utj: 'https://www.idi.org.il/media/16889/', shas: 'https://www.idi.org.il/media/6856/' };
-    for (const [pid, tid, he, en, idi, year] of [
-      ['otzma-yehudit', 'religion', 'במסמך העקרונות של עוצמה יהודית מ-2020 נכתב:', "Otzma Yehudit's 2020 statement of principles says:", IDI.otzma, null],
-      ['utj', 'palestinian', 'במצע יהדות התורה מ-1999 נכתב:', "United Torah Judaism's 1999 platform says:", IDI.utj, '1999'],
-      ['shas', 'economy', 'במסמך העקרונות של ש״ס מ-2006 נכתב:', "Shas's 2006 statement of principles says:", IDI.shas, '2006'],
-      ['utj', 'economy', 'במצע יהדות התורה מ-1999 נכתב:', "United Torah Judaism's 1999 platform says:", IDI.utj, '1999'],
-    ]) {
-      await go(`${baseUrl}#results?m=${pid},likud${l}`);
-      await waitFor(() => evaluate("document.body.dataset.view === 'results' && document.querySelectorAll('.cell').length > 0"));
-      await evaluate(`document.querySelector('.cell[data-party="${pid}"][data-topic="${tid}"]').click()`);
-      await sleep(300);
-      const d = await evaluate("(() => { const p = document.querySelector('#sheet .pos'); return { label: p?.querySelector('.pos-label')?.textContent.trim() ?? '', text: p?.innerText ?? '', links: [...(p?.querySelectorAll('.source a') ?? [])].map((a) => a.href), date: p?.querySelector('.source .muted')?.textContent.trim() ?? '' }; })()");
-      const wantDate = year ? (lng === 'he' ? `משנת ${year}` : `from ${year}`) : '';
-      if (d.label !== T.sheet.noPositionLabel || !d.text.includes(lng === 'he' ? he : en) || !d.links.some((h) => h.startsWith(idi)) || (year && d.date !== wantDate)) {
-        errors.push(`[interaction-${lng}] ${pid} × ${tid}: expected the dated note, the IDI link${year ? ` and "${wantDate}"` : ''} (${JSON.stringify({ ...d, text: d.text.slice(-160) })})`);
+    if (RESULTS) {
+      const { positions } = loadData();
+      for (const lng of ['he', 'en']) {
+        const T = lng === 'he' ? S : EN;
+        const lc = contextFor({ meta, parties, topics, positions, results }, lng);
+        const nm = (id) => lc.byId.get(id).name;
+        const sfx = lng === 'he' ? '' : '&l=en';
+        // The row's numbers in sort order; the red-line part only when the party declared red lines.
+        const rowText = (x, c, own) => [
+          own ? T.closest.redLines(c.redLines.length, c.redLines.map((r) => lc.topics.find((t) => t.id === r.topicId).short).join(', ')) : null,
+          T.closest.xClash(c.xClash, nm(x)), T.closest.wholeClash(c.wholeClash), T.closest.agree(c.agree), T.closest.seats(c.seats)].filter(Boolean);
+        const sheetState = `(() => { const s = document.querySelector('#sheet'); if (!s.open) return null;
+          const rows = (root) => [...(root?.querySelectorAll('[data-act="closest-apply"]') ?? [])].map((b) => ({ ids: b.dataset.ids, text: b.innerText.replace(/\\s+/g, ' '), warn: b.querySelector('.tag-warn') !== null }));
+          const src = s.querySelector('.seat-src'); const first = s.querySelector('[data-act="closest-apply"]'); const part = s.querySelector('#closest-partial-list');
+          const toggle = s.querySelector('[data-act="closest-partial"]');
+          return { title: s.querySelector('h2')?.innerText, focus: document.activeElement === s.querySelector('h2'),
+            src: src?.innerText ?? '', srcFirst: Boolean(src && first && (src.compareDocumentPosition(first) & Node.DOCUMENT_POSITION_FOLLOWING)),
+            srcVisible: Boolean(src) && src.getBoundingClientRect().top >= 0 && src.getBoundingClientRect().bottom <= innerHeight,
+            full: rows(s.querySelector('.sheet-inner > .closest-list')), partial: part && !part.hidden ? rows(part) : null,
+            toggle: toggle ? toggle.innerText.replace(/^[▸▾]\\s*/, '') + '|' + toggle.getAttribute('aria-expanded') : '',
+            note: s.innerText.includes(${JSON.stringify(T.closest.partialNote)}), text: s.innerText.replace(/\\s+/g, ' '),
+            overflow: s.scrollWidth > s.clientWidth + 1 || document.documentElement.scrollWidth > innerWidth + 1 }; })()`;
+        const check = async (tag, x, st) => {
+          const want = closestTo(lc, x);
+          const silent = [...new Set(want.partial.flatMap((c) => c.low.map((l) => l.partyId)))].sort((a, b) => lc.order.get(a) - lc.order.get(b)).map(nm);
+          if (!st) { errors.push(`[${tag}] the closest-coalitions sheet did not open`); return want; }
+          if (st.title !== T.closest.title(nm(x))) errors.push(`[${tag}] title "${st.title}"`);
+          if (!st.src.includes(lng === 'he' ? meta.resultsStatus : meta.en.resultsStatus) || !st.srcFirst || !st.srcVisible) errors.push(`[${tag}] the results status line must come first and be visible`);
+          if (st.full.map((r) => r.ids).join('|') !== want.full.slice(0, 5).map((c) => c.add.join(',')).join('|')) errors.push(`[${tag}] main rows ${st.full.map((r) => r.ids).join('|')}`);
+          st.full.forEach((r, i) => {
+            let at = 0;
+            for (const t of rowText(x, want.full[i], want.ownRedLines > 0)) {
+              const k = r.text.indexOf(t, at);
+              if (k < 0) { errors.push(`[${tag}] row ${r.ids}: "${t}" missing or out of sort order in "${r.text}"`); break; }
+              at = k + t.length;
+            }
+            if (!want.ownRedLines && r.text.includes(T.closest.redLines(0, ''))) errors.push(`[${tag}] row ${r.ids} shows red lines for a party that declared none`);
+            if (r.warn) errors.push(`[${tag}] main-list row ${r.ids} has a missing-data warning`);
+          });
+          if (want.partial.length) {
+            if (st.partial !== null) errors.push(`[${tag}] the list with silent partners should be collapsed on load`);
+            if (st.toggle !== `${T.closest.showPartial(want.partial.length, T.closest.orList(silent))}|false`) errors.push(`[${tag}] toggle "${st.toggle}"`);
+            if (silent.includes(nm(x)) || st.toggle.includes(nm(x))) errors.push(`[${tag}] the toggle must not name the party itself`);
+            if (!st.note) errors.push(`[${tag}] the partial-comparison sentence is missing`);
+          }
+          if (st.overflow) errors.push(`[${tag}] horizontal overflow in the sheet`);
+          return want;
+        };
+        // The method page states the rule.
+        await go(`${baseUrl}#method${lng === 'he' ? '' : '?l=en'}`);
+        await waitFor(() => evaluate("document.querySelector('#method h1') !== null"));
+        // #32: an intro, then a real <ul> of what is included and a real <ol> of the sort order, then the closing rules.
+        const rule = await evaluate(`(() => { const b = document.querySelector('#closest-rule')?.nextElementSibling; if (!b || b.id !== 'closest-rule-body') return null; const t = (e) => e.innerText.replace(/\\s+/g, ' ').trim();
+          return { kids: [...b.children].map((e) => e.tagName.toLowerCase()), intro: t(b.querySelector('.rule-intro')), heads: [...b.querySelectorAll('h4')].map(t),
+            ul: [...b.querySelectorAll('ul.rule-list > li')].map(t), ol: [...b.querySelectorAll('ol.rule-steps > li')].map(t), after: [...b.querySelectorAll('.rule-after')].map(t),
+            inline: b.querySelectorAll('[style]').length }; })()`);
+        const R = T.method.closestRule;
+        const wantRule = { kids: ['p', 'h4', 'ul', 'h4', 'p', 'ol', ...R.after.map(() => 'p')], intro: R.intro, heads: [R.includedTitle, R.orderTitle], ul: R.included,
+          ol: R.order, after: R.after, inline: 0 };
+        if (R.included.length !== 4 || R.order.length !== 6) errors.push(`[closest-${lng}] the rule should have 4 bullets and 6 steps`);
+        if (JSON.stringify(rule) !== JSON.stringify(wantRule)) errors.push(`[closest-${lng}] the method page's closest-coalitions rule: ${JSON.stringify(rule)}`);
+        for (const size of [SIZES[0], { tag: 's', width: 375, height: 667, mobile: true, dpr: 2 }]) {
+          await setSize(size);
+          const tag = `closest-${lng}@${size.width}`;
+          // Likud, from its party sheet.
+          await go(`${baseUrl}#results?m=likud,yashar${sfx}`);
+          await waitFor(() => evaluate("document.querySelector('.party-btn[data-id=\"likud\"]') !== null"));
+          await evaluate("document.querySelector('.party-btn[data-id=\"likud\"]').click()");
+          await sleep(250);
+          await evaluate("document.querySelector('#sheet [data-act=\"closest\"]').click()");
+          await sleep(300);
+          let st = await evaluate(sheetState);
+          const want = await check(tag, 'likud', st);
+          if (st && !st.focus) errors.push(`[${tag}] focus should move to the list's heading`);
+          if (size === SIZES[0]) await shoot(size, `interaction-closest-m${lng === 'he' ? '' : '-en'}.png`, false);
+          if (lng === 'en') { const hebrew = await evaluate(HEBREW_OUTSIDE); if (hebrew) errors.push(`[${tag}] Hebrew outside lang="he": ${hebrew}`); }
+          // Expand the silent-partner list, then both "show all".
+          await evaluate("document.querySelector('#sheet [data-act=\"closest-partial\"]').click()");
+          await sleep(200);
+          st = await evaluate(sheetState);
+          if (!st.partial || st.partial.map((r) => r.ids).join('|') !== want.partial.slice(0, 5).map((c) => c.add.join(',')).join('|')) errors.push(`[${tag}] expanded partial rows ${st.partial?.map((r) => r.ids).join('|')}`);
+          if (st.partial && !st.partial.every((r) => r.warn)) errors.push(`[${tag}] every row with a silent partner needs its warning`);
+          if (!st.toggle.endsWith('|true')) errors.push(`[${tag}] the toggle should report aria-expanded=true`);
+          if (size === SIZES[0]) await shoot(size, `interaction-closest-partial-m${lng === 'he' ? '' : '-en'}.png`, false);
+          for (const act of ['closest-all', 'closest-partial-all']) await evaluate(`document.querySelector('#sheet [data-act="${act}"]')?.click()`);
+          await sleep(200);
+          st = await evaluate(sheetState);
+          if (st.full.length !== want.full.length || st.partial?.length !== want.partial.length) errors.push(`[${tag}] "show all" should list ${want.full.length} + ${want.partial.length}, got ${st.full.length} + ${st.partial?.length}`);
+          if (st.full.map((r) => r.ids).join('|') !== want.full.map((c) => c.add.join(',')).join('|')) errors.push(`[${tag}] expanded main rows are out of order`);
+          if (st.overflow) errors.push(`[${tag}] horizontal overflow with every row shown`);
+          // The sheet's bar stays at the top while scrolling: back at the start, close (44px+, round) at the end.
+          await evaluate("document.querySelector('#sheet').scrollTop = document.querySelector('#sheet').scrollHeight / 2");
+          await sleep(200);
+          const bar = await evaluate(`(() => { const s = document.querySelector('#sheet').getBoundingClientRect(); const h = document.querySelector('#sheet .sheet-head');
+            const back = h?.querySelector('[data-act="closest-back"]')?.getBoundingClientRect(); const x = h?.querySelector('.sheet-close')?.getBoundingClientRect();
+            if (!h || !back || !x) return 'missing';
+            if (document.querySelector('#sheet').scrollTop < 200) return 'did not scroll';
+            if (Math.abs(h.getBoundingClientRect().top - s.top) > 1) return 'bar not at the top: ' + Math.round(h.getBoundingClientRect().top - s.top);
+            if (x.width < 44 || x.height < 44) return 'close ' + x.width + 'x' + x.height;
+            const rtl = document.dir === 'rtl'; if (rtl ? !(back.left > x.right) : !(back.right < x.left)) return 'back and close on the wrong sides';
+            return 'ok'; })()`);
+          if (bar !== 'ok') errors.push(`[${tag}] sticky sheet bar: ${bar}`);
+          if (size === SIZES[0]) await shoot(size, `interaction-closest-scrolled-m${lng === 'he' ? '' : '-en'}.png`, false);
+          // Tapping the first row selects it, with Likud as the base, on the results view; undo restores.
+          const before = await frag();
+          await evaluate("document.querySelector('#sheet [data-act=\"closest-apply\"]').click()");
+          await sleep(400);
+          const wantHash = locationFor(ctx, { base: 'likud', members: ['likud', ...want.full[0].add], supporters: [], abstainers: [] }, 'results', '', lng);
+          const got = await evaluate("JSON.stringify([location.hash, document.body.dataset.view, document.querySelector('#sheet').open])");
+          if (got !== JSON.stringify([wantHash, 'results', false])) errors.push(`[${tag}] tapping a row should select it on #results (${got}, want ${wantHash})`);
+          await evaluate("document.querySelector('#results-undo [data-act=\"undo\"]').click()");
+          await sleep(300);
+          if ((await frag()) !== before) errors.push(`[${tag}] undo did not restore the coalition`);
+          // Shas: its own coverage note above the list, and never in its own toggle.
+          await go(`${baseUrl}#results?m=likud,shas${sfx}`);
+          await waitFor(() => evaluate("document.querySelector('.party-btn[data-id=\"shas\"]') !== null"));
+          await evaluate("document.querySelector('.party-btn[data-id=\"shas\"]').click()");
+          await sleep(250);
+          await evaluate("document.querySelector('#sheet [data-act=\"closest\"]').click()");
+          await sleep(300);
+          st = await evaluate(sheetState);
+          const shas = await check(`${tag}-shas`, 'shas', st);
+          if (st && !st.text.includes(T.closest.ownCoverage(T.toParty(nm('shas')), shas.ownCoverage))) errors.push(`[${tag}-shas] the party's own coverage note is missing`);
+          // "How is this calculated?" closes the sheet and lands on the rule on the method page.
+          await evaluate(`[...document.querySelectorAll('#sheet a[href="#closest-rule"]')].find((a) => a.innerText === ${JSON.stringify(T.closest.howLink)})?.click()`);
+          await sleep(400);
+          const how = await evaluate("JSON.stringify([document.querySelector('#sheet').open, document.body.dataset.view, (() => { const r = document.querySelector('#closest-rule')?.getBoundingClientRect(); return Boolean(r) && r.top >= 0 && r.top < innerHeight / 2; })(), document.documentElement.lang])");
+          if (how !== JSON.stringify([false, 'method', true, lng])) errors.push(`[${tag}] the method link should close the sheet and show the rule (${how})`);
+          // The build-view picker opens the same list (Yisrael Beytenu: its red lines lead the order) and resets.
+          await go(`${baseUrl}#build${lng === 'he' ? '' : '?l=en'}`);
+          await ready();
+          await evaluate("(() => { const s = document.querySelector('[data-act=\"closest-pick\"]'); s.value = 'yisrael-beiteinu'; s.dispatchEvent(new Event('change', { bubbles: true })); })()");
+          await sleep(300);
+          st = await evaluate(sheetState);
+          await check(`${tag}-picker`, 'yisrael-beiteinu', st);
+          if ((await evaluate("document.querySelector('[data-act=\"closest-pick\"]').value")) !== '') errors.push(`[${tag}-picker] the picker should reset (no preselected party)`);
+          if (size === SIZES[0] && lng === 'he') await shoot(size, 'interaction-closest-picker-m.png', false);
+          await evaluate("document.querySelector('#sheet').close()");
+        }
       }
-      if (pid === 'utj' && tid === 'palestinian') await shoot(z, `interaction-dated-platform-m${lng === 'he' ? '' : '-en'}.png`, false);
+      await setSize(z);
+      log('  ✓ closest coalitions');
+    } else {
+      await go(`${baseUrl}#results?m=likud,yashar`);
+      await waitFor(() => evaluate("document.querySelector('.party-btn[data-id=\"likud\"]') !== null"));
+      await evaluate("document.querySelector('.party-btn[data-id=\"likud\"]').click()");
+      await sleep(250);
+      if (await evaluate("document.querySelector('[data-act=\"closest\"], [data-act=\"closest-pick\"]') !== null")) errors.push('[interaction] closest coalitions must not appear in polls mode');
+      await go(`${baseUrl}#method`);
+      await waitFor(() => evaluate("document.querySelector('#method h1') !== null"));
+      if (await evaluate("document.querySelector('#closest-rule') !== null")) errors.push('[interaction] the closest-coalitions rule must not appear on the method page in polls mode');
       await evaluate("document.querySelector('#sheet').close()");
     }
   }
-  // Arabic quotes keep the original and add a marked Hebrew translation under it.
-  await go(`${baseUrl}#results?m=raam,together`);
-  await waitFor(() => evaluate("document.body.dataset.view === 'results' && document.querySelectorAll('.cell').length > 0"));
-  await evaluate('document.querySelector(\'.cell[data-party="raam"][data-topic="palestinian"]\').click()');
-  await sleep(300);
-  const ar = await evaluate("(() => { const q = [...document.querySelectorAll('#sheet blockquote .q-text')]; return q.map((e) => e.textContent).join(' | '); })()");
-  if (!/[\u0600-\u06FF]/.test(ar) || !ar.includes('(תרגום חופשי של האתר)')) errors.push(`[interaction] Arabic quote must show the original plus a marked translation (${ar})`);
-  // The fragment keeps the coalition through nav links and history; a link pasted into the same tab (a fragment-only
-  // change, no reload) brings its own coalition.
+
   const qsOf = (members) => serializeState(ctx, { base: null, members });
-  await go(`${baseUrl}#results?m=likud,yashar`);
-  await waitFor(() => evaluate("document.body.dataset.view === 'results' && document.querySelector('#footer')?.children.length > 0"));
-  await evaluate("window.smokeNoReload = true; document.querySelector('#nav-method').click()");
-  await sleep(300);
-  if ((await evaluate('location.hash')) !== `#method${qsOf(['likud', 'yashar'])}`) errors.push(`[interaction] the method link should keep the coalition in the fragment (${await evaluate('location.hash')})`);
-  await evaluate('history.back()');
-  await sleep(400);
-  if ((await evaluate('location.hash + "|" + document.body.dataset.view')) !== `#results${qsOf(['likud', 'yashar'])}|results`) errors.push(`[interaction] back should return to the same coalition's results (${await evaluate('location.hash')})`);
-  await evaluate("location.hash = '#results?m=together,democrats'");
-  await sleep(400);
-  const pasted = await evaluate("({ hash: location.hash, line: document.querySelector('#results-coalition').innerText, same: window.smokeNoReload === true })");
-  const pastedNames = ['together', 'democrats'].map((id) => ctx.byId.get(id).name);
-  if (pasted.hash !== `#results${qsOf(['together', 'democrats'])}` || !pasted.same || !pastedNames.every((n) => pasted.line.includes(n)) || pasted.line.includes(ctx.byId.get('likud').name)) {
-    errors.push(`[interaction] a pasted fragment should replace the coalition without a reload (${JSON.stringify(pasted)})`);
+  if (sec('cells')) {
+    await setSize(z);
+    // A cell sheet with a quote renders it in quotation marks with an attribution line underneath.
+    const withQuote = JSON.parse(readFileSync(join(ROOT, 'site', 'data', 'positions.json'), 'utf8')).find((p) => p.quote && p.quoteBy && p.sourceDate);
+    await go(`${baseUrl}#results?m=${withQuote.partyId},together`);
+    await waitFor(() => evaluate("document.body.dataset.view === 'results' && document.querySelectorAll('.cell').length > 0"));
+    await evaluate(`document.querySelector('.cell[data-party="${withQuote.partyId}"][data-topic="${withQuote.topicId}"]').click()`);
+    await sleep(300);
+    const q = await evaluate("(() => { const b = document.querySelector('#sheet blockquote'); return b ? { text: b.querySelector('.q-text')?.textContent, by: b.querySelector('.q-by')?.textContent } : null; })()");
+    if (!q || !/^״.+״$/.test(q.text ?? '')) errors.push(`[interaction] quote must be wrapped in quotation marks (${JSON.stringify(q)})`);
+    if (!q || !q.by.startsWith(withQuote.quoteBy) || !/\d{2}\.\d{2}\.\d{4}$/.test(q.by)) errors.push(`[interaction] quote attribution should read "<speaker>, <channel>, <date>" (${q?.by})`);
+    await shoot(z, 'interaction-cell-quote-m.png', false);
+    // Null rows show what was found: the "no stated position" label, the quote with its attribution, and the source; a dated
+    // note from an older platform links its source as the additional source.
+    for (const [lng, T, by] of [['he', S, 'משה פייגלין, ערוץ 7, 02.07.2026'], ['en', EN, 'Moshe Feiglin, Arutz Sheva (Israel National News), 2 Jul 2026']]) {
+      const l = lng === 'he' ? '' : '&l=en';
+      await go(`${baseUrl}#results?m=likud,zehut${l}`);
+      await waitFor(() => evaluate("document.body.dataset.view === 'results' && document.querySelectorAll('.cell').length > 0"));
+      await evaluate("document.querySelector('.cell[data-party=\"zehut\"][data-topic=\"inquiry\"]').click()");
+      await sleep(300);
+      const nr = await evaluate("(() => { const s = document.querySelector('#sheet'); return { label: s.querySelector('.pos-label')?.textContent.trim() ?? '', quote: s.querySelector('blockquote .q-text')?.textContent ?? '', by: s.querySelector('blockquote .q-by')?.textContent.trim() ?? '', src: s.querySelector('.pos .source a')?.href ?? '', tag: s.querySelector('.pos .tag-src') !== null }; })()");
+      if (nr.label !== T.sheet.noPositionLabel || !nr.quote.includes('אני כלל לא מרגיש צורך בוועדת חקירה') || nr.by !== by || nr.src !== 'https://www.inn.co.il/news/700562' || nr.tag) {
+        errors.push(`[interaction-${lng}] zehut × inquiry sheet should show the label, quote, "${by}" and the source, with no type tag (${JSON.stringify(nr)})`);
+      }
+      await shoot(z, `interaction-null-quote-m${lng === 'he' ? '' : '-en'}.png`, false);
+      await evaluate("document.querySelector('#sheet').close()");
+      await go(`${baseUrl}#results?m=raam,likud${l}`);
+      await waitFor(() => evaluate("document.body.dataset.view === 'results' && document.querySelectorAll('.cell').length > 0"));
+      await evaluate("document.querySelector('.cell[data-party=\"raam\"][data-topic=\"religion\"]').click()");
+      await sleep(300);
+      const rel = await evaluate("(() => { const p = document.querySelector('#sheet .pos'); return { quote: p?.querySelector('blockquote .q-text')?.textContent ?? '', by: p?.querySelector('blockquote .q-by')?.textContent.trim() ?? '', tag: p?.querySelector('.tag-src') !== null }; })()");
+      const relBy = lng === 'he' ? 'מנסור עבאס, פייסבוק, 26.08.2026 (תרגום: כיפה)' : 'Mansour Abbas, Facebook, 26 Aug 2026 (Hebrew translation: Kipa)';
+      if (!rel.quote.includes('נאלצו לקבל זאת מבחינה מעשית') || rel.by !== relBy || rel.tag) errors.push(`[interaction-${lng}] רע״ם × דת should show the full quote (with the practical acceptance) and "${relBy}", with no type tag (${JSON.stringify(rel)})`);
+      await evaluate("document.querySelector('#sheet').close()");
+      await evaluate("document.querySelector('.cell[data-party=\"raam\"][data-topic=\"draft\"]').click()");
+      await sleep(300);
+      const note = await evaluate("(() => { const p = document.querySelector('#sheet .pos'); return { text: p?.innerText ?? '', links: [...(p?.querySelectorAll('.source a') ?? [])].map((a) => a.href) }; })()");
+      const year = lng === 'he' ? "במצע הרשימה מ-1999 נכתב: 'דחיית גיוסם של הערבים בצה״ל'." : "The list's 1999 platform says: 'rejection of the conscription of Arabs into the IDF'.";
+      if (!note.text.includes(year) || !note.links.includes('https://www.idi.org.il/media/16883/%D7%A8%D7%A2%D7%9E-1999.pdf')) errors.push(`[interaction-${lng}] רע״ם × גיוס should carry the dated 1999 note and link the IDI copy (${JSON.stringify(note.links)})`);
+      await shoot(z, `interaction-dated-note-m${lng === 'he' ? '' : '-en'}.png`, false);
+      await evaluate("document.querySelector('#sheet').close()");
+      // The four dated notes from older platforms (approved 3.11): the year and document type, and the IDI copy linked.
+      // Cells with no current source take the IDI copy as their source, dated by the year alone.
+      const IDI = { otzma: 'https://www.idi.org.il/media/13907/', utj: 'https://www.idi.org.il/media/16889/', shas: 'https://www.idi.org.il/media/6856/' };
+      for (const [pid, tid, he, en, idi, year] of [
+        ['otzma-yehudit', 'religion', 'במסמך העקרונות של עוצמה יהודית מ-2020 נכתב:', "Otzma Yehudit's 2020 statement of principles says:", IDI.otzma, null],
+        ['utj', 'palestinian', 'במצע יהדות התורה מ-1999 נכתב:', "United Torah Judaism's 1999 platform says:", IDI.utj, '1999'],
+        ['shas', 'economy', 'במסמך העקרונות של ש״ס מ-2006 נכתב:', "Shas's 2006 statement of principles says:", IDI.shas, '2006'],
+        ['utj', 'economy', 'במצע יהדות התורה מ-1999 נכתב:', "United Torah Judaism's 1999 platform says:", IDI.utj, '1999'],
+      ]) {
+        await go(`${baseUrl}#results?m=${pid},likud${l}`);
+        await waitFor(() => evaluate("document.body.dataset.view === 'results' && document.querySelectorAll('.cell').length > 0"));
+        await evaluate(`document.querySelector('.cell[data-party="${pid}"][data-topic="${tid}"]').click()`);
+        await sleep(300);
+        const d = await evaluate("(() => { const p = document.querySelector('#sheet .pos'); return { label: p?.querySelector('.pos-label')?.textContent.trim() ?? '', text: p?.innerText ?? '', links: [...(p?.querySelectorAll('.source a') ?? [])].map((a) => a.href), date: p?.querySelector('.source .muted')?.textContent.trim() ?? '' }; })()");
+        const wantDate = year ? (lng === 'he' ? `משנת ${year}` : `from ${year}`) : '';
+        if (d.label !== T.sheet.noPositionLabel || !d.text.includes(lng === 'he' ? he : en) || !d.links.some((h) => h.startsWith(idi)) || (year && d.date !== wantDate)) {
+          errors.push(`[interaction-${lng}] ${pid} × ${tid}: expected the dated note, the IDI link${year ? ` and "${wantDate}"` : ''} (${JSON.stringify({ ...d, text: d.text.slice(-160) })})`);
+        }
+        if (pid === 'utj' && tid === 'palestinian') await shoot(z, `interaction-dated-platform-m${lng === 'he' ? '' : '-en'}.png`, false);
+        await evaluate("document.querySelector('#sheet').close()");
+      }
+    }
+    // Arabic quotes keep the original and add a marked Hebrew translation under it.
+    await go(`${baseUrl}#results?m=raam,together`);
+    await waitFor(() => evaluate("document.body.dataset.view === 'results' && document.querySelectorAll('.cell').length > 0"));
+    await evaluate('document.querySelector(\'.cell[data-party="raam"][data-topic="palestinian"]\').click()');
+    await sleep(300);
+    const ar = await evaluate("(() => { const q = [...document.querySelectorAll('#sheet blockquote .q-text')]; return q.map((e) => e.textContent).join(' | '); })()");
+    if (!/[\u0600-\u06FF]/.test(ar) || !ar.includes('(תרגום חופשי של האתר)')) errors.push(`[interaction] Arabic quote must show the original plus a marked translation (${ar})`);
+    log('  ✓ cell sheets: quotes, null rows, dated notes, Arabic');
   }
-  log('  ✓ interactions');
+  if (sec('fragment')) {
+    await setSize(z);
+    // The fragment keeps the coalition through nav links and history; a link pasted into the same tab (a fragment-only
+    // change, no reload) brings its own coalition.
+    await go(`${baseUrl}#results?m=likud,yashar`);
+    await waitFor(() => evaluate("document.body.dataset.view === 'results' && document.querySelector('#footer')?.children.length > 0"));
+    await evaluate("window.smokeNoReload = true; document.querySelector('#nav-method').click()");
+    await sleep(300);
+    if ((await evaluate('location.hash')) !== `#method${qsOf(['likud', 'yashar'])}`) errors.push(`[interaction] the method link should keep the coalition in the fragment (${await evaluate('location.hash')})`);
+    await evaluate('history.back()');
+    await sleep(400);
+    if ((await evaluate('location.hash + "|" + document.body.dataset.view')) !== `#results${qsOf(['likud', 'yashar'])}|results`) errors.push(`[interaction] back should return to the same coalition's results (${await evaluate('location.hash')})`);
+    await evaluate("location.hash = '#results?m=together,democrats'");
+    await sleep(400);
+    const pasted = await evaluate("({ hash: location.hash, line: document.querySelector('#results-coalition').innerText, same: window.smokeNoReload === true })");
+    const pastedNames = ['together', 'democrats'].map((id) => ctx.byId.get(id).name);
+    if (pasted.hash !== `#results${qsOf(['together', 'democrats'])}` || !pasted.same || !pastedNames.every((n) => pasted.line.includes(n)) || pasted.line.includes(ctx.byId.get('likud').name)) {
+      errors.push(`[interaction] a pasted fragment should replace the coalition without a reload (${JSON.stringify(pasted)})`);
+    }
+    log('  ✓ fragment state: nav links, history, a pasted link');
+  }
 
   // English (#3): every case again with l=en (old-format links are Hebrew-only). The Hebrew pass covers the logic; this
   // one checks the language: lang/dir and title, the translation notice, no Hebrew outside lang="he", the source line
@@ -1189,7 +1228,7 @@ try {
     if (rows.some((r) => Math.abs(mid(r) - mid(rows[0])) > 8 || r.height > 56)) return 'header wraps: ' + rows.map((r) => Math.round(r.top) + '/' + Math.round(r.height)).join(' ');
     return 'ok'; })()`;
   const EN_POLL_TEXT = /\bseats?\b|\bpolls?\b|at the threshold|of 61|\(61\+\)|≈\d/i;
-  for (const z2 of SIZES) {
+  if (sec('en-views')) for (const z2 of SIZES) {
     await setSize(z2);
     for (const [name, suffix, expectView] of enCases) {
       step(`en-${name}@${z2.width}`);
@@ -1256,53 +1295,55 @@ try {
 
   // English interactions at phone width: the toggle (both ways, keeping the coalition, the view and focus), a nav link,
   // a pasted English link, and cell sheets with quotes in Hebrew and Arabic.
-  await setSize(SIZES[0]);
-  step('en-interaction@390');
-  await go(`${baseUrl}#results?m=likud,yashar`);
-  await waitFor(() => evaluate("document.body.dataset.view === 'results'"));
-  await evaluate('window.smokeSameDoc = true');
-  const state = () => evaluate("JSON.stringify([document.documentElement.lang, location.hash, document.activeElement?.dataset?.key || '', document.querySelector('#results-coalition').innerText.includes(" + JSON.stringify(parties.find((p) => p.id === 'likud').en.name) + "), window.smokeSameDoc === true])");
-  for (const z3 of SIZES) {
-    await setSize(z3);
-    const sw = await evaluate(SWITCH_CHECK('he'));
-    if (sw !== 'ok') errors.push(`[${current}] Hebrew language switch at ${z3.width}: ${sw}`);
-  }
-  await setSize(SIZES[0]);
-  await evaluate("document.querySelector('#lang-switch button').focus(); document.querySelector('#lang-switch button').click()");
-  await sleep(300);
-  if (await state() !== JSON.stringify(['en', `#results${qsOf(['likud', 'yashar'])}&l=en`, 'lang-switch', true, true])) errors.push(`[${current}] the toggle should switch to English in place, keeping the coalition and focus (${await state()})`);
-  await evaluate("document.querySelector('#nav-method').click()");
-  await sleep(300);
-  if ((await evaluate('location.hash')) !== `#method${qsOf(['likud', 'yashar'])}&l=en`) errors.push(`[${current}] a nav link should keep l=en (${await evaluate('location.hash')})`);
-  await evaluate("history.back()");
-  await sleep(300);
-  await evaluate("document.querySelector('#lang-switch button').click()");
-  await sleep(300);
-  if ((await evaluate("document.documentElement.lang + location.hash")) !== `he#results${qsOf(['likud', 'yashar'])}`) errors.push(`[${current}] the toggle should switch back to Hebrew and drop l= (${await evaluate('location.hash')})`);
-  await evaluate("location.hash = '#results?m=together,democrats&l=en'");
-  await sleep(400);
-  const pastedEn = await evaluate("JSON.stringify([document.documentElement.lang, document.querySelector('#results-coalition').innerText, window.smokeSameDoc === true])");
-  if (!pastedEn.startsWith('["en",') || !pastedEn.includes('Beyachad') || !pastedEn.endsWith('true]')) errors.push(`[${current}] a pasted English link should switch the language and coalition without a reload (${pastedEn})`);
-  for (const [m, pid, tid, ql] of [['yashar,likud', 'yashar', 'draft', 'he'], ['likud,raam', 'raam', 'palestinian', 'ar']]) {
-    await go(`${baseUrl}#results?m=${m}&l=en`);
-    await waitFor(() => evaluate("document.querySelector('[data-act=\"cell\"]') !== null"));
-    await evaluate(`document.querySelector('[data-act="cell"][data-party="${pid}"][data-topic="${tid}"]').click()`);
+  if (sec('en-interaction')) {
+    await setSize(SIZES[0]);
+    step('en-interaction@390');
+    await go(`${baseUrl}#results?m=likud,yashar`);
+    await waitFor(() => evaluate("document.body.dataset.view === 'results'"));
+    await evaluate('window.smokeSameDoc = true');
+    const state = () => evaluate("JSON.stringify([document.documentElement.lang, location.hash, document.activeElement?.dataset?.key || '', document.querySelector('#results-coalition').innerText.includes(" + JSON.stringify(parties.find((p) => p.id === 'likud').en.name) + "), window.smokeSameDoc === true])");
+    for (const z3 of SIZES) {
+      await setSize(z3);
+      const sw = await evaluate(SWITCH_CHECK('he'));
+      if (sw !== 'ok') errors.push(`[${current}] Hebrew language switch at ${z3.width}: ${sw}`);
+    }
+    await setSize(SIZES[0]);
+    await evaluate("document.querySelector('#lang-switch button').focus(); document.querySelector('#lang-switch button').click()");
     await sleep(300);
-    const sheet = await evaluate(`(() => { const s = document.querySelector('#sheet'); if (!s.open) return 'not open';
-      const q = s.querySelector('blockquote .q-text'); const t = s.querySelector('blockquote .q-trans'); const mail = s.querySelector('.correction a')?.href ?? '';
-      return JSON.stringify([q?.lang, t?.innerText.endsWith(${JSON.stringify(EN.sheet.siteTranslation)}), new URL(mail).searchParams.get('subject')?.startsWith('Correction: ')]); })()`);
-    if (sheet !== JSON.stringify([ql, true, true])) errors.push(`[${current}] ${pid}|${tid} sheet: the quote must stay in its language (${ql}) with the site's translation and an English correction mail (${sheet})`);
-    const hebrew = await evaluate(HEBREW_OUTSIDE);
-    if (hebrew) errors.push(`[${current}] ${pid}|${tid} sheet: Hebrew text outside lang="he": ${hebrew}`);
+    if (await state() !== JSON.stringify(['en', `#results${qsOf(['likud', 'yashar'])}&l=en`, 'lang-switch', true, true])) errors.push(`[${current}] the toggle should switch to English in place, keeping the coalition and focus (${await state()})`);
+    await evaluate("document.querySelector('#nav-method').click()");
+    await sleep(300);
+    if ((await evaluate('location.hash')) !== `#method${qsOf(['likud', 'yashar'])}&l=en`) errors.push(`[${current}] a nav link should keep l=en (${await evaluate('location.hash')})`);
+    await evaluate("history.back()");
+    await sleep(300);
+    await evaluate("document.querySelector('#lang-switch button').click()");
+    await sleep(300);
+    if ((await evaluate("document.documentElement.lang + location.hash")) !== `he#results${qsOf(['likud', 'yashar'])}`) errors.push(`[${current}] the toggle should switch back to Hebrew and drop l= (${await evaluate('location.hash')})`);
+    await evaluate("location.hash = '#results?m=together,democrats&l=en'");
+    await sleep(400);
+    const pastedEn = await evaluate("JSON.stringify([document.documentElement.lang, document.querySelector('#results-coalition').innerText, window.smokeSameDoc === true])");
+    if (!pastedEn.startsWith('["en",') || !pastedEn.includes('Beyachad') || !pastedEn.endsWith('true]')) errors.push(`[${current}] a pasted English link should switch the language and coalition without a reload (${pastedEn})`);
+    for (const [m, pid, tid, ql] of [['yashar,likud', 'yashar', 'draft', 'he'], ['likud,raam', 'raam', 'palestinian', 'ar']]) {
+      await go(`${baseUrl}#results?m=${m}&l=en`);
+      await waitFor(() => evaluate("document.querySelector('[data-act=\"cell\"]') !== null"));
+      await evaluate(`document.querySelector('[data-act="cell"][data-party="${pid}"][data-topic="${tid}"]').click()`);
+      await sleep(300);
+      const sheet = await evaluate(`(() => { const s = document.querySelector('#sheet'); if (!s.open) return 'not open';
+        const q = s.querySelector('blockquote .q-text'); const t = s.querySelector('blockquote .q-trans'); const mail = s.querySelector('.correction a')?.href ?? '';
+        return JSON.stringify([q?.lang, t?.innerText.endsWith(${JSON.stringify(EN.sheet.siteTranslation)}), new URL(mail).searchParams.get('subject')?.startsWith('Correction: ')]); })()`);
+      if (sheet !== JSON.stringify([ql, true, true])) errors.push(`[${current}] ${pid}|${tid} sheet: the quote must stay in its language (${ql}) with the site's translation and an English correction mail (${sheet})`);
+      const hebrew = await evaluate(HEBREW_OUTSIDE);
+      if (hebrew) errors.push(`[${current}] ${pid}|${tid} sheet: Hebrew text outside lang="he": ${hebrew}`);
+    }
+    log('  ✓ English interactions');
   }
-  log('  ✓ English interactions');
 
   // Pair view (#23), every mode, both languages, at 360, 375 and 390: the build view's entry opens #pair with focus on its
   // heading; two pickers that never offer the same party twice; all topics in topic order with the summary, the 🚩 tags
   // and a null cell's dated note; no seat numbers; no horizontal scroll with every row open; a share link carrying the
   // pair and the language only. Then: a fresh load of that link, p=x,x, the coalition kept around the view, the
   // toggle, lists under the threshold (results) and the soft-linked note (polls only).
-  {
+  if (sec('pair')) {
     const nameIn = (lng, id) => posCtx[lng].byId.get(id).name;
     const pairWant = (lng, a, b) => {
       const T = lng === 'he' ? S : EN;
@@ -1429,7 +1470,7 @@ try {
   // - Hebrew: every card fully on screen at 375×667, 375×600 (a phone with real browser chrome) and 390×844.
   // - English: every card at 390×844; at 375×667 the last card's title fully on screen; at 375×600 the first two cards
   //   (English has more fixed text above the cards: the translation notice and longer intro and purpose lines).
-  {
+  if (sec('tasks')) {
     await c.send('Accessibility.enable');
     const ax = async (sel) => {
       const { root } = await c.send('DOM.getDocument', { depth: 0 });
@@ -1556,7 +1597,7 @@ try {
   // the exact previous state (route stays #results) and announces it, members then the parties outside with their roles;
   // × only hides it. Focus goes to the results' first heading after the change, undo and ×. Starting from an empty
   // coalition shows no line; leaving the view clears it; a language switch keeps it. At 375×667 and 360×740, both languages.
-  {
+  if (sec('undo')) {
     const UNDO_STATE = `JSON.stringify((() => { const l = document.querySelector('#results-undo .undo-line'); const a = document.activeElement;
       return { line: l ? l.querySelector('.undo-text').innerText : null, focus: a && a === document.querySelector('#results h2') ? 'heading' : (a?.dataset?.key || a?.id || a?.tagName),
         btn: l ? (() => { const b = l.querySelector('[data-act="undo"]'); return [b.innerText.trim(), document.getElementById(b.getAttribute('aria-describedby'))?.innerText ?? null]; })() : null,
@@ -1704,19 +1745,21 @@ try {
       const sep = Math.min(...tx.slice(1).map((r, i) => tx[i].left - r.right)); if (sep < 4) bad.push('matrix headers ' + sep.toFixed(1) + 'px apart'); }
     const note = document.querySelector('#lang-note'); if (!note.hidden && innerWidth <= 400 && lines(note) > 1) bad.push('translation line wraps');
     return bad.join('; '); })()`;
-  for (const w of [360, 390, 1280]) {
-    await c.send('Emulation.setDeviceMetricsOverride', { width: w, height: 800, deviceScaleFactor: 2, mobile: w < 600 });
-    for (const l of ['he', 'en']) {
-      step(`layout-${l}@${w}`);
-      await go(`${baseUrl}#results?m=likud,yashar,together${l === 'en' ? '&l=en' : ''}`);
-      await waitFor(() => evaluate("document.querySelector('#results .seg') !== null && document.querySelector('#matrix .topic-btn') !== null"));
-      await sleep(250);
-      const bad = await evaluate(LAYOUT_CHECK);
-      if (bad) errors.push(`[${current}] ${bad}`);
+  if (sec('layout')) {
+    for (const w of [360, 390, 1280]) {
+      await c.send('Emulation.setDeviceMetricsOverride', { width: w, height: 800, deviceScaleFactor: 2, mobile: w < 600 });
+      for (const l of ['he', 'en']) {
+        step(`layout-${l}@${w}`);
+        await go(`${baseUrl}#results?m=likud,yashar,together${l === 'en' ? '&l=en' : ''}`);
+        await waitFor(() => evaluate("document.querySelector('#results .seg') !== null && document.querySelector('#matrix .topic-btn') !== null"));
+        await sleep(250);
+        const bad = await evaluate(LAYOUT_CHECK);
+        if (bad) errors.push(`[${current}] ${bad}`);
+      }
     }
+    await setSize(SIZES[0]);
+    log('  ✓ phone layout at 360, 390 and 1280 (both languages)');
   }
-  await setSize(SIZES[0]);
-  log('  ✓ phone layout at 360, 390 and 1280 (both languages)');
 
   const ENLARGE = (pct) => `(() => { document.documentElement.style.setProperty('font-size', '${pct}%'); document.body.style.setProperty('font-size', '${16 * pct / 100}px'); return true; })()`;
   // Party sheet (#30): the sticky bar and its 44px close button stay fully inside the visible viewport at rest, mid-
@@ -1738,80 +1781,82 @@ try {
   const WHY_JS = (scope) => `(() => { const w = document.querySelector('${scope} .why-row'); if (!w) return null; const b = w.querySelector('.lv'), t = w.querySelector('.why-text');
     if (!b || !t || w.firstElementChild !== b) return { bad: 'badge must come first' };
     return { below: b.getBoundingClientRect().bottom <= t.getBoundingClientRect().top + 1, text: t.innerText.trim() }; })()`;
-  let sheetRuns = 0;
-  for (const w of [360, 375, 390]) {
-    for (const l of ['he', 'en']) {
-      const T = l === 'he' ? S : EN;
-      const nmL = (id) => posCtx[l].byId.get(id).name;
-      const sfx = l === 'en' ? '&l=en' : '';
-      step(`sheet-${l}@${w}`);
-      sheetRuns++;
-      const metrics = (height) => c.send('Emulation.setDeviceMetricsOverride', { width: w, height, deviceScaleFactor: 2, mobile: true });
-      await metrics(700);
-      await go(`${baseUrl}#results?m=likud,yashar,together,otzma-yehudit,shas,utj${sfx}`);
-      await waitFor(() => evaluate("document.querySelector('.party-btn[data-id=\"likud\"]') !== null"));
-      await evaluate("document.querySelector('.party-btn[data-id=\"likud\"]').click()");
-      await sleep(300);
-      const sheetCheck = async (what) => { const r = await evaluate(SHEET_X); if (r !== 'ok') errors.push(`[${current}] ${what}: ${r}`); };
-      await sheetCheck('at rest');
-      await evaluate("(() => { const d = document.querySelector('#sheet'); d.scrollTop = 120; return true; })()");
-      await sleep(150);
-      await sheetCheck('after a short scroll');
-      await metrics(800); // the bars hide
-      await sleep(250);
-      await sheetCheck('after the viewport grows');
-      await evaluate("(() => { const d = document.querySelector('#sheet'); d.scrollTop = d.scrollHeight / 2; return true; })()");
-      await sleep(150);
-      await sheetCheck('mid-scroll');
-      await metrics(744); // the address bar returns
-      await sleep(250);
-      await sheetCheck('after the viewport shrinks back');
-      await metrics(632); // and a bottom bar too (Brave)
-      await sleep(250);
-      await sheetCheck('after the viewport shrinks by both bars');
-      await evaluate("(() => { const d = document.querySelector('#sheet'); d.scrollTop = d.scrollHeight; return true; })()");
-      await sleep(150);
-      await sheetCheck('at the end');
-      if (w === 375) await shoot({ width: w, height: 632, dpr: 2, mobile: true }, `sheet-party-scrolled-${l}.png`, false);
-      // The votes line: three segments, none broken across lines, also with enlarged text.
-      for (const pct of [100, 125]) {
-        await evaluate(ENLARGE(pct));
+  if (sec('party-sheet')) {
+    let sheetRuns = 0;
+    for (const w of [360, 375, 390]) {
+      for (const l of ['he', 'en']) {
+        const T = l === 'he' ? S : EN;
+        const nmL = (id) => posCtx[l].byId.get(id).name;
+        const sfx = l === 'en' ? '&l=en' : '';
+        step(`sheet-${l}@${w}`);
+        sheetRuns++;
+        const metrics = (height) => c.send('Emulation.setDeviceMetricsOverride', { width: w, height, deviceScaleFactor: 2, mobile: true });
+        await metrics(700);
+        await go(`${baseUrl}#results?m=likud,yashar,together,otzma-yehudit,shas,utj${sfx}`);
+        await waitFor(() => evaluate("document.querySelector('.party-btn[data-id=\"likud\"]') !== null"));
+        await evaluate("document.querySelector('.party-btn[data-id=\"likud\"]').click()");
+        await sleep(300);
+        const sheetCheck = async (what) => { const r = await evaluate(SHEET_X); if (r !== 'ok') errors.push(`[${current}] ${what}: ${r}`); };
+        await sheetCheck('at rest');
+        await evaluate("(() => { const d = document.querySelector('#sheet'); d.scrollTop = 120; return true; })()");
         await sleep(150);
-        const segs = await evaluate(lineCount('#sheet .votes-line .nw'));
-        if (RESULTS && (segs.length !== 3 || segs.some((n) => n > 1))) errors.push(`[${current}] votes line at ${pct}%: segments ${JSON.stringify(segs)} (want 3, one line each)`);
-      }
-      await evaluate(ENLARGE(100));
-      await evaluate("document.querySelector('#sheet').close()");
-      await metrics(800);
-      // Cell sheet: the why row.
-      const cell = matrixCell(posCtx[l], 'yashar', 'draft', ['likud', 'yashar', 'together', 'otzma-yehudit', 'shas', 'utj'], null);
-      await evaluate("document.querySelector('.cell[data-party=\"yashar\"][data-topic=\"draft\"]').click()");
-      await sleep(250);
-      const why = await evaluate(WHY_JS('#sheet'));
-      const wantWhy = cell.d === 0 ? T.sheet.agree(nmL('yashar'), nmL(cell.ref)) : T.sheet.gapTitle(nmL('yashar'), nmL(cell.ref), cell.d);
-      if (!why || !why.below || why.text !== wantWhy) errors.push(`[${current}] cell sheet why row: ${JSON.stringify(why)}, want "${wantWhy}" under the badge`);
-      await evaluate("document.querySelector('#sheet').close()");
-      // 2-member card and pair view: the first expanded row starts with the why row.
-      const pr2 = pairSummary(posCtx[l], 'together', 'democrats').rows;
-      const placed = pr2.findIndex((r) => r.level !== 'NONE');
-      for (const [where, url, scope] of [['2-member card', `#results?m=together,democrats${sfx}`, '#results'], ['pair view', `#pair?p=together,democrats${sfx}`, '#pair-view']]) {
-        await go(`${baseUrl}${url}`);
-        await waitFor(() => evaluate(`document.querySelectorAll('${scope} .pair-row').length === 8`));
-        await evaluate(`(() => { document.querySelectorAll('${scope} .pair-row')[${placed}].open = true; return true; })()`);
+        await sheetCheck('after a short scroll');
+        await metrics(800); // the bars hide
+        await sleep(250);
+        await sheetCheck('after the viewport grows');
+        await evaluate("(() => { const d = document.querySelector('#sheet'); d.scrollTop = d.scrollHeight / 2; return true; })()");
         await sleep(150);
-        const got = await evaluate(WHY_JS(`${scope} .pair-row[open] .pair-detail`));
-        const r = pr2[placed];
-        // The card lists its members in party order (by ballot letters when seats are hidden); the pair view keeps p=.
-        const [x1, x2] = where === '2-member card' ? sortP(posCtx[l], ['together', 'democrats']) : ['together', 'democrats'];
-        const want = r.d === 0 ? T.sheet.agree(nmL(x1), nmL(x2)) : T.sheet.gapTitle(nmL(x1), nmL(x2), r.d);
-        if (!got || !got.below || got.text !== want) errors.push(`[${current}] ${where} why row: ${JSON.stringify(got)}, want "${want}" under the badge`);
-        const first = await evaluate(`document.querySelector('${scope} .pair-row[open] .pair-detail').firstElementChild?.className`);
-        if (first !== 'why-row') errors.push(`[${current}] ${where}: the why row must open the expanded row (first: ${first})`);
+        await sheetCheck('mid-scroll');
+        await metrics(744); // the address bar returns
+        await sleep(250);
+        await sheetCheck('after the viewport shrinks back');
+        await metrics(632); // and a bottom bar too (Brave)
+        await sleep(250);
+        await sheetCheck('after the viewport shrinks by both bars');
+        await evaluate("(() => { const d = document.querySelector('#sheet'); d.scrollTop = d.scrollHeight; return true; })()");
+        await sleep(150);
+        await sheetCheck('at the end');
+        if (w === 375) await shoot({ width: w, height: 632, dpr: 2, mobile: true }, `sheet-party-scrolled-${l}.png`, false);
+        // The votes line: three segments, none broken across lines, also with enlarged text.
+        for (const pct of [100, 125]) {
+          await evaluate(ENLARGE(pct));
+          await sleep(150);
+          const segs = await evaluate(lineCount('#sheet .votes-line .nw'));
+          if (RESULTS && (segs.length !== 3 || segs.some((n) => n > 1))) errors.push(`[${current}] votes line at ${pct}%: segments ${JSON.stringify(segs)} (want 3, one line each)`);
+        }
+        await evaluate(ENLARGE(100));
+        await evaluate("document.querySelector('#sheet').close()");
+        await metrics(800);
+        // Cell sheet: the why row.
+        const cell = matrixCell(posCtx[l], 'yashar', 'draft', ['likud', 'yashar', 'together', 'otzma-yehudit', 'shas', 'utj'], null);
+        await evaluate("document.querySelector('.cell[data-party=\"yashar\"][data-topic=\"draft\"]').click()");
+        await sleep(250);
+        const why = await evaluate(WHY_JS('#sheet'));
+        const wantWhy = cell.d === 0 ? T.sheet.agree(nmL('yashar'), nmL(cell.ref)) : T.sheet.gapTitle(nmL('yashar'), nmL(cell.ref), cell.d);
+        if (!why || !why.below || why.text !== wantWhy) errors.push(`[${current}] cell sheet why row: ${JSON.stringify(why)}, want "${wantWhy}" under the badge`);
+        await evaluate("document.querySelector('#sheet').close()");
+        // 2-member card and pair view: the first expanded row starts with the why row.
+        const pr2 = pairSummary(posCtx[l], 'together', 'democrats').rows;
+        const placed = pr2.findIndex((r) => r.level !== 'NONE');
+        for (const [where, url, scope] of [['2-member card', `#results?m=together,democrats${sfx}`, '#results'], ['pair view', `#pair?p=together,democrats${sfx}`, '#pair-view']]) {
+          await go(`${baseUrl}${url}`);
+          await waitFor(() => evaluate(`document.querySelectorAll('${scope} .pair-row').length === 8`));
+          await evaluate(`(() => { document.querySelectorAll('${scope} .pair-row')[${placed}].open = true; return true; })()`);
+          await sleep(150);
+          const got = await evaluate(WHY_JS(`${scope} .pair-row[open] .pair-detail`));
+          const r = pr2[placed];
+          // The card lists its members in party order (by ballot letters when seats are hidden); the pair view keeps p=.
+          const [x1, x2] = where === '2-member card' ? sortP(posCtx[l], ['together', 'democrats']) : ['together', 'democrats'];
+          const want = r.d === 0 ? T.sheet.agree(nmL(x1), nmL(x2)) : T.sheet.gapTitle(nmL(x1), nmL(x2), r.d);
+          if (!got || !got.below || got.text !== want) errors.push(`[${current}] ${where} why row: ${JSON.stringify(got)}, want "${want}" under the badge`);
+          const first = await evaluate(`document.querySelector('${scope} .pair-row[open] .pair-detail').firstElementChild?.className`);
+          if (first !== 'why-row') errors.push(`[${current}] ${where}: the why row must open the expanded row (first: ${first})`);
+        }
       }
     }
+    await setSize(SIZES[0]);
+    log(`  ✓ party sheet: ${sheetRuns} runs (360/375/390 × he/en): close inside the visible viewport at rest, scrolled, grown and shrunk; why rows; votes line`);
   }
-  await setSize(SIZES[0]);
-  log(`  ✓ party sheet: ${sheetRuns} runs (360/375/390 × he/en): close inside the visible viewport at rest, scrolled, grown and shrunk; why rows; votes line`);
 
   // Fit (#35): at phone widths, with normal and enlarged text (root and body at 125%, standing in for a wider device
   // font such as Samsung's Hebrew one, or user text scaling): every matrix header's text stays inside its column and the
@@ -1851,43 +1896,45 @@ try {
       if ([...t.querySelectorAll('*')].some((e) => { const r = e.getBoundingClientRect(); return r.width > 0 && out(r, c); })) bad.push('task card ' + (i + 1) + ' content leaves the card'); });
     return bad; })()`;
   const FIT_MEMBERS = 'm=likud,yashar,together,otzma-yehudit,shas,utj';
-  let fitRuns = 0;
-  for (const w of [360, 375, 390, 412]) {
-    await c.send('Emulation.setDeviceMetricsOverride', { width: w, height: 800, deviceScaleFactor: 2, mobile: true });
-    for (const l of ['he', 'en']) {
-      for (const pct of [100, 125]) {
-        step(`fit-${l}@${w}-${pct}%`);
-        fitRuns++;
-        await go(`${baseUrl}#results?${FIT_MEMBERS}${l === 'en' ? '&l=en' : ''}`);
-        await waitFor(() => evaluate("document.querySelectorAll('#matrix .topic-btn').length === 8 && document.querySelector('#results .seg') !== null"));
-        await evaluate(ENLARGE(pct));
-        await sleep(250);
-        for (const b of await evaluate(FIT_RESULTS)) errors.push(`[${current}] ${b}`);
-        // The header on one line at normal text size (#35), also with a wider device font (simulated: +0.08em letter
-        // spacing, about 15% wider), which the tight step absorbs. It may wrap only with enlarged text.
-        if (pct === 100) {
-          const oneLine = async (ls) => evaluate(`(() => { const bar = document.querySelector('.topbar-in'); bar.style.setProperty('letter-spacing', '${ls}em'); dispatchEvent(new Event('resize'));
-            const [a, b] = [bar.querySelector('.brand'), bar.querySelector('.topnav')].map((e) => e.getBoundingClientRect()); const one = !(b.top >= a.bottom - 1 || a.top >= b.bottom - 1);
-            const fits = bar.scrollWidth <= bar.clientWidth + 1; bar.style.removeProperty('letter-spacing'); dispatchEvent(new Event('resize')); return one && fits; })()`);
-          if (!(await oneLine(0))) errors.push(`[${current}] the header bar wraps at normal text size`);
-          if (!(await oneLine(0.08))) errors.push(`[${current}] the header bar wraps with a slightly wider font (the tight step should absorb it)`);
+  if (sec('fit')) {
+    let fitRuns = 0;
+    for (const w of [360, 375, 390, 412]) {
+      await c.send('Emulation.setDeviceMetricsOverride', { width: w, height: 800, deviceScaleFactor: 2, mobile: true });
+      for (const l of ['he', 'en']) {
+        for (const pct of [100, 125]) {
+          step(`fit-${l}@${w}-${pct}%`);
+          fitRuns++;
+          await go(`${baseUrl}#results?${FIT_MEMBERS}${l === 'en' ? '&l=en' : ''}`);
+          await waitFor(() => evaluate("document.querySelectorAll('#matrix .topic-btn').length === 8 && document.querySelector('#results .seg') !== null"));
+          await evaluate(ENLARGE(pct));
+          await sleep(250);
+          for (const b of await evaluate(FIT_RESULTS)) errors.push(`[${current}] ${b}`);
+          // The header on one line at normal text size (#35), also with a wider device font (simulated: +0.08em letter
+          // spacing, about 15% wider), which the tight step absorbs. It may wrap only with enlarged text.
+          if (pct === 100) {
+            const oneLine = async (ls) => evaluate(`(() => { const bar = document.querySelector('.topbar-in'); bar.style.setProperty('letter-spacing', '${ls}em'); dispatchEvent(new Event('resize'));
+              const [a, b] = [bar.querySelector('.brand'), bar.querySelector('.topnav')].map((e) => e.getBoundingClientRect()); const one = !(b.top >= a.bottom - 1 || a.top >= b.bottom - 1);
+              const fits = bar.scrollWidth <= bar.clientWidth + 1; bar.style.removeProperty('letter-spacing'); dispatchEvent(new Event('resize')); return one && fits; })()`);
+            if (!(await oneLine(0))) errors.push(`[${current}] the header bar wraps at normal text size`);
+            if (!(await oneLine(0.08))) errors.push(`[${current}] the header bar wraps with a slightly wider font (the tight step should absorb it)`);
+          }
+          if (w === 375 && pct === 100) {
+            // The matrix at 375 in each language, for the report (smoke/matrix-<lang>-375.png).
+            const clip = await evaluate("(() => { const t = document.querySelector('#matrix .table-wrap'); const r = t.getBoundingClientRect(); return { x: 0, y: r.top + scrollY - 8, width: innerWidth, height: Math.ceil(r.height) + 16, scale: 1 }; })()");
+            const shot = await c.send('Page.captureScreenshot', { format: 'png', clip, captureBeyondViewport: true });
+            writeFileSync(join(OUT, `matrix-${l}-375.png`), Buffer.from(shot.data, 'base64'));
+          }
+          await go(`${baseUrl}#build${l === 'en' ? '?l=en' : ''}`);
+          await waitFor(() => evaluate("document.querySelectorAll('.task').length > 0"));
+          await evaluate(ENLARGE(pct));
+          await sleep(250);
+          for (const b of await evaluate(FIT_BUILD)) errors.push(`[${current} build] ${b}`);
         }
-        if (w === 375 && pct === 100) {
-          // The matrix at 375 in each language, for the report (smoke/matrix-<lang>-375.png).
-          const clip = await evaluate("(() => { const t = document.querySelector('#matrix .table-wrap'); const r = t.getBoundingClientRect(); return { x: 0, y: r.top + scrollY - 8, width: innerWidth, height: Math.ceil(r.height) + 16, scale: 1 }; })()");
-          const shot = await c.send('Page.captureScreenshot', { format: 'png', clip, captureBeyondViewport: true });
-          writeFileSync(join(OUT, `matrix-${l}-375.png`), Buffer.from(shot.data, 'base64'));
-        }
-        await go(`${baseUrl}#build${l === 'en' ? '?l=en' : ''}`);
-        await waitFor(() => evaluate("document.querySelectorAll('.task').length > 0"));
-        await evaluate(ENLARGE(pct));
-        await sleep(250);
-        for (const b of await evaluate(FIT_BUILD)) errors.push(`[${current} build] ${b}`);
       }
     }
+    await setSize(SIZES[0]);
+    log(`  ✓ fit: ${fitRuns} runs (360/375/390/412 × he/en × text 100%/125%): matrix headers (one card per column), overview, header bar (one line at 100%, also with a wider font), task cards`);
   }
-  await setSize(SIZES[0]);
-  log(`  ✓ fit: ${fitRuns} runs (360/375/390/412 × he/en × text 100%/125%): matrix headers (one card per column), overview, header bar (one line at 100%, also with a wider font), task cards`);
 
   // Never broken inside (#30/#31/#34): a party name, an outlet or person's name, or a number pair ("53 מול 67", "53 מתוך
   // 61", "59 vs 61") stays on one line in the red-line lines, the "בלי X" rows, the completions card and the scenario
@@ -1909,7 +1956,7 @@ try {
   };
   let nbRuns = 0;
   let nbSeen = 0;
-  if (RESULTS) {
+  if (RESULTS && sec('nobreak')) {
     const { scenarios } = loadData();
     for (const w of [360, 375]) {
       await c.send('Emulation.setDeviceMetricsOverride', { width: w, height: 800, deviceScaleFactor: 2, mobile: true });
@@ -1947,6 +1994,8 @@ try {
     await setSize(SIZES[0]);
     log(`  ✓ never broken inside: ${nbRuns} runs (360/375 × he/en × 100%/125%), ${nbSeen} names and number pairs checked`);
   }
+  endSection();
+  log(`  ${MODE}: ${Math.round((Date.now() - t0) / 1000)}s (${sectionTimes.join(', ')})`);
   c.close();
 } catch (e) {
   errors.push(`smoke failed: ${e.message}`);
