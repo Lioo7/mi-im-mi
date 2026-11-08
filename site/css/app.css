@@ -235,22 +235,29 @@ details.axis summary { cursor: pointer; font-weight: 600; min-block-size: 32px; 
    a 4×2 grid of whole words. (Matrix headers are vertical on phones in both languages: see below.) */
 .nav-short { display: none; }
 @media (max-width: 400px) {
-  .brand { font-size: 1.1rem; }
+  /* The header tightens with the screen (#36), from these sizes at 400px down to the tightest at 360px: brand and logo
+     smaller, the nav's spacing closer. No script measures it, so nothing moves after the first paint. A device font
+     wider than ours (Samsung's Hebrew font) still fits on one line at 360. The 16px between the brand and the nav stays. */
+  .brand { font-size: clamp(1rem, calc(1rem + (100vw - 360px) * .04), 1.1rem); gap: clamp(5px, calc(5px + (100vw - 360px) * .075), 8px); }
+  .brand .logo { inline-size: clamp(24px, calc(24px + (100vw - 360px) * .15), 30px); block-size: clamp(32px, calc(32px + (100vw - 360px) * .2), 40px); }
+  .topnav { gap: clamp(6px, calc(6px + (100vw - 360px) * .1), 10px); }
+  .langswitch { gap: clamp(4px, calc(4px + (100vw - 360px) * .05), 6px); padding-inline-start: clamp(6px, calc(6px + (100vw - 360px) * .1), 10px); }
+  .navlink { padding-inline: clamp(2px, calc(2px + (100vw - 360px) * .05), 4px); }
   .nav-long { display: none; }
   .nav-short { display: inline; }
   .lang-note { font-size: .78rem; }
   .matrix th[scope="row"], .matrix thead td { inline-size: 80px; }
 }
-/* Larger text or a wider device font: the header wraps (the language switch drops to a second line) rather than
-   pushing the page sideways (#35). */
+/* English above 400px has the longer "How it works" and little room left at 401-440px (#36): it tightens the same way,
+   from the 400px sizes at 400 to the full ones at 440. Hebrew has room there and is unchanged. */
+@media (min-width: 401px) and (max-width: 440px) {
+  [dir="ltr"] .brand { font-size: clamp(1.1rem, calc(1.1rem + (100vw - 400px) * .06), 1.25rem); gap: clamp(5px, calc(5px + (100vw - 400px) * .075), 8px); }
+  [dir="ltr"] .topnav { gap: clamp(6px, calc(6px + (100vw - 400px) * .1), 10px); }
+  [dir="ltr"] .langswitch { gap: clamp(4px, calc(4px + (100vw - 400px) * .05), 6px); padding-inline-start: clamp(6px, calc(6px + (100vw - 400px) * .1), 10px); }
+  [dir="ltr"] .navlink { padding-inline: clamp(2px, calc(2px + (100vw - 400px) * .05), 4px); }
+}
+/* Larger text: the header wraps (the nav drops to a second line) rather than pushing the page sideways (#35). */
 .topbar-in { flex-wrap: wrap; row-gap: 0; }
-/* Set by app.js (fitTopbar) only when the items would wrap: a smaller brand and tighter spacing first. The 16px between
-   the brand and the nav stays. */
-.topbar-in.is-tight .brand { font-size: 1rem; gap: 5px; }
-.topbar-in.is-tight .logo { inline-size: 24px; block-size: 32px; }
-.topbar-in.is-tight .topnav { gap: 6px; }
-.topbar-in.is-tight .langswitch { gap: 4px; padding-inline-start: 6px; }
-.topbar-in.is-tight .navlink { padding-inline: 2px; }
 @media (max-width: 600px) {
   .segs { grid-template-columns: repeat(4, 1fr); }
 }
