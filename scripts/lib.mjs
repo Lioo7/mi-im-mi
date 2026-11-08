@@ -71,7 +71,8 @@ export function toCsv(columns, records) {
 }
 
 // ---------- validation ----------
-const isHttps = (u) => typeof u === 'string' && /^https?:\/\/[^\s]+$/.test(u);
+// https only (#12): the data has no plain http: links, and a new one is refused.
+const isHttps = (u) => typeof u === 'string' && /^https:\/\/[^\s]+$/.test(u);
 // Non-empty English text: no Hebrew or Arabic letters.
 const isEnglish = (v) => typeof v === 'string' && v.trim() !== '' && !/[\u0590-\u06FF]/.test(v);
 const isDate = (d) => typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d);

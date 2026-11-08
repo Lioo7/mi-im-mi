@@ -95,6 +95,18 @@ test('an additional source is a URL, and only next to a main source (a null row\
   assert.equal(run({ position: null, sourceType: null, extraSourceUrl: 'https://b.example/platform-1999.pdf' }), '');
 });
 
+test('every source link is https: a plain http: link is refused (#12)', () => {
+  const parties = [{ id: 'p' }];
+  const topics = [{ id: 't' }];
+  const row = (extra) => ({ partyId: 'p', topicId: 't', position: -2, redLine: false, summary: 'תקציר', summaryEn: 'Summary', quote: null,
+    sourceUrl: 'https://a.example/', sourceType: 'platform', ...extra });
+  const run = (extra) => validatePositions([row(extra)], parties, topics).join();
+  assert.equal(run({}), '');
+  assert.match(run({ sourceUrl: 'http://a.example/' }), /sourceUrl/);
+  assert.match(run({ viaUrl: 'http://v.example/' }), /viaUrl/);
+  assert.match(run({ extraSourceUrl: 'http://b.example/' }), /extraSourceUrl/);
+});
+
 test('a null row may carry what was found: a valid source and date, a quote only with a source, and no source type', () => {
   const parties = [{ id: 'p' }];
   const topics = [{ id: 't' }];
