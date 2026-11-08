@@ -469,10 +469,10 @@ export const S = {
     // data (party name, topic, the two axis labels); the other kinds have their own text in the file.
     changes: {
       title: 'שינויים בנתונים',
-      intro: 'שינויים במה שמוצג באתר: תוצאות, מיקומים, שמות, תרחישים והמלצות לנשיא. הנימוקים המלאים ביומן ההחלטות.',
+      intro: 'שינויים במה שמוצג באתר: תוצאות, מיקומים, שמות, תרחישים, המלצות לנשיא והערות מתוארכות. הנימוקים המלאים ביומן ההחלטות.',
       logLink: 'יומן ההחלטות',
       logUrl: 'https://github.com/Lioo7/mi-im-mi/blob/main/docs/research/decisions.md',
-      kinds: { results: 'תוצאות', placement: 'מיקום', name: 'שם', scenario: 'תרחיש', recommendations: 'המלצות לנשיא' },
+      kinds: { results: 'תוצאות', placement: 'מיקום', name: 'שם', scenario: 'תרחיש', recommendations: 'המלצות לנשיא', notes: 'הערה מתוארכת' },
       placement: (p, t, from, to) => `${p}, ${t}: מ-״${from}״ ל-״${to}״`,
     },
     // Data download (#18): the files are site/download/, written by scripts/export-download.mjs. positionNote and license

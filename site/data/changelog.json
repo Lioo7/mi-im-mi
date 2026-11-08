@@ -26,6 +26,12 @@
       "en": "The official results the Central Elections Committee submitted to the President on 4 Nov replaced the results of 30 Oct. The vote counts of 13 lists were updated, and the makeup of the Knesset did not change."
     },
     {
+      "date": "2026-11-03",
+      "kind": "notes",
+      "he": "בחמישה תאים בלי עמדה מוצהרת נוספה הערה מתוארכת ממצע רשמי של המפלגה מבחירות קודמות. ההערה מוצגת עם המקור שלה ואינה משמשת למיקום.",
+      "en": "A dated note from the party's official platform in a previous election was added to five cells with no stated position. The note is shown with its source and is not used for placement."
+    },
+    {
       "date": "2026-11-02",
       "kind": "placement",
       "party": "zehut",
@@ -68,14 +74,14 @@
     {
       "date": "2026-11-01",
       "kind": "results",
-      "he": "{party:kalkalit} ו{party:amcha-yisrael} לא עברו את אחוז החסימה, ולכן אי אפשר לבחור אותן לקואליציה. העמדות שלהן עדיין מוצגות.",
-      "en": "{party:kalkalit} and {party:amcha-yisrael} did not pass the electoral threshold, so they cannot be selected for a coalition. Their positions are still shown."
+      "he": "שתי רשימות לא עברו את אחוז החסימה: {party:kalkalit} ו{party:amcha-yisrael}, ולכן אי אפשר לבחור אותן לקואליציה. העמדות שלהן עדיין מוצגות.",
+      "en": "Two lists did not pass the electoral threshold: {party:kalkalit} and {party:amcha-yisrael}, so they can't be selected for a coalition. Their positions are still shown."
     },
     {
       "date": "2026-11-01",
       "kind": "results",
-      "he": "{party:religious-zionism} ו{party:zehut}, שרצו ברשימה אחת, נבחרות ונספרות כל אחת בנפרד, לפי המקומות שלהן ברשימה.",
-      "en": "{party:religious-zionism} and {party:zehut}, which ran on one list, are selected and counted separately, by their places on the list."
+      "he": "{party:religious-zionism} ו{party:zehut} רצו ברשימה אחת. אפשר לבחור כל אחת מהן בנפרד, וכל אחת נספרת לפי המקומות שלה ברשימה המשותפת.",
+      "en": "{party:religious-zionism} and {party:zehut} ran on one list. Each can be selected separately, and each is counted by its places on the joint list."
     },
     {
       "date": "2026-11-01",

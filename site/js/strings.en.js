@@ -458,10 +458,10 @@ export const S = {
     // Data changes (#19); see strings.js.
     changes: {
       title: 'Data changes',
-      intro: 'Changes to what the site shows: results, placements, names, scenarios and recommendations to the President. The full reasoning is in the decision log (in Hebrew).',
+      intro: 'Changes to what the site shows: results, placements, names, scenarios, recommendations to the President and dated notes. The full reasoning is in the decision log (in Hebrew).',
       logLink: 'decision log',
       logUrl: 'https://github.com/Lioo7/mi-im-mi/blob/main/docs/research/decisions.md',
-      kinds: { results: 'Results', placement: 'Placement', name: 'Name', scenario: 'Scenario', recommendations: 'Recommendations to the President' },
+      kinds: { results: 'Results', placement: 'Placement', name: 'Name', scenario: 'Scenario', recommendations: 'Recommendations to the President', notes: 'Dated note' },
       placement: (p, t, from, to) => `${p}, ${t}: from "${from}" to "${to}"`,
     },
     // Data download (#18); see strings.js.

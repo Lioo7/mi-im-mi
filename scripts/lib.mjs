@@ -482,7 +482,7 @@ export function validateDownload(data, files) {
 // only as {party:<id>} / {topic:<id>} tokens. `reviewed` is the fingerprint of the data files when the list was last
 // checked, so any data change fails validate until it gets an entry or an explicit `node scripts/changelog.mjs --ack`.
 export const CHANGELOG_FILE = 'changelog.json';
-export const CHANGE_KINDS = ['results', 'placement', 'name', 'scenario', 'recommendations'];
+export const CHANGE_KINDS = ['results', 'placement', 'name', 'scenario', 'recommendations', 'notes'];
 const TOKEN = /\{(party|topic):([^}]*)\}/g;
 
 // sha256 of every data file the site shows, except the changelog itself, in name order.
