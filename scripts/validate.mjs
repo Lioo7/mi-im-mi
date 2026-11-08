@@ -1,6 +1,8 @@
 // Validates site/data before a deploy. Exit code 1 on any error.
 // Usage: node scripts/validate.mjs [--allow-stub]
-import { loadData, validateParties, validateTopics, validatePositions, validateResults, validateScenarios, validateRecommendations, validateEnglish } from './lib.mjs';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { ROOT, MERGED, exists, readJson, loadData, validateParties, validateTopics, validatePositions, validateResults, validateScenarios, validateRecommendations, validateEnglish, validateEvidence } from './lib.mjs';
 
 const allowStub = process.argv.includes('--allow-stub');
 const { parties, topics, meta, positions, results, scenarios, recommendations } = loadData();
@@ -13,6 +15,16 @@ const errors = [
   ...validateScenarios(meta, scenarios, parties, results),
   ...validateRecommendations(meta, recommendations, parties, results),
   ...validateEnglish({ parties, meta, results, scenarios, recommendations }),
+  ...(() => {
+    // The public evidence files, and research/merged.json where it exists, must match the live positions (#40).
+    const ev = join(ROOT, 'docs', 'research', 'evidence');
+    if (!exists(`${ev}.json`) || !exists(`${ev}.csv`)) return ['docs/research/evidence.{json,csv}: missing (run node scripts/export-evidence.mjs)'];
+    return validateEvidence({
+      positions, parties, topics,
+      evidenceJson: readJson(`${ev}.json`), evidenceCsv: readFileSync(`${ev}.csv`, 'utf8'),
+      merged: exists(MERGED) ? readJson(MERGED) : null,
+    });
+  })(),
 ];
 if (typeof meta.showSeats !== 'boolean') errors.push('meta: showSeats must be true/false');
 if (meta.stub && !allowStub) errors.push('meta: stub data is active (run the real import before deploying)');

@@ -325,3 +325,74 @@ export function reviewSort(records, parties, topics) {
   return [...records].sort((a, b) =>
     bucket(a) - bucket(b) || to.get(a.topicId) - to.get(b.topicId) || po.get(a.partyId) - po.get(b.partyId));
 }
+
+// ---------- public evidence files (docs/research/evidence.{json,csv}, #40) ----------
+// Local working paths are not meaningful to readers; describe the source instead.
+const cleanNote = (s) => (s ?? '')
+  .replace(/\(research\/platforms\/[^)]*\)/g, '(סיכום המצע של המפלגה הכלכלית החדשה)')
+  .replace(/\s+/g, ' ')
+  .trim();
+
+// One row per position, in topic then party order. `records` are research/merged.json rows (with evidenceNote)
+// or the live positions (evidence_note is then empty: it exists only in merged.json).
+export function evidenceRows(records, parties, topics) {
+  const party = new Map(parties.map((p) => [p.id, p]));
+  const topic = new Map(topics.map((t) => [t.id, t]));
+  const po = new Map(parties.map((p, i) => [p.id, i]));
+  const to = new Map(topics.map((t, i) => [t.id, i]));
+  return [...records]
+    .sort((a, b) => to.get(a.topicId) - to.get(b.topicId) || po.get(a.partyId) - po.get(b.partyId))
+    .map((r) => ({
+      party: party.get(r.partyId).name,
+      party_id: r.partyId,
+      topic: topic.get(r.topicId).name,
+      topic_id: r.topicId,
+      position: r.position ?? '',
+      position_label: r.position == null ? 'אין עמדה מוצהרת' : topic.get(r.topicId).axis[String(r.position)],
+      red_line: r.redLine ? 'TRUE' : 'FALSE',
+      red_line_evidence: r.redLineEvidence ? `${r.redLineEvidence.quote ?? ''} ${r.redLineEvidence.url ?? ''}`.trim() : '',
+      components_disagree: r.componentsDisagree ? 'TRUE' : 'FALSE',
+      source_type: r.sourceType ?? '',
+      source_url: r.sourceUrl ?? '',
+      extra_source_url: r.extraSourceUrl ?? '',
+      archive_url: r.archiveUrl ?? '',
+      source_date: r.sourceDate ?? '',
+      confidence: r.confidence ?? '',
+      summary: r.summary ?? '',
+      summary_en: r.summaryEn ?? '',
+      quote: r.quote ?? '',
+      quote_by: r.quoteBy ?? '',
+      quote_translation: r.quoteTranslation ?? '',
+      quote_translation_en: r.quoteTranslationEn ?? '',
+      quote_translated_by: r.quoteTranslatedBy ?? '',
+      quote_channel: r.quoteChannel ?? '',
+      evidence_note: cleanNote(r.evidenceNote),
+    }));
+}
+
+// Columns that come from merged.json alone, so the live data cannot check them.
+const MERGED_ONLY = ['red_line_evidence', 'evidence_note'];
+
+// The published evidence files must match the live positions (they fell behind once, #40), and the CSV must be the JSON.
+// `merged` (research/merged.json, gitignored) is checked only where it exists: its public fields must equal positions.json.
+export function validateEvidence({ positions, parties, topics, evidenceJson, evidenceCsv, merged = null }) {
+  const errors = [];
+  const fix = ' (run node scripts/export-evidence.mjs)';
+  if (!Array.isArray(evidenceJson)) return ['evidence.json: missing or not an array' + fix];
+  const want = evidenceRows(positions, parties, topics);
+  if (evidenceJson.length !== want.length) errors.push(`evidence.json: ${evidenceJson.length} rows, positions.json has ${want.length}${fix}`);
+  want.forEach((w, i) => {
+    const got = evidenceJson[i] ?? {};
+    const cols = Object.keys(w).filter((c) => !MERGED_ONLY.includes(c) && String(got[c] ?? '') !== String(w[c]));
+    if (cols.length) errors.push(`evidence.json row ${i + 1} (${w.party_id}|${w.topic_id}): stale ${cols.join(', ')}${fix}`);
+  });
+  if (evidenceJson.length && evidenceCsv !== toCsv(Object.keys(evidenceJson[0]), evidenceJson)) errors.push('evidence.csv: differs from evidence.json' + fix);
+  if (merged) {
+    const live = new Map(positions.map((p) => [key(p), JSON.stringify(publicRecord(p))]));
+    if (merged.length !== positions.length) errors.push(`research/merged.json: ${merged.length} rows, positions.json has ${positions.length}`);
+    for (const r of merged) {
+      if (live.get(key(r)) !== JSON.stringify(publicRecord(r))) errors.push(`research/merged.json ${key(r)}: public fields differ from positions.json`);
+    }
+  }
+  return errors;
+}

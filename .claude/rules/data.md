@@ -17,7 +17,7 @@ paths:
 - **Export CSV:** `node scripts/export-csv.mjs` (`research/merged.json` → `review/positions_review.csv`).
 - **Evidence:** `node scripts/export-evidence.mjs` (→ `docs/research/evidence.{json,csv}`).
 - **Archive sources:** `node scripts/archive-sources.mjs`, then `node scripts/apply-archive.mjs`. Only snapshots listed in `research/archive-verified.json` are published. Then export, then import.
-- After any data change: `node scripts/validate.mjs` and `node --test`.
+- After any data change: `node scripts/export-evidence.mjs`, then `node scripts/validate.mjs` and `node --test`. Validate fails when `docs/research/evidence.*` falls behind `positions.json`, or when `research/merged.json` differs from it on a public field (#40).
 
 ## Sources
 - `sourceType`: `platform` | `statement` (party/leader's own words: site, X, recorded interview, direct quote) | `record` (a bill the party initiated or advanced). Votes breaking from the bloc were planned as evidence, but no position uses one; plain bloc-discipline votes never count. A journalist's characterization is never a source.
