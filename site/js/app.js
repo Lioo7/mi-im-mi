@@ -960,7 +960,9 @@ const pairSummaryText = (a, b) => {
 };
 const pairShareText = (a, b) => S.pair.shareText(name(a), name(b), pairSummaryText(a, b));
 // The share link carries the pair and the language, never the coalition.
-const pairShareUrl = (a, b) => location.origin + location.pathname
+// English links go through the /en/ entry page, so their previews are in English (#21); the fragment keeps l=en too.
+const shareBase = () => location.origin + location.pathname.replace(/[^/]*$/, '') + (lang === 'en' ? 'en/' : '');
+const pairShareUrl = (a, b) => shareBase()
   + C.locationFor(ctx, { base: null, members: [], supporters: [], abstainers: [] }, 'pair', '', lang, [a, b]);
 
 function renderPair() {
@@ -1108,7 +1110,7 @@ function renderMatrix() {
 
 // ---------- share & bar ----------
 function shareUrl() {
-  return location.origin + location.pathname + C.locationFor(ctx, state, 'results', '', lang);
+  return shareBase() + C.locationFor(ctx, state, 'results', '', lang);
 }
 
 // The members and their head-on clash topics; then, when there are any, the parties outside the coalition with their

@@ -54,7 +54,7 @@ Issue format: a one-sentence goal, short bullets, a "Done when" line. Labels: en
 Loaded terms appear only inside attributed quotes. `test/glossary.test.mjs` enforces this in both languages.
 
 ## URL and security
-- **URL state lives in the fragment:** `#<view>?b=&m=&o=&a=` (plus `l=en`). `#pair` adds `p=<a>,<b>`, which is not coalition state (its share link carries only `p` and `l`). Never put coalition state in the query: the server, and the Referer of every same-origin request, would see it. Old `?m=` links are moved into the fragment by `moveLegacyState` before any request. Share links are `/#results?…`.
+- **URL state lives in the fragment:** `#<view>?b=&m=&o=&a=` (plus `l=en`). `#pair` adds `p=<a>,<b>`, which is not coalition state (its share link carries only `p` and `l`). Never put coalition state in the query: the server, and the Referer of every same-origin request, would see it. Old `?m=` links are moved into the fragment by `moveLegacyState` before any request. Share links are `/#results?…`, and `/en/#results?…&l=en` in English (the `/en/` entry page gives previews English OG tags and redirects, #21).
 - **CSP (`netlify.toml`):** `script-src 'self'; style-src 'self'; style-src-attr 'none'`. No inline scripts, no inline `<style>`, no `style=""` attributes (set styles through the CSSOM), no new hosts without updating the policy. No exceptions.
 - **Hosting:** Netlify's Free plan (no attribution required). The "Powered by Netlify" badge is off in the dashboard (Project configuration > General). Netlify injects it at the edge, so if it is turned on again its script breaks under our CSP and remote smoke fails.
 

@@ -611,3 +611,14 @@ export function locationFor(ctx, state, route, search = '', lang = 'he', pair = 
   const extra = [ids.length ? `p=${ids.join(',')}` : '', lang === 'he' ? '' : `l=${lang}`].filter(Boolean).join('&');
   return `${search}#${route}${s}${extra ? `${s ? '&' : '?'}${extra}` : ''}`;
 }
+
+// The /en/ entry page (#21): link previews can't see the fragment, so English share links go to /en/#…, a static page
+// with English OG tags whose script calls this and redirects to /#…. Keeps the view and every parameter verbatim (b, m,
+// o, a, p), drops any other l=, and adds l=en. The fragment never reaches the server or the query.
+export function enEntryHash(hash) {
+  const h = hash.replace(/^#/, '');
+  const i = h.indexOf('?');
+  const route = i < 0 ? h : h.slice(0, i);
+  const rest = (i < 0 ? '' : h.slice(i + 1)).split('&').filter((p) => p && !/^l(=|$)/.test(p));
+  return `#${route}?${[...rest, 'l=en'].join('&')}`;
+}

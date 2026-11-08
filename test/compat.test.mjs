@@ -838,3 +838,16 @@ test('closestTo: partners\' red lines are not X\'s; X without a position never a
   assert.equal(closestTo(ctx, 'a').ownRedLines, 1);
   assert.deepEqual(closestTo(ctx, 'h'), { full: [], partial: [], total: 0, ownCoverage: 1, ownRedLines: 0 });
 });
+
+test('enEntryHash: the /en/ entry page keeps the view and every parameter verbatim, and adds l=en once (#21)', async () => {
+  const { enEntryHash } = await import('../site/js/compat.js');
+  assert.equal(enEntryHash(''), '#?l=en');
+  assert.equal(enEntryHash('#'), '#?l=en');
+  assert.equal(enEntryHash('#method'), '#method?l=en');
+  assert.equal(enEntryHash('#results?m=yashar,together&o=joint-list&a=raam,utj'), '#results?m=yashar,together&o=joint-list&a=raam,utj&l=en');
+  assert.equal(enEntryHash('#results?m=likud,shas&l=en'), '#results?m=likud,shas&l=en');
+  assert.equal(enEntryHash('#pair?l=he&p=likud,yashar'), '#pair?p=likud,yashar&l=en');
+  assert.equal(enEntryHash('#build?b=likud&m=likud,shas&l'), '#build?b=likud&m=likud,shas&l=en');
+  // Nothing moves into a query: the result is a fragment only.
+  assert.ok(enEntryHash('#results?m=likud').startsWith('#'));
+});

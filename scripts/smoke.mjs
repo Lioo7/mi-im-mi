@@ -141,9 +141,9 @@ function cdp(wsUrl) {
 // Options (#37). --mode: which data mode to test (all: the three in parallel); a local run serves site/ with meta.json's mode overridden, so no
 // scratch copies are needed (a remote run tests the deployed mode). --only: a comma-separated list of SECTIONS.
 // --shots: save screenshots (otherwise only a failing first-load legal check saves one).
-const SECTIONS = ['views', 'legal', 'narrow', 'headers', 'files', 'interaction', 'closest', 'cells', 'fragment', 'en-views', 'en-interaction',
+const SECTIONS = ['views', 'legal', 'narrow', 'headers', 'files', 'interaction', 'closest', 'cells', 'fragment', 'entry', 'en-views', 'en-interaction',
   'pair', 'tasks', 'undo', 'layout', 'party-sheet', 'fit', 'nobreak', 'recs'];
-const LIGHT_SECTIONS = ['files', 'headers', 'views', 'en-views'];
+const LIGHT_SECTIONS = ['files', 'headers', 'entry', 'views', 'en-views'];
 const MODES = { results: { mode: 'results' }, polls: { mode: 'polls', showSeats: true }, hidden: { mode: 'polls', showSeats: false } };
 const args = process.argv.slice(2);
 const opt = (k) => args.find((a) => a.startsWith(`--${k}=`))?.slice(k.length + 3);
@@ -1411,6 +1411,45 @@ try {
     log('  ✓ fragment state: nav links, history, a pasted link');
   }
 
+  // The /en/ entry page (#21): link previews can't see the fragment, so English share links go to /en/#…. Its head is
+  // English (title, description, OG tags, the English preview image) with no inline script or style, and its script
+  // redirects to /#…&l=en, keeping the view, the roles and the pair (the request guard above checks that no request,
+  // the redirect included, carries coalition state).
+  if (sec('entry')) {
+    await setSize(z);
+    step('entry-head');
+    const html = await (await fetch(`${baseUrl}en/`)).text();
+    const head = html.slice(0, html.indexOf('</head>'));
+    const tag = (k) => head.match(new RegExp(`<meta (?:property|name)="${k}" content="([^"]*)"`))?.[1] ?? null;
+    if (!html.includes('<html lang="en" dir="ltr">')) errors.push('[entry] /en/ should be <html lang="en" dir="ltr">');
+    if (/[\u0590-\u05FF]/.test(head)) errors.push('[entry] Hebrew in the head of /en/');
+    for (const k of ['description', 'og:title', 'og:description']) if (!tag(k)?.trim()) errors.push(`[entry] /en/ lacks ${k}`);
+    if (!head.includes(`<title>${tag('og:title')}</title>`)) errors.push('[entry] the /en/ <title> should be its og:title');
+    if (tag('og:locale') !== 'en_US' || tag('og:url') !== 'https://mi-im-mi-2026.netlify.app/en/') errors.push(`[entry] og:locale/og:url: ${tag('og:locale')} ${tag('og:url')}`);
+    if (!/^https:\/\/mi-im-mi-2026\.netlify\.app\/og-en\.png(\?v=\d+)?$/.test(tag('og:image') ?? '')) errors.push(`[entry] og:image should be og-en.png (${tag('og:image')})`);
+    const img = await fetch(`${baseUrl}og-en.png`);
+    if (img.status !== 200 || img.headers.get('content-type') !== 'image/png') errors.push(`[entry] og-en.png: HTTP ${img.status} ${img.headers.get('content-type')}`);
+    if (/<script(?![^>]*\ssrc=)/.test(html) || /<style|\sstyle=/.test(html)) errors.push('[entry] /en/ has an inline script or style (the CSP allows neither)');
+    const roles = 'm=yashar,together,democrats,yisrael-beiteinu&o=joint-list&a=raam,utj';
+    const entryCases = [
+      ['results with roles', `#results?${roles}&l=en`, 'results'],
+      ['no l= in the link', `#results?${roles}`, 'results'],
+      ['pair', '#pair?p=likud,yashar', 'pair'],
+      ['no fragment', '', 'build'],
+    ];
+    for (const [label, hash, wantView] of entryCases) {
+      step(`entry: ${label}`);
+      await go(`${baseUrl}en/${hash}`);
+      await waitFor(() => evaluate("location.pathname === '/' && document.body.dataset.view !== undefined && document.querySelector('#footer')?.children.length > 0"));
+      await settle(200);
+      const exp = parseLocation({ search: '', hash: hash || '#build' }, passedIds);
+      const want = locationFor(ctx, exp.state, wantView, '', 'en', wantView === 'pair' ? exp.pair : []);
+      const got = await evaluate("JSON.stringify([location.pathname + location.search, location.hash, document.body.dataset.view, document.documentElement.lang])");
+      if (got !== JSON.stringify(['/', want, wantView, 'en'])) errors.push(`[entry] /en/${hash} should land on /${want} (${wantView}, en), got ${got}`);
+    }
+    log(`  ✓ /en/: English head and preview image, no inline code; ${entryCases.length} redirects keep the view, roles and pair`);
+  }
+
   // English (#3): every case again with l=en (old-format links are Hebrew-only). The Hebrew pass covers the logic; this
   // one checks the language: lang/dir and title, the translation notice, no Hebrew outside lang="he", the source line
   // before the seats, the same investiture numbers, and links that keep l=en.
@@ -1478,7 +1517,8 @@ try {
       }
       if (expectView === 'results') {
         const wa = await evaluate("document.querySelector('#results a[href^=\"https://wa.me/\"]')?.href || ''");
-        const wantShare = baseUrl + locationFor(ctx, exp.state, 'results', '', 'en');
+        // English share links go through the /en/ entry page (#21).
+        const wantShare = `${baseUrl}en/` + locationFor(ctx, exp.state, 'results', '', 'en');
         const text = wa ? new URL(wa).searchParams.get('text') : '';
         if (wa && (!text.endsWith(`\n${wantShare}`) || !text.startsWith('The coalition I built: '))) errors.push(`[${current}] English WhatsApp text should start "The coalition I built:" and end with ${wantShare} (${text})`);
         if (!SEATS_HIDDEN) {
@@ -1614,7 +1654,8 @@ try {
           const t = v.textContent; return JSON.stringify([document.documentElement.scrollWidth > innerWidth + 1, /מנדט|\\bseats?\\b/i.test(t), document.querySelector('#bar').hidden]); })()`);
         if (view !== '[false,false,true]') errors.push(`[${current}] [overflow, seat text, bar shown] should be [false,false,true]: ${view}`);
         if (lng === 'en') { const he = await evaluate(HEBREW_OUTSIDE); if (he) errors.push(`[${current}] Hebrew text outside lang="he": ${he}`); }
-        const shareUrl = `${baseUrl}#pair?p=${A},${B}${L ? `&${L}` : ''}`;
+        // English share links go through the /en/ entry page (#21); the fresh load below follows its redirect.
+        const shareUrl = `${baseUrl}${L ? 'en/' : ''}#pair?p=${A},${B}${L ? `&${L}` : ''}`;
         const wa = await evaluate("document.querySelector('#pair-view a[href^=\"https://wa.me/\"]')?.href || ''");
         const waText = wa ? new URL(wa).searchParams.get('text') : '';
         if (waText !== `${want.share}\n${shareUrl}`) errors.push(`[${current}] WhatsApp text should be "${want.share}\\n${shareUrl}", got "${waText}"`);
