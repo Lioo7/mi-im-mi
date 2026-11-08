@@ -3,13 +3,24 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { loadData, validateRecommendations } from '../scripts/lib.mjs';
-import { contextFor, recommendationRows, recommendationOf, recommendationTotals } from '../site/js/compat.js';
+import { contextFor, recommendationRows, recommendationOf } from '../site/js/compat.js';
 import { S } from '../site/js/strings.js';
 import { S as EN } from '../site/js/strings.en.js';
 
 const { parties, topics, meta, results, recommendations: recs } = loadData();
 const ctx = contextFor({ meta: { ...meta, mode: 'results' }, parties, topics, positions: [], results });
 const seated = ctx.parties.filter((p) => ctx.passed(p.id)).map((p) => p.id);
+
+// MKs behind each candidate's party id ('none' for no recommendation), summed from the seats. The site never shows
+// these sums: they only check the data against the totals the President's office published (`mandate.counts`).
+function recommendationTotals(data) {
+  const totals = {};
+  for (const f of data?.factions ?? []) {
+    const k = f.recommended ?? 'none';
+    totals[k] = (totals[k] ?? 0) + ctx.seatsOf(f.partyId);
+  }
+  return totals;
+}
 
 test('every list in the Knesset has exactly one record, and no other list has one', () => {
   assert.deepEqual(recs.factions.map((f) => f.partyId).sort(), [...seated].sort());
@@ -21,7 +32,7 @@ test('rows come in party order (seats, then votes), lists under the threshold le
 });
 
 test("the seats behind each candidate match the President's office's totals (67 / 46 / 7)", () => {
-  assert.deepEqual(recommendationTotals(ctx, recs), recs.mandate.counts);
+  assert.deepEqual(recommendationTotals(recs), recs.mandate.counts);
   assert.equal(Object.values(recs.mandate.counts).reduce((a, b) => a + b, 0), 120);
 });
 

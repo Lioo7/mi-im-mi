@@ -111,17 +111,6 @@ export function recommendationOf(data, pid) {
   return data?.factions?.find((f) => f.partyId === pid) ?? null;
 }
 
-// MKs behind each candidate's party id ('none' for no recommendation), summed from the seats. The site never shows
-// these sums: they only check the data against the totals the President's office published (`mandate.counts`).
-export function recommendationTotals(ctx, data) {
-  const totals = {};
-  for (const f of data?.factions ?? []) {
-    const k = f.recommended ?? 'none';
-    totals[k] = (totals[k] ?? 0) + ctx.seatsOf(f.partyId);
-  }
-  return totals;
-}
-
 // A data record in the reader's language: its `en` fields over the Hebrew ones. Hebrew records are returned as is.
 export function localize(rec, lang) {
   return lang === 'he' || !rec?.en ? rec : { ...rec, ...rec.en };
@@ -208,11 +197,6 @@ export function friction(ctx, members, base) {
 
 export function countClashTopics(statuses) {
   return statuses.filter((s) => s.status === 'CLASH').length;
-}
-
-export function overall(statuses) {
-  const counted = statuses.filter((s) => s.status !== 'NODATA');
-  return { clashFree: counted.filter((s) => s.status !== 'CLASH').length, of: counted.length };
 }
 
 // How many topics would the candidate clash on with at least one current member.
@@ -361,13 +345,6 @@ export function peripheryClashes(ctx, state) {
   return rows.length ? rows.reduce((k, row) => k + row.items.filter((i) => i.level === 'CLASH').length, 0) : null;
 }
 
-// Parties that ran on one list but announced a split are soft-linked: adding one adds the other.
-export function withLinked(ctx, members, added) {
-  const partner = ctx.linkedOf(added);
-  const next = members.includes(added) ? [...members] : [...members, added];
-  return partner && ctx.byId.has(partner) && !next.includes(partner) ? [...next, partner] : next;
-}
-
 // Members with at least `min` topics lacking a stated position (shown as a footnote under results).
 export function lowCoverage(ctx, members, min = 3) {
   return sortByParty(ctx, members)
@@ -489,7 +466,6 @@ export function analyze(ctx, { members, base = null, supporters = [], abstainers
     crises: crises(ctx, statuses),
     glue: glue(statuses),
     friction: friction(ctx, members, base),
-    overall: overall(statuses),
     clashTopics: countClashTopics(statuses),
     vote: investiture(ctx, { members, supporters, abstainers }),
   };

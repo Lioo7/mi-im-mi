@@ -1,10 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  level, makeContext, topicStatus, crises, glue, friction, overall, newClashTopics,
+  level, makeContext, topicStatus, crises, glue, friction, newClashTopics,
   matrixCell, pairSummary, investiture, periphery, analyze, without, presets, parseState, serializeState,
   parseLocation, parsePair, locationFor, moveLegacyState, localize, contextFor,
-  withLinked, lowCoverage, addImpact, breakdown, ballotOrder, selected, completions, redLinesCrossed, closestTo, groupRedLines,
+  lowCoverage, addImpact, breakdown, ballotOrder, selected, completions, redLinesCrossed, closestTo, groupRedLines,
   peripheryClashes, pivotal, coalitionGroups, canUndo,
 } from '../site/js/compat.js';
 
@@ -117,12 +117,6 @@ test('friction: needs 3 members, excludes base, reports ties', () => {
 test('friction is empty when there is no friction', () => {
   const ctx = fixture([P('a', 't1', 0), P('b', 't1', 0), P('c', 't1', 1)]);
   assert.deepEqual(friction(ctx, ['a', 'b', 'c'], null), []);
-});
-
-test('overall counts clash-free topics among topics with data', () => {
-  const ctx = fixture([P('a', 't1', -2), P('b', 't1', 2), P('a', 't2', 0), P('b', 't2', 1)]);
-  const st = ['t1', 't2', 't3'].map((t) => topicStatus(ctx, ['a', 'b'], t));
-  assert.deepEqual(overall(st), { clashFree: 1, of: 2 });
 });
 
 test('newClashTopics counts topics, not pairs', () => {
@@ -469,16 +463,6 @@ test('moveLegacyState moves query state into the fragment verbatim, before any i
   assert.equal(moveLegacyState({ search: '?s=wa&m=a&utm_source=x', hash: '#results' }), '?s=wa&utm_source=x#results?m=a');
   // A fragment that already has state wins; the query's copy is dropped.
   assert.equal(moveLegacyState({ search: '?m=c', hash: '#results?m=a' }), '#results?m=a');
-});
-
-test('withLinked adds the soft-linked partner once, and only on add', () => {
-  const ctx = makeContext({
-    parties: [{ id: 'a' }, { id: 'rz', linkedWith: 'z' }, { id: 'z', linkedWith: 'rz' }],
-    topics: [], positions: [],
-  });
-  assert.deepEqual(withLinked(ctx, ['a'], 'rz'), ['a', 'rz', 'z']);
-  assert.deepEqual(withLinked(ctx, ['a', 'z'], 'rz'), ['a', 'z', 'rz']);
-  assert.deepEqual(withLinked(ctx, [], 'a'), ['a']);
 });
 
 test('lowCoverage lists members with 3+ null topics', () => {

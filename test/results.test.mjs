@@ -212,12 +212,11 @@ test('validateScenarios rejects a fifth scenario, double roles, seatless lists a
 });
 
 test('results mode: הציונות הדתית and זהות are chosen and counted independently; polls mode keeps the link', async () => {
-  const { contextFor, completions, withLinked } = await import('../site/js/compat.js');
+  const { contextFor, completions } = await import('../site/js/compat.js');
   const { topics, positions } = loadData();
   const change = ['yashar', 'together', 'democrats', 'yisrael-beiteinu'];
   const res = contextFor({ meta: { ...meta, mode: 'results' }, parties, topics, positions, results });
   assert.equal(res.linkedOf('religious-zionism'), null);
-  assert.deepEqual(withLinked(res, ['likud'], 'religious-zionism'), ['likud', 'religious-zionism']);
   const r = completions(res, change).list.map((x) => x.add);
   assert.ok(r.some((add) => add.includes('religious-zionism') && !add.includes('zehut')), 'religious-zionism (5) on its own');
   assert.ok(r.every((add) => !add.includes('zehut') || add.length > 1), 'zehut (1) never completes alone');
