@@ -50,7 +50,7 @@ const TEXTS = {
     ...topics.flatMap((t) => topicTexts(t).map((s) => [`topic ${t.id}`, s])),
     ...positions.map((p) => [`${p.partyId}|${p.topicId} summary`, p.summary]),
     ...parties.flatMap((p) => partyTexts(p).map((s) => [`party ${p.id}`, s])),
-    ['meta', meta.pollNote], ['meta', meta.resultsStatus],
+    ['meta', meta.resultsStatus],
     ...(results?.lists ?? []).filter((l) => l.splitNote).map((l) => ['results', l.splitNote]),
   ],
   en: [
@@ -58,7 +58,7 @@ const TEXTS = {
     ...topics.flatMap((t) => topicTexts(t.en).map((s) => [`topic ${t.id} en`, s])),
     ...positions.map((p) => [`${p.partyId}|${p.topicId} summaryEn`, p.summaryEn]),
     ...parties.flatMap((p) => partyTexts(p.en).map((s) => [`party ${p.id} en`, s])),
-    ['meta en', meta.en.pollNote], ['meta en', meta.en.resultsStatus],
+    ['meta en', meta.en.resultsStatus],
     ...(results?.lists ?? []).filter((l) => l.en?.splitNote).map((l) => ['results en', l.en.splitNote]),
   ],
 };

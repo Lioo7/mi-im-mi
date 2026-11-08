@@ -37,13 +37,13 @@ test('the English data is complete: validateEnglish passes on the live files', (
 
 test('validateEnglish flags a missing or Hebrew en field, and allows a ballot letter in parentheses', () => {
   const party = (en) => ({ id: 'x', name: 'א', officialName: 'א', leader: 'ב', components: ['ג', 'ד'], en });
-  const meta = { pollNote: 'א', resultsStatus: 'ב', en: { pollNote: 'a', resultsStatus: 'b' } };
+  const meta = { resultsStatus: 'ב', en: { resultsStatus: 'b' } };
   const run = (p, m = meta) => validateEnglish({ parties: [p], meta: m, results: null, scenarios: null });
   assert.deepEqual(run(party({ name: 'X', officialName: 'X (ט)', leader: 'Y', components: ['A', 'B'] })), []);
   assert.match(run(party({ name: 'X', officialName: 'X', leader: 'Y' })).join(), /en\.components/);
   assert.match(run(party({ name: 'X', officialName: 'X', leader: 'יוסי', components: ['A', 'B'] })).join(), /en\.leader/);
   assert.match(run(party({ name: 'X', officialName: 'X', leader: 'Y', components: ['A'] })).join(), /en\.components/);
-  assert.match(run(party({ name: 'X', officialName: 'X', leader: 'Y', components: ['A', 'B'] }), { ...meta, en: { pollNote: 'a' } }).join(), /meta: missing or non-English en\.resultsStatus/);
+  assert.match(run(party({ name: 'X', officialName: 'X', leader: 'Y', components: ['A', 'B'] }), { ...meta, en: {} }).join(), /meta: missing or non-English en\.resultsStatus/);
 });
 
 test('every person and channel named in the positions has an English name', () => {

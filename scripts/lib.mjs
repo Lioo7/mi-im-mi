@@ -251,7 +251,7 @@ export function validateEnglish({ parties, meta, results, scenarios, recommendat
     }
   };
   for (const p of parties) need(`party ${p.id}`, p, ['name', 'officialName', 'leader', 'components', 'seatNote']);
-  need('meta', meta, ['pollNote', 'resultsStatus']);
+  need('meta', meta, ['resultsStatus']);
   for (const l of results?.lists ?? []) need(`results list ${l.parties.join('+')}`, l, ['splitNote']);
   for (const sc of scenarios?.scenarios ?? []) for (const src of sc.sources ?? []) need(`scenario ${sc.id} source ${src.url}`, src, ['outlet', 'by']);
   if (recommendations?.mandate) need('recommendations mandate', recommendations.mandate, ['quote']);
