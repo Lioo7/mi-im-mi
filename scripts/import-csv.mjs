@@ -3,7 +3,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
-  DATA, MERGED, REVIEW_CSV, loadData, parseCsv, readJson, writeJson, exists,
+  DATA, REVIEW_CSV, loadData, parseCsv, readJson, writeJson, exists,
   validatePositions, publicRecord, key,
 } from './lib.mjs';
 
@@ -62,8 +62,9 @@ if (errors.length) {
   process.exit(1);
 }
 
-// Diff against what was exported for review (merged research), else the current file.
-const before = exists(MERGED) ? readJson(MERGED) : exists(join(DATA, 'positions.json')) ? readJson(join(DATA, 'positions.json')) : [];
+// Diff against the live data, which is what this import replaces (#8). The research file can be ahead of it or behind it.
+const LIVE = join(DATA, 'positions.json');
+const before = exists(LIVE) ? readJson(LIVE) : [];
 const prev = new Map(before.map((p) => [key(p), publicRecord(p)]));
 const out = records.map(publicRecord);
 const changes = [];
@@ -77,7 +78,7 @@ for (const r of out) {
     }
   }
 }
-console.log(changes.length ? `${changes.length} change(s) vs the exported data:\n  ${changes.join('\n  ')}` : 'No changes vs the exported data.');
+console.log(changes.length ? `${changes.length} change(s) vs the live data:\n  ${changes.join('\n  ')}` : 'No changes vs the live data.');
 
 if (dryRun) {
   console.log('(dry run: nothing written)');
