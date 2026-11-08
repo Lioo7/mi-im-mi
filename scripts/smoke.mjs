@@ -73,7 +73,7 @@ async function waitFor(fn, ms = 10000) {
   throw new Error(`timeout after ${ms}ms [${current}]${last ? ` (last error: ${last.message})` : ''}`);
 }
 
-const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png', '.svg': 'image/svg+xml' };
+const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.csv': 'text/csv; charset=utf-8', '.png': 'image/png', '.svg': 'image/svg+xml' };
 
 // The headers Netlify sends for every path (netlify.toml: [[headers]] for = "/*").
 function siteHeaders() {
@@ -214,6 +214,30 @@ function redLinesText(lng, members) {
 // coalition, each in the neutral marker with its role in text), the snapshot (members-only title, the counts label only
 // with outside parties, the red-line line right after the counts, then the separate outside block), and the same marker
 // in the supporters/abstainers card and the pivotal rows. Members never get the marker.
+// The method page's data download (#18): both links resolve from the page (same origin, under the CSP) to the files in
+// site/download/, byte for byte in size, with the position note and the CC BY 4.0 notice in the page's language.
+const DOWNLOAD_JS = `(async () => { const s = document.querySelector('#download'); if (!s) return null;
+  const links = [...s.querySelectorAll('a[data-download]')];
+  const files = await Promise.all(links.map(async (a) => { const r = await fetch(a.href); return { f: a.dataset.download, href: a.getAttribute('href'), download: a.hasAttribute('download'),
+    status: r.status, type: r.headers.get('content-type'), size: (await r.arrayBuffer()).byteLength }; }));
+  return { files, license: s.querySelector('a[rel~="license"]')?.href ?? null, text: s.innerText.replace(/\\s+/g, ' ').trim() }; })()`;
+function downloadErrors(lng, got) {
+  const D = (lng === 'he' ? S : EN).method.download;
+  if (!got) return ['the download section is missing'];
+  const errs = [];
+  const want = { csv: 'text/csv', json: 'application/json' };
+  if (got.files.map((x) => x.f).join() !== 'csv,json') errs.push(`expected the CSV and JSON links, got ${got.files.map((x) => x.f).join() || 'none'}`);
+  for (const x of got.files) {
+    const local = join(ROOT, 'site', x.href);
+    if (x.href !== `download/mi-im-mi-positions.${x.f}` || !x.download) errs.push(`${x.f}: link should be download/mi-im-mi-positions.${x.f} with the download attribute (${x.href})`);
+    if (x.status !== 200 || !x.type?.startsWith(want[x.f])) errs.push(`${x.f}: HTTP ${x.status}, ${x.type}`);
+    else if (!existsSync(local) || x.size !== statSync(local).size) errs.push(`${x.f}: ${x.size} bytes served, not the size of site/${x.href}`);
+  }
+  const norm = (v) => v.replace(/\u200E/g, '').replace(/\s+/g, ' ').trim();
+  for (const t of [D.title, D.line(loadData().positions.length), D.positionNote, D.license]) if (!norm(got.text).includes(norm(t))) errs.push(`missing text: "${t}"`);
+  if (got.license !== D.licenseUrl) errs.push(`the ${D.licenseName} link should go to ${D.licenseUrl} (${got.license})`);
+  return errs;
+}
 const CARD_JS = `(() => { const h = document.querySelector('#results-coalition'); const t = (e) => e ? e.innerText.replace(/\\s+/g, ' ').trim() : null;
   const lines = [...h.querySelectorAll(':scope > .coalition-line')]; const o = document.querySelector('#results .overall');
   const bd = o?.querySelector('.breakdown'); const ob = o?.querySelector('.outside-block');
@@ -684,6 +708,7 @@ try {
       if (expectView === 'method') {
         const secs = await evaluate("(() => { const p = document.querySelector('#privacy'), a = document.querySelector('#accessibility'); const f = [...document.querySelectorAll('#footer a')].map((x) => x.getAttribute('href')); return [p?.innerText.includes('GoatCounter') && p.innerText.includes('lioz.akirav@gmail.com'), a?.innerText.includes('5568') && a.innerText.includes('1.11.2026'), f.includes('#privacy'), f.includes('#accessibility')].join(','); })()");
         if (secs !== 'true,true,true,true') errors.push(`[${current}] privacy/accessibility sections or footer links missing (${secs})`);
+        for (const e of downloadErrors('he', await evaluate(DOWNLOAD_JS))) errors.push(`[${current}] download: ${e}`);
         if (name !== 'method') {
           const top = await evaluate(`Math.round(document.querySelector('#${name}').getBoundingClientRect().top)`);
           if (top < 0 || top > z.height - 120) errors.push(`[${current}] #${name} did not scroll into view (top ${top})`);
@@ -1404,6 +1429,7 @@ try {
       if (hebrew) errors.push(`[${current}] Hebrew text outside lang="he" (untranslated?): ${hebrew}`);
       const sw = await evaluate(SWITCH_CHECK('en'));
       if (sw !== 'ok') errors.push(`[${current}] language switch: ${sw}`);
+      if (expectView === 'method') for (const e of downloadErrors('en', await evaluate(DOWNLOAD_JS))) errors.push(`[${current}] download: ${e}`);
       if (SEATS_HIDDEN) {
         const seatText = await evaluate(`(document.body.innerText.match(${EN_POLL_TEXT}) || [])[0] || ''`);
         if (seatText) errors.push(`[${current}] showSeats is off but poll-derived text is visible: "${seatText}"`);

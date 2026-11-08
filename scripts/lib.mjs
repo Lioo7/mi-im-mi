@@ -2,7 +2,9 @@
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { REPLY_KINDS } from '../site/js/compat.js';
+import { REPLY_KINDS, contextFor } from '../site/js/compat.js';
+import { S as HE } from '../site/js/strings.js';
+import { S as EN } from '../site/js/strings.en.js';
 
 export const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 export const DATA = join(ROOT, 'site', 'data');
@@ -395,4 +397,79 @@ export function validateEvidence({ positions, parties, topics, evidenceJson, evi
     }
   }
   return errors;
+}
+
+// ---------- data download (site/download/, #18) ----------
+// Built from the live site/data only, so it is exactly what the site shows. validate.mjs rebuilds it and fails on any
+// difference from the files on disk. Rows: topic order, then the site's party order for the current mode.
+export const DOWNLOAD_DIR = join(ROOT, 'site', 'download');
+export const DOWNLOAD_FILES = { csv: 'mi-im-mi-positions.csv', json: 'mi-im-mi-positions.json' };
+export const SITE_URL = 'https://mi-im-mi-2026.netlify.app/';
+
+export function downloadRows({ meta, parties, topics, positions, results }) {
+  const order = contextFor({ meta, parties, topics, positions, results }).parties;
+  const pos = new Map(positions.map((p) => [key(p), p]));
+  const rows = [];
+  for (const t of topics) {
+    for (const p of order) {
+      const r = pos.get(`${p.id}|${t.id}`);
+      if (!r) continue;
+      const none = r.position == null;
+      rows.push({
+        party: p.name,
+        party_en: p.en.name,
+        party_id: p.id,
+        topic: t.name,
+        topic_en: t.en.name,
+        topic_id: t.id,
+        position: r.position ?? null,
+        position_label: none ? HE.levels.NONE.label : t.axis[String(r.position)],
+        position_label_en: none ? EN.levels.NONE.label : t.en.axis[String(r.position)],
+        red_line: Boolean(r.redLine),
+        components_disagree: Boolean(r.componentsDisagree),
+        source_type: r.sourceType ?? null,
+        source_date: r.sourceDate ?? null,
+        source_url: r.sourceUrl ?? null,
+        extra_source_url: r.extraSourceUrl ?? null,
+        archive_url: r.archiveUrl ?? null,
+        via_url: r.viaUrl ?? null,
+        confidence: r.confidence ?? null,
+        summary: r.summary ?? null,
+        summary_en: r.summaryEn ?? null,
+        quote: r.quote ?? null,
+        quote_by: r.quoteBy ?? null,
+        quote_channel: r.quoteChannel ?? null,
+        quote_translation: r.quoteTranslation ?? null,
+        quote_translation_en: r.quoteTranslationEn ?? null,
+        quote_translated_by: r.quoteTranslatedBy ?? null,
+      });
+    }
+  }
+  return rows;
+}
+
+// The two files' exact contents. The JSON carries the notes shown next to the links (from strings*.js).
+export function buildDownload(data) {
+  const rows = downloadRows(data);
+  const D = HE.method.download;
+  const E = EN.method.download;
+  const json = {
+    site: SITE_URL,
+    dataUpdated: data.meta.dataUpdated,
+    license: { name: D.licenseName, url: D.licenseUrl, he: D.license, en: E.license },
+    positionNote: { he: D.positionNote, en: E.positionNote },
+    rows,
+  };
+  return {
+    csv: toCsv(Object.keys(rows[0]), rows.map((r) => ({ ...r, red_line: r.red_line ? 'TRUE' : 'FALSE', components_disagree: r.components_disagree ? 'TRUE' : 'FALSE' }))),
+    json: JSON.stringify(json, null, 2) + '\n',
+  };
+}
+
+// `files` maps csv/json to the text on disk (null when missing).
+export function validateDownload(data, files) {
+  const want = buildDownload(data);
+  return Object.entries(DOWNLOAD_FILES)
+    .filter(([k]) => files[k] !== want[k])
+    .map(([k, f]) => `site/download/${f}: ${files[k] == null ? 'missing' : 'out of date'} (run node scripts/export-download.mjs)`);
 }

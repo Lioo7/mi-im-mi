@@ -16,8 +16,9 @@ paths:
 - **Positions change only via** `node scripts/import-csv.mjs review/positions_review.csv [--dry-run]`, which validates, prints the diff and writes `site/data/positions.json`. Never hand-edit `positions.json` (a hook blocks Edit/Write on it, and a shell write is no exception).
 - **Export CSV:** `node scripts/export-csv.mjs` (`research/merged.json` → `review/positions_review.csv`).
 - **Evidence:** `node scripts/export-evidence.mjs` (→ `docs/research/evidence.{json,csv}`).
+- **Download:** `node scripts/export-download.mjs` (→ `site/download/mi-im-mi-positions.{csv,json}`, from `site/data` only).
 - **Archive sources:** `node scripts/archive-sources.mjs`, then `node scripts/apply-archive.mjs`. Only snapshots listed in `research/archive-verified.json` are published. Then export, then import.
-- After any data change: `node scripts/export-evidence.mjs`, then `node scripts/validate.mjs` and `node --test`. Validate fails when `docs/research/evidence.*` falls behind `positions.json`, or when `research/merged.json` differs from it on a public field (#40).
+- After any data change: `node scripts/export-evidence.mjs` and `node scripts/export-download.mjs` (the method page's CSV/JSON download, `site/download/`, #18), then `node scripts/validate.mjs` and `node --test`. Validate fails when `docs/research/evidence.*` falls behind `positions.json`, or when `research/merged.json` differs from it on a public field (#40), or when `site/download/` is not what the data builds.
 
 ## Sources
 - `sourceType`: `platform` | `statement` (party/leader's own words: site, X, recorded interview, direct quote) | `record` (a bill the party initiated or advanced). Votes breaking from the bloc were planned as evidence, but no position uses one; plain bloc-discipline votes never count. A journalist's characterization is never a source.

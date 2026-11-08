@@ -299,6 +299,7 @@ function renderMethod() {
     <p>${esc(M.pollsGuidance)} <a href="${esc(meta.pollGuidanceUrl)}" rel="noopener">${esc(M.pollsGuidanceLink)}</a></p>` : ''}
     <h3>${esc(M.researchDocs)}</h3>
     <p>${esc(M.researchDocsNote)} <a href="https://github.com/Lioo7/mi-im-mi/tree/main/docs/research" rel="noopener">${esc(M.researchDocs)}</a></p>
+    ${downloadSection()}
     <section id="privacy" class="anchor" tabindex="-1">
       <h3>${esc(P.title)}</h3>
       <ul>${P.lines.map((l) => `<li>${bidi(l)}</li>`).join('')}</ul>
@@ -316,6 +317,19 @@ function renderMethod() {
     </section>
     <p><strong>${esc(M.corrections)}</strong> <a href="mailto:lioz.akirav@gmail.com"><bdi>lioz.akirav@gmail.com</bdi></a></p>
     <p class="muted">${esc(M.updated(fmtDate(meta.dataUpdated)))}</p>`;
+}
+
+// Method page: the data download (#18). The files are generated from the live data (scripts/export-download.mjs).
+function downloadSection() {
+  const D = S.method.download;
+  const [before, after] = D.license.split(D.licenseName);
+  const file = (f, label) => `<a href="download/mi-im-mi-positions.${f}" download data-download="${f}"><bdi>${esc(label)}</bdi></a>`;
+  return `<section id="download" class="anchor" tabindex="-1">
+      <h3>${esc(D.title)}</h3>
+      <p>${esc(D.line(data.positions.length))} ${file('csv', D.csv)} · ${file('json', D.json)}</p>
+      <p class="small">${bidi(D.positionNote)}</p>
+      <p class="small">${bidi(before)}<a href="${esc(D.licenseUrl)}" rel="noopener license"><bdi>${esc(D.licenseName)}</bdi></a>${bidi(after)}</p>
+    </section>`;
 }
 
 // Method page, results mode: the pre-election poll average next to the CEC seats, numbers only.

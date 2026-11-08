@@ -2,7 +2,7 @@
 // Usage: node scripts/validate.mjs [--allow-stub]
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { ROOT, MERGED, exists, readJson, loadData, validateParties, validateTopics, validatePositions, validateResults, validateScenarios, validateRecommendations, validateEnglish, validateEvidence } from './lib.mjs';
+import { ROOT, MERGED, exists, readJson, loadData, validateParties, validateTopics, validatePositions, validateResults, validateScenarios, validateRecommendations, validateEnglish, validateEvidence, validateDownload, DOWNLOAD_DIR, DOWNLOAD_FILES } from './lib.mjs';
 
 const allowStub = process.argv.includes('--allow-stub');
 const { parties, topics, meta, positions, results, scenarios, recommendations } = loadData();
@@ -25,6 +25,9 @@ const errors = [
       merged: exists(MERGED) ? readJson(MERGED) : null,
     });
   })(),
+  // The download files must be exactly what the live data builds (#18).
+  ...validateDownload({ meta, parties, topics, positions, results }, Object.fromEntries(Object.entries(DOWNLOAD_FILES)
+    .map(([k, f]) => [k, exists(join(DOWNLOAD_DIR, f)) ? readFileSync(join(DOWNLOAD_DIR, f), 'utf8') : null]))),
 ];
 if (typeof meta.showSeats !== 'boolean') errors.push('meta: showSeats must be true/false');
 if (meta.stub && !allowStub) errors.push('meta: stub data is active (run the real import before deploying)');

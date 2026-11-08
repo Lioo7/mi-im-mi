@@ -455,6 +455,17 @@ export const S = {
     corrections: 'Found a mistake? Write to us and we will fix it.',
     researchDocs: 'Placement reasoning and review decisions',
     researchDocsNote: 'Every position has a record of the evidence and of the review decisions, including red lines and considerations that came up.',
+    // Data download (#18); see strings.js.
+    download: {
+      title: 'Download the data',
+      line: (n) => `All ${n} positions, with summaries, quotes and sources:`,
+      csv: 'CSV',
+      json: 'JSON',
+      positionNote: "The position column is the placement on each topic's own axis (−2 to 2). Each topic's direction is set separately; it is not a left-right score.",
+      license: 'Our data (placements, summaries and axis labels) is licensed CC BY 4.0: you may share and adapt it with attribution. Quotes and linked sources belong to their owners.',
+      licenseName: 'CC BY 4.0',
+      licenseUrl: 'https://creativecommons.org/licenses/by/4.0/',
+    },
     redLineRule: 'A red line is marked only when the party or its leader said explicitly, in their own words and in public, that the topic is a condition for joining a coalition. Not from media reports.',
     redLineTest: 'The wording test: it takes a statement that without X the party will not join or support a government ("we will not be partners in any government that…", "a threshold condition"), or that X is not up for negotiation ("no concession", "we will not give in"). A list of priorities ("at the top of our demands") is not a red line. The test is by wording only, regardless of the bloc.',
     redLinesCrossedRule: 'The status summary has one line on red lines: a member\'s red line is crossed when another member is 2 or more steps away on that topic (the same rule that turns a 2-step gap into a head-on clash). Only stated red lines count, and a topic with no stated position is not counted. When none is crossed, the line says so. It is the same list as in the "what is missing for 61" card. This line checks only the coalition members. Red lines of supporters and abstainers are not checked here. In their card, 🚩 marks a 2-step gap that counts as a head-on clash because of a red line.',
