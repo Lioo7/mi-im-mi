@@ -137,19 +137,21 @@ function cdp(wsUrl) {
 
 // Options (#37). --mode: which data mode to test; a local run serves site/ with meta.json's mode overridden, so no
 // scratch copies are needed (a remote run tests the deployed mode). --only: a comma-separated list of SECTIONS.
+// --shots: save screenshots (otherwise only a failing first-load legal check saves one).
 const SECTIONS = ['views', 'legal', 'narrow', 'headers', 'interaction', 'closest', 'cells', 'fragment', 'en-views', 'en-interaction',
   'pair', 'tasks', 'undo', 'layout', 'party-sheet', 'fit', 'nobreak'];
 const MODES = { results: { mode: 'results' }, polls: { mode: 'polls', showSeats: true }, hidden: { mode: 'polls', showSeats: false } };
 const args = process.argv.slice(2);
 const opt = (k) => args.find((a) => a.startsWith(`--${k}=`))?.slice(k.length + 3);
 const base = args.find((a) => !a.startsWith('--'));
-const usage = (msg) => { logErr(`✗ ${msg}\n  usage: node scripts/smoke.mjs [baseUrl] [--mode=${Object.keys(MODES).join('|')}] [--only=<section,…>]\n  sections: ${SECTIONS.join(', ')}`); process.exit(2); };
-for (const a of args.filter((x) => x.startsWith('--'))) if (!/^--(mode|only)=./.test(a)) usage(`unknown option ${a}`);
+const usage = (msg) => { logErr(`✗ ${msg}\n  usage: node scripts/smoke.mjs [baseUrl] [--mode=${Object.keys(MODES).join('|')}] [--only=<section,…>] [--shots]\n  sections: ${SECTIONS.join(', ')}`); process.exit(2); };
+for (const a of args.filter((x) => x.startsWith('--'))) if (!/^--(mode|only)=.|^--shots$/.test(a)) usage(`unknown option ${a}`);
 const dataMeta = loadData().meta;
 const dataMode = dataMeta.mode === 'results' ? 'results' : dataMeta.showSeats === false ? 'hidden' : 'polls';
 const MODE = opt('mode') ?? dataMode;
 if (!MODES[MODE]) usage(`unknown mode "${MODE}"`);
 if (base && MODE !== dataMode) usage(`a remote run tests the deployed mode (${dataMode}), not --mode=${MODE}`);
+const SHOTS = args.includes('--shots');
 const ONLY = new Set(opt('only')?.split(',') ?? SECTIONS);
 for (const s of ONLY) if (!SECTIONS.includes(s)) usage(`unknown section "${s}"`);
 OUT = join(SMOKE, base ? 'remote' : MODE);
@@ -329,6 +331,10 @@ const watchdog = setTimeout(() => {
 watchdog.unref();
 
 const errors = [];
+// The sections with errors, for the rerun command ('*': an error outside any section).
+const failedSections = new Set();
+const pushError = errors.push.bind(errors);
+errors.push = (...e) => { failedSections.add(section || '*'); return pushError(...e); };
 const beacons = [];
 const siteHost = new URL(baseUrl).host;
 const partyIds = new RegExp(parties.map((p) => p.id).join('|'), 'i');
@@ -405,7 +411,8 @@ try {
   const frag = () => evaluate("location.hash.split('?')[1] ?? ''");
   const setSize = (z, height = z.height) => c.send('Emulation.setDeviceMetricsOverride', { width: z.width, height, deviceScaleFactor: z.dpr, mobile: z.mobile });
 
-  const shoot = async (z, file, full = true) => {
+  const shoot = async (z, file, full = true, always = false) => {
+    if (!SHOTS && !always) return;
     let height = z.height;
     if (full) {
       const { cssContentSize } = await c.send('Page.getLayoutMetrics');
@@ -658,7 +665,7 @@ try {
         await waitFor(() => evaluate("document.body.dataset.view !== undefined && document.querySelector('#footer')?.children.length > 0"));
         await sleep(400);
         const first = await evaluate(LEGAL_CHECK);
-        if (first) { errors.push(`[${current}] first load: seat numbers visible without the full legal sentence (${first})`); await shoot(z, `legal-fail-${name}-${z.tag}.png`, false); }
+        if (first) { errors.push(`[${current}] first load: seat numbers visible without the full legal sentence (${first})`); await shoot(z, `legal-fail-${name}-${z.tag}.png`, false, true); }
         const scrolled = await evaluate(`(() => { const out = []; const max = document.documentElement.scrollHeight - innerHeight;
           for (let y = 0; y <= max; y += 40) { window.scrollTo(0, y); const r = ${LEGAL_CHECK}; if (r) out.push(y + ': ' + r); }
           window.scrollTo(0, 0); return out.slice(0, 3).join(' | '); })()`);
@@ -1927,7 +1934,7 @@ try {
             if (!(await oneLine(0))) errors.push(`[${current}] the header bar wraps at normal text size`);
             if (!(await oneLine(0.08))) errors.push(`[${current}] the header bar wraps with a slightly wider font (the tight step should absorb it)`);
           }
-          if (w === 375 && pct === 100) {
+          if (SHOTS && w === 375 && pct === 100) {
             // The matrix at 375 in each language, for the report (smoke/matrix-<lang>-375.png).
             const clip = await evaluate("(() => { const t = document.querySelector('#matrix .table-wrap'); const r = t.getBoundingClientRect(); return { x: 0, y: r.top + scrollY - 8, width: innerWidth, height: Math.ceil(r.height) + 16, scale: 1 }; })()");
             const shot = await c.send('Page.captureScreenshot', { format: 'png', clip, captureBeyondViewport: true });
@@ -2021,9 +2028,12 @@ if (errors.length) {
   const cut = (e) => (e.length > 400 ? `${e.slice(0, 400)}…` : e);
   writeSync(2, `✗ ${errors.length} error(s) [${MODE}]:\n  ${errors.slice(0, 10).map(cut).join('\n  ')}\n`
     + `  ${errors.length > 10 ? `… ${errors.length - 10} more; ` : ''}all of them in ${rel(LOG)}\n`);
+  const again = failedSections.has('*') ? [...ONLY] : SECTIONS.filter((x) => failedSections.has(x));
+  const rerun = ['node scripts/smoke.mjs', base, `--mode=${MODE}`, again.length < SECTIONS.length ? `--only=${again.join(',')}` : null, '--shots'].filter(Boolean).join(' ');
+  logErr(`  rerun: ${rerun}`);
   exitCode = 1;
 } else {
-  log(`✓ no console errors (log: ${rel(LOG)})`);
+  log(`✓ no console errors (log: ${rel(LOG)}${SHOTS ? `, screenshots in ${rel(OUT)}/` : ''})`);
   log(`  GoatCounter beacons intercepted: ${beacons.length}${onProd ? ' (none carried coalition data)' : ' (none expected off production)'}`);
 }
 process.exit(exitCode);
