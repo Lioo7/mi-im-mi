@@ -73,6 +73,9 @@ test('the validator refuses totals that differ from the office\'s, a missing lis
   const missing = filled();
   missing.factions = missing.factions.filter((f) => f.partyId !== 'zehut');
   assert.match(check(missing).join('\n'), /zehut must appear exactly once/);
+  const kind = filled();
+  kind.mandate.kind = 'mandate';
+  assert.match(check(kind).join('\n'), /kind must be announced or tasked/);
   const late = filled();
   late.factions[0].date = '2026-11-06';
   assert.match(check(late).join('\n'), /likud: date must be within the consultations/);
@@ -82,5 +85,7 @@ test('date range strings in both languages', () => {
   assert.equal(S.recs.open(S.recs.range('2026-11-04', '2026-11-05')), 'המלצות הסיעות לנשיא (4–5.11.2026)');
   assert.equal(EN.recs.open(EN.recs.range('2026-11-04', '2026-11-05')), "The factions' recommendations to the President (4–5 Nov 2026)");
   assert.equal(S.recs.range('2026-10-30', '2026-11-02'), '30.10.2026–2.11.2026');
+  assert.equal(S.recs.mandate.announced('7.11.2026', 'גדי איזנקוט'), 'ב-7.11.2026 הודיע הנשיא כי יטיל על גדי איזנקוט את מלאכת הרכבת הממשלה.');
+  assert.equal(EN.recs.mandate.announced('7 Nov 2026', 'Gadi Eisenkot'), 'On 7 Nov 2026 the President announced he would task Gadi Eisenkot with forming the government.');
   assert.equal(S.recs.partyLine('5.11.2026', null), 'בסבב ההתייעצויות אצל הנשיא (5.11.2026): לא המליצה על אף מועמד.');
 });

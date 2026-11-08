@@ -1,28 +1,33 @@
 {
-  "consultations": { "from": "2026-11-04", "to": "2026-11-05" },
+  "consultations": {"from": "2026-11-04", "to": "2026-11-05"},
   "mandate": {
+    "kind": "announced",
     "partyId": "yashar",
-    "date": "2026-11-08",
-    "quote": "TODO: the tally sentence, verbatim from the Hebrew mandate release",
-    "counts": { "yashar": 67, "likud": 46, "none": 7 },
-    "sourceUrl": "TODO: Hebrew mandate release on president.gov.il",
+    "date": "2026-11-07",
+    "quote": "בתום סבב ההתייעצויות המליצו בפני נשיא המדינה סיעות הכוללות 67 חברי כנסת על יו״ר מפלגת ׳ישר׳, גדי איזנקוט, להרכבת הממשלה. סיעות הכוללות 46 חברי כנסת המליצו על ראש הממשלה ויו״ר ׳הליכוד׳, ח״כ בנימין נתניהו, וסיעה שכוללת שבעה חברי כנסת בחרו שלא להמליץ על אף אחד.",
+    "counts": {
+      "yashar": 67,
+      "likud": 46,
+      "none": 7
+    },
+    "sourceUrl": "https://www.president.gov.il/%D7%A0%D7%A9%D7%99%D7%90-%D7%94%D7%9E%D7%93%D7%99%D7%A0%D7%94-%D7%A1%D7%99%D7%99%D7%9D-%D7%90%D7%AA-%D7%A1%D7%91%D7%91-%D7%94%D7%94%D7%AA%D7%99%D7%99%D7%A2%D7%A6%D7%95%D7%99%D7%95%D7%AA-%D7%95%D7%94/",
     "en": {
-      "quote": "TODO: the tally sentence, verbatim from the English mandate release",
-      "sourceUrl": "TODO: English mandate release on president.gov.il/en"
+      "quote": "During the round of consultations, factions totaling 67 members of Knesset recommended to President Herzog that Yashar Leader Gadi Eisenkot be tasked with forming the government. Factions totaling 46 members of Knesset recommended Prime Minister and Likud Leader Benjamin Netanyahu MK, and one faction of seven members of Knesset chose not to recommend anyone.",
+      "sourceUrl": "https://www.president.gov.il/en/president-herzog-concludes-consultations-and-announces-he-will-task-gadi-eisenkot-with-forming-a-government/"
     }
   },
   "factions": [
-    { "partyId": "likud", "date": "2026-11-05", "recommended": "likud", "sourceUrl": "TODO", "en": { "sourceUrl": "TODO" } },
-    { "partyId": "yashar", "date": "2026-11-05", "recommended": "yashar", "sourceUrl": "TODO", "en": { "sourceUrl": "TODO" } },
-    { "partyId": "together", "date": "2026-11-05", "recommended": "yashar", "sourceUrl": "TODO", "en": { "sourceUrl": "TODO" } },
-    { "partyId": "joint-list", "date": "2026-11-05", "recommended": "yashar", "sourceUrl": "TODO", "en": { "sourceUrl": "TODO" } },
-    { "partyId": "democrats", "date": "2026-11-05", "recommended": "yashar", "sourceUrl": "TODO", "en": { "sourceUrl": "TODO" } },
-    { "partyId": "raam", "date": "2026-11-05", "recommended": "yashar", "sourceUrl": "TODO", "en": { "sourceUrl": "TODO" } },
-    { "partyId": "yisrael-beiteinu", "date": "2026-11-04", "recommended": "yashar", "sourceUrl": "TODO", "en": { "sourceUrl": "TODO" } },
-    { "partyId": "otzma-yehudit", "date": "2026-11-05", "recommended": "likud", "sourceUrl": "TODO", "en": { "sourceUrl": "TODO" } },
-    { "partyId": "utj", "date": "2026-11-05", "recommended": null, "sourceUrl": "https://www.president.gov.il/%D7%A1%D7%99%D7%A2%D7%AA-%D7%99%D7%94%D7%93%D7%95%D7%AA-%D7%94%D7%AA%D7%95%D7%A8%D7%94-%D7%94%D7%97%D7%9C%D7%99%D7%98%D7%94-%D7%A9%D7%9C%D7%90-%D7%9C%D7%94%D7%9E%D7%9C%D7%99%D7%A5-%D7%A2%D7%9C-%D7%90/", "en": { "sourceUrl": "TODO" } },
-    { "partyId": "shas", "date": "2026-11-04", "recommended": "likud", "sourceUrl": "TODO", "en": { "sourceUrl": "TODO" } },
-    { "partyId": "religious-zionism", "date": "2026-11-04", "recommended": "likud", "sourceUrl": "TODO", "en": { "sourceUrl": "TODO" } },
-    { "partyId": "zehut", "date": "2026-11-04", "recommended": "likud", "sourceUrl": "TODO", "en": { "sourceUrl": "TODO" } }
+    {"partyId": "likud", "date": "2026-11-05", "recommended": "likud", "sourceUrl": "https://www.president.gov.il/%D7%A1%D7%99%D7%A2%D7%AA-%D7%94%D7%9C%D7%99%D7%9B%D7%95%D7%93-%D7%94%D7%9E%D7%9C%D7%99%D7%A6%D7%94-%D7%A2%D7%9C-%D7%97%D7%B4%D7%9B-%D7%91%D7%A0%D7%99%D7%9E%D7%99%D7%9F-%D7%A0%D7%AA%D7%A0%D7%99%D7%94/", "en": {"sourceUrl": "https://www.president.gov.il/en/likud-faction-recommends-benjamin-netanyahu-mk-to-form-a-government-in-consultations-at-the-presidents-residence/"}},
+    {"partyId": "yashar", "date": "2026-11-05", "recommended": "yashar", "sourceUrl": "https://www.president.gov.il/%D7%A1%D7%99%D7%A2%D7%AA-%D7%99%D7%A9%D7%A8-%D7%94%D7%9E%D7%9C%D7%99%D7%A6%D7%94-%D7%A2%D7%9C-%D7%92%D7%93%D7%99-%D7%90%D7%99%D7%96%D7%A0%D7%A7%D7%95%D7%98-%D7%9C%D7%94%D7%A8%D7%9B%D7%91%D7%AA-%D7%94/", "en": {"sourceUrl": "https://www.president.gov.il/en/yashar-faction-recommends-gadi-eisenkot-to-form-a-government-in-consultations-at-the-presidents-residence/"}},
+    {"partyId": "together", "date": "2026-11-05", "recommended": "yashar", "sourceUrl": "https://www.president.gov.il/%D7%A1%D7%99%D7%A2%D7%AA-%D7%91%D7%99%D7%97%D7%93-%D7%94%D7%9E%D7%9C%D7%99%D7%A6%D7%94-%D7%A2%D7%9C-%D7%92%D7%93%D7%99-%D7%90%D7%99%D7%96%D7%A0%D7%A7%D7%95%D7%98-%D7%9C%D7%94%D7%A8%D7%9B%D7%91%D7%AA/", "en": {"sourceUrl": "https://www.president.gov.il/en/beyahad-faction-recommends-gadi-eisenkot-to-form-a-government-in-consultations-at-the-presidents-residence/"}},
+    {"partyId": "joint-list", "date": "2026-11-05", "recommended": "yashar", "sourceUrl": "https://www.president.gov.il/%D7%A1%D7%99%D7%A2%D7%AA-%D7%94%D7%A8%D7%A9%D7%99%D7%9E%D7%94-%D7%94%D7%9E%D7%A9%D7%95%D7%AA%D7%A4%D7%AA-%D7%94%D7%9E%D7%9C%D7%99%D7%A6%D7%94-%D7%A2%D7%9C-%D7%92%D7%93%D7%99-%D7%90%D7%99%D7%96%D7%A0/", "en": {"sourceUrl": "https://www.president.gov.il/en/joint-list-faction-recommends-gadi-eisenkot-to-form-a-government-in-consultations-at-the-presidents-residence/"}},
+    {"partyId": "democrats", "date": "2026-11-05", "recommended": "yashar", "sourceUrl": "https://www.president.gov.il/%D7%A1%D7%99%D7%A2%D7%AA-%D7%94%D7%93%D7%9E%D7%95%D7%A7%D7%A8%D7%98%D7%99%D7%9D-%D7%94%D7%9E%D7%9C%D7%99%D7%A6%D7%94-%D7%A2%D7%9C-%D7%92%D7%93%D7%99-%D7%90%D7%99%D7%96%D7%A0%D7%A7%D7%95%D7%98-%D7%9C/", "en": {"sourceUrl": "https://www.president.gov.il/en/the-democrats-faction-recommends-gadi-eisenkot-to-form-a-government-in-consultations-at-the-presidents-residence/"}},
+    {"partyId": "raam", "date": "2026-11-05", "recommended": "yashar", "sourceUrl": "https://www.president.gov.il/%D7%A1%D7%99%D7%A2%D7%AA-%D7%A8%D7%A2%D7%B4%D7%9E-%D7%94%D7%9E%D7%9C%D7%99%D7%A6%D7%94-%D7%A2%D7%9C-%D7%92%D7%93%D7%99-%D7%90%D7%99%D7%96%D7%A0%D7%A7%D7%95%D7%98-%D7%9C%D7%94%D7%A8%D7%9B%D7%91%D7%AA/", "en": {"sourceUrl": "https://www.president.gov.il/en/united-arab-list-raam-faction-recommends-gadi-eisenkot-to-form-a-government-in-consultations-at-the-presidents-residence/"}},
+    {"partyId": "yisrael-beiteinu", "date": "2026-11-04", "recommended": "yashar", "sourceUrl": "https://www.president.gov.il/%D7%A1%D7%99%D7%A2%D7%AA-%D7%99%D7%A9%D7%A8%D7%90%D7%9C-%D7%91%D7%99%D7%AA%D7%A0%D7%95-%D7%94%D7%9E%D7%9C%D7%99%D7%A6%D7%94-%D7%A2%D7%9C-%D7%92%D7%93%D7%99-%D7%90%D7%99%D7%96%D7%A0%D7%A7%D7%95%D7%98/", "en": {"sourceUrl": "https://www.president.gov.il/en/yisrael-beitenu-faction-recommends-gadi-eisenkot-to-form-the-government-in-consultations-at-the-presidents-residence/"}},
+    {"partyId": "otzma-yehudit", "date": "2026-11-05", "recommended": "likud", "sourceUrl": "https://www.president.gov.il/%D7%A1%D7%99%D7%A2%D7%AA-%D7%A2%D7%95%D7%A6%D7%9E%D7%94-%D7%99%D7%94%D7%95%D7%93%D7%99%D7%AA-%D7%94%D7%9E%D7%9C%D7%99%D7%A6%D7%94-%D7%A2%D7%9C-%D7%97%D7%B4%D7%9B-%D7%91%D7%A0%D7%99%D7%9E%D7%99%D7%9F/", "en": {"sourceUrl": "https://www.president.gov.il/en/otzma-yehudit-faction-recommends-benjamin-netanyahu-mk-to-form-a-government-in-consultations-at-the-presidents-residence/"}},
+    {"partyId": "utj", "date": "2026-11-05", "recommended": null, "sourceUrl": "https://www.president.gov.il/%D7%A1%D7%99%D7%A2%D7%AA-%D7%99%D7%94%D7%93%D7%95%D7%AA-%D7%94%D7%AA%D7%95%D7%A8%D7%94-%D7%94%D7%97%D7%9C%D7%99%D7%98%D7%94-%D7%A9%D7%9C%D7%90-%D7%9C%D7%94%D7%9E%D7%9C%D7%99%D7%A5-%D7%A2%D7%9C-%D7%90/", "en": {"sourceUrl": "https://www.president.gov.il/en/the-united-torah-judaism-faction-did-not-recommend-any-member-of-knesset-to-form-a-government-in-consultations-at-the-presidents-residence/"}},
+    {"partyId": "shas", "date": "2026-11-04", "recommended": "likud", "sourceUrl": "https://www.president.gov.il/%D7%A1%D7%99%D7%A2%D7%AA-%D7%A9%D7%B4%D7%A1-%D7%94%D7%9E%D7%9C%D7%99%D7%A6%D7%94-%D7%A2%D7%9C-%D7%97%D7%B4%D7%9B-%D7%91%D7%A0%D7%99%D7%9E%D7%99%D7%9F-%D7%A0%D7%AA%D7%A0%D7%99%D7%94%D7%95-%D7%9C%D7%94/", "en": {"sourceUrl": "https://www.president.gov.il/en/shas-faction-recommends-benjamin-netanyahu-mk-to-form-a-government-in-consultations-at-the-presidents-residence/"}},
+    {"partyId": "religious-zionism", "date": "2026-11-04", "recommended": "likud", "sourceUrl": "https://www.president.gov.il/%D7%A1%D7%99%D7%A2%D7%AA-%D7%94%D7%A6%D7%99%D7%95%D7%A0%D7%95%D7%AA-%D7%94%D7%93%D7%AA%D7%99%D7%AA-%D7%94%D7%9E%D7%9C%D7%99%D7%A6%D7%94-%D7%A2%D7%9C-%D7%97%D7%B4%D7%9B-%D7%91%D7%A0%D7%99%D7%9E%D7%99/", "en": {"sourceUrl": "https://www.president.gov.il/en/religious-zionism-faction-recommends-benjamin-netanyahu-mk-to-form-the-government-in-consultations-at-the-presidents-residence/"}},
+    {"partyId": "zehut", "date": "2026-11-04", "recommended": "likud", "sourceUrl": "https://www.president.gov.il/%D7%A1%D7%99%D7%A2%D7%AA-%D7%96%D7%94%D7%95%D7%AA-%D7%94%D7%9E%D7%9C%D7%99%D7%A6%D7%94-%D7%A2%D7%9C-%D7%97%D7%B4%D7%9B-%D7%91%D7%A0%D7%99%D7%9E%D7%99%D7%9F-%D7%A0%D7%AA%D7%A0%D7%99%D7%94%D7%95-%D7%9C/", "en": {"sourceUrl": "https://www.president.gov.il/en/zehut-faction-recommends-benjamin-netanyahu-mk-to-form-a-government-in-consultations-at-the-presidents-residence/"}}
   ]
 }

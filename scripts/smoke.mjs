@@ -2161,7 +2161,7 @@ try {
         if (got.title !== R.title) errors.push(`[${current}] sheet title ${JSON.stringify(got.title)}`);
         if (!got.order) errors.push(`[${current}] the sheet must open with the source line, then the mandate, the tally, the table`);
         if (got.src !== `${R.source} ${R.office}, ${day}` || got.srcHref !== m.sourceUrl) errors.push(`[${current}] source line ${JSON.stringify(got.src)} → ${got.srcHref}`);
-        if (got.mandate !== R.mandate(day, leader(m.partyId))) errors.push(`[${current}] mandate sentence ${JSON.stringify(got.mandate)}`);
+        if (got.mandate !== R.mandate[m.kind](day, leader(m.partyId))) errors.push(`[${current}] mandate sentence ${JSON.stringify(got.mandate)}`);
         const q = l === 'he' ? `״${m.quote}״` : `“${m.quote}”`;
         if (got.quote !== q || got.by !== R.tallyBy(day)) errors.push(`[${current}] tally ${JSON.stringify(got.quote)} / ${JSON.stringify(got.by)}`);
         if (JSON.stringify(got.rows) !== JSON.stringify(wantRows)) errors.push(`[${current}] rows ${JSON.stringify(got.rows)}, want ${JSON.stringify(wantRows)}`);

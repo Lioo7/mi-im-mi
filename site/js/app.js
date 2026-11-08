@@ -691,7 +691,7 @@ function recsSheet() {
   openSheet(`
     <h2>${esc(R.title)}</h2>
     <p class="recs-src">${esc(R.source)} ${extLink(m.sourceUrl, R.office)}, ${esc(day)}</p>
-    <p class="recs-mandate">${esc(R.mandate(day, recLeader(m.partyId)))}</p>
+    <p class="recs-mandate">${esc(R.mandate[m.kind](day, recLeader(m.partyId)))}</p>
     <blockquote class="recs-tally"><p class="q-text">${q}</p><footer class="q-by">${esc(R.tallyBy(day))}</footer></blockquote>
     <div class="table-wrap"><table class="coverage recs-table">
       <thead><tr>${R.cols.map((c) => `<th scope="col">${esc(c)}</th>`).join('')}</tr></thead>

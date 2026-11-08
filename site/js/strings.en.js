@@ -196,7 +196,11 @@ export const S = {
     title: "The factions' recommendations to the President",
     source: 'Source:',
     office: "The President's Office",
-    mandate: (date, person) => `On ${date} the President tasked ${person} with forming the government.`,
+    // By the release's kind: the announcement that he will task someone (7 Nov), or the tasking itself.
+    mandate: {
+      announced: (date, person) => `On ${date} the President announced he would task ${person} with forming the government.`,
+      tasked: (date, person) => `On ${date} the President tasked ${person} with forming the government.`,
+    },
     tallyBy: (date) => `The President's Office, ${date}`,
     cols: ['Faction', 'Recommendation', "Office's release"],
     none: 'Recommended no one',

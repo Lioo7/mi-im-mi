@@ -198,7 +198,11 @@ export const S = {
     title: 'המלצות הסיעות לנשיא',
     source: 'מקור:',
     office: 'לשכת נשיא המדינה',
-    mandate: (date, person) => `ב-${date} הטיל הנשיא על ${person} את מלאכת הרכבת הממשלה.`,
+    // By the release's kind: the announcement that he will task someone (7.11), or the tasking itself.
+    mandate: {
+      announced: (date, person) => `ב-${date} הודיע הנשיא כי יטיל על ${person} את מלאכת הרכבת הממשלה.`,
+      tasked: (date, person) => `ב-${date} הטיל הנשיא על ${person} את מלאכת הרכבת הממשלה.`,
+    },
     tallyBy: (date) => `לשכת נשיא המדינה, ${date}`,
     cols: ['סיעה', 'המלצה', 'הודעת הלשכה'],
     none: 'לא המליצה על אף מועמד',

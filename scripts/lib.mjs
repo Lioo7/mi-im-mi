@@ -200,6 +200,8 @@ export function validateRecommendations(meta, data, parties, results) {
     if (!isTodo(rec.en?.sourceUrl) && !PRESIDENT_EN.test(rec.en?.sourceUrl ?? '')) errors.push(`${at}: en.sourceUrl must be a president.gov.il/en/ page`);
   };
   const m = data.mandate ?? {};
+  // `announced`: the release saying who he will task, `tasked`: the tasking itself. The sentence follows the kind.
+  if (!['announced', 'tasked'].includes(m.kind)) errors.push('recommendations mandate: kind must be announced or tasked');
   candidate('recommendations mandate', m.partyId);
   if (!isDate(m.date) || (isDate(to) && m.date < to)) errors.push('recommendations mandate: date must be YYYY-MM-DD, after the consultations');
   if (!isTodo(m.quote) && !/[\u0590-\u05FF]/.test(m.quote ?? '')) errors.push('recommendations mandate: quote must be the Hebrew tally sentence');
