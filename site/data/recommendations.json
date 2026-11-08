@@ -1,0 +1,28 @@
+{
+  "consultations": { "from": "2026-11-04", "to": "2026-11-05" },
+  "mandate": {
+    "partyId": "yashar",
+    "date": "2026-11-08",
+    "quote": "TODO: the tally sentence, verbatim from the Hebrew mandate release",
+    "counts": { "yashar": 67, "likud": 46, "none": 7 },
+    "sourceUrl": "TODO: Hebrew mandate release on president.gov.il",
+    "en": {
+      "quote": "TODO: the tally sentence, verbatim from the English mandate release",
+      "sourceUrl": "TODO: English mandate release on president.gov.il/en"
+    }
+  },
+  "factions": [
+    { "partyId": "likud", "date": "2026-11-05", "recommended": "likud", "sourceUrl": "TODO", "en": { "sourceUrl": "TODO" } },
+    { "partyId": "yashar", "date": "2026-11-05", "recommended": "yashar", "sourceUrl": "TODO", "en": { "sourceUrl": "TODO" } },
+    { "partyId": "together", "date": "2026-11-05", "recommended": "yashar", "sourceUrl": "TODO", "en": { "sourceUrl": "TODO" } },
+    { "partyId": "joint-list", "date": "2026-11-05", "recommended": "yashar", "sourceUrl": "TODO", "en": { "sourceUrl": "TODO" } },
+    { "partyId": "democrats", "date": "2026-11-05", "recommended": "yashar", "sourceUrl": "TODO", "en": { "sourceUrl": "TODO" } },
+    { "partyId": "raam", "date": "2026-11-05", "recommended": "yashar", "sourceUrl": "TODO", "en": { "sourceUrl": "TODO" } },
+    { "partyId": "yisrael-beiteinu", "date": "2026-11-04", "recommended": "yashar", "sourceUrl": "TODO", "en": { "sourceUrl": "TODO" } },
+    { "partyId": "otzma-yehudit", "date": "2026-11-05", "recommended": "likud", "sourceUrl": "TODO", "en": { "sourceUrl": "TODO" } },
+    { "partyId": "utj", "date": "2026-11-05", "recommended": null, "sourceUrl": "https://www.president.gov.il/%D7%A1%D7%99%D7%A2%D7%AA-%D7%99%D7%94%D7%93%D7%95%D7%AA-%D7%94%D7%AA%D7%95%D7%A8%D7%94-%D7%94%D7%97%D7%9C%D7%99%D7%98%D7%94-%D7%A9%D7%9C%D7%90-%D7%9C%D7%94%D7%9E%D7%9C%D7%99%D7%A5-%D7%A2%D7%9C-%D7%90/", "en": { "sourceUrl": "TODO" } },
+    { "partyId": "shas", "date": "2026-11-04", "recommended": "likud", "sourceUrl": "TODO", "en": { "sourceUrl": "TODO" } },
+    { "partyId": "religious-zionism", "date": "2026-11-04", "recommended": "likud", "sourceUrl": "TODO", "en": { "sourceUrl": "TODO" } },
+    { "partyId": "zehut", "date": "2026-11-04", "recommended": "likud", "sourceUrl": "TODO", "en": { "sourceUrl": "TODO" } }
+  ]
+}

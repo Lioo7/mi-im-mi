@@ -16,8 +16,8 @@ import { createServer } from 'node:http';
 import { mkdirSync, mkdtempSync, writeFileSync, rmSync, readFileSync, existsSync, statSync, writeSync, appendFileSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, extname, normalize } from 'node:path';
-import { ROOT, loadData } from './lib.mjs';
-import { sourceReply, groupRedLines, contextFor, presets, serializeState, parseState, ballotOrder, completions, parseLocation, stateKeysIn, selected, locationFor, closestTo, redLinesCrossed, pivotal, investiture, coalitionGroups, analyze, peripheryClashes, pairSummary, matrixCell } from '../site/js/compat.js';
+import { ROOT, loadData, PRESIDENT_HE, PRESIDENT_EN } from './lib.mjs';
+import { recommendationRows, sourceReply, groupRedLines, contextFor, presets, serializeState, parseState, ballotOrder, completions, parseLocation, stateKeysIn, selected, locationFor, closestTo, redLinesCrossed, pivotal, investiture, coalitionGroups, analyze, peripheryClashes, pairSummary, matrixCell } from '../site/js/compat.js';
 import { PROD_HOST } from '../site/js/stats.js';
 import { S } from '../site/js/strings.js';
 import { S as EN } from '../site/js/strings.en.js';
@@ -142,7 +142,7 @@ function cdp(wsUrl) {
 // scratch copies are needed (a remote run tests the deployed mode). --only: a comma-separated list of SECTIONS.
 // --shots: save screenshots (otherwise only a failing first-load legal check saves one).
 const SECTIONS = ['views', 'legal', 'narrow', 'headers', 'files', 'interaction', 'closest', 'cells', 'fragment', 'en-views', 'en-interaction',
-  'pair', 'tasks', 'undo', 'layout', 'party-sheet', 'fit', 'nobreak'];
+  'pair', 'tasks', 'undo', 'layout', 'party-sheet', 'fit', 'nobreak', 'recs'];
 const LIGHT_SECTIONS = ['files', 'headers', 'views', 'en-views'];
 const MODES = { results: { mode: 'results' }, polls: { mode: 'polls', showSeats: true }, hidden: { mode: 'polls', showSeats: false } };
 const args = process.argv.slice(2);
@@ -2102,6 +2102,114 @@ try {
     if (!nbSeen) errors.push('[nobreak] the check found no names or number pairs to check');
     await setSize(SIZES[0]);
     log(`  ✓ never broken inside: ${nbRuns} runs (360/375 × he/en × 100%/125%), ${nbSeen} names and number pairs checked`);
+  }
+  // The factions' recommendations to the President (#4). Results mode: in the build section's seats box, the line comes
+  // right after the CEC results line and its positions-as-of line (before any number) and opens the sheet. The sheet: the source line first, then the mandate sentence,
+  // the office's tally (verbatim, attributed), then one row per list in the Knesset in party order, each with its own
+  // president.gov.il release (the /en/ page in English), no candidate colors, no Hebrew in English, the ✕ in view (#30),
+  // focus back on the line after closing. Each party sheet carries its faction's line; a list outside the Knesset has
+  // none. Polls modes: nothing of this anywhere.
+  if (sec('recs')) {
+    const { recommendations: recs } = loadData();
+    let recRuns = 0;
+    const SHEET_RECS = `(() => { const s = document.querySelector('#sheet'); if (!s.open) return null; const t = (e) => e ? e.innerText.replace(/\\s+/g, ' ').trim() : null;
+      const src = s.querySelector('.recs-src'), tally = s.querySelector('.recs-tally'), table = s.querySelector('.recs-table'), mandate = s.querySelector('.recs-mandate');
+      const before = (a, b) => Boolean(a && b && (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING));
+      const inner = s.querySelector('.sheet-inner');
+      return { title: t(s.querySelector('h2')), src: t(src), srcHref: src?.querySelector('a')?.getAttribute('href'), mandate: t(mandate),
+        quote: t(tally?.querySelector('.q-text')), by: t(tally?.querySelector('.q-by')),
+        order: before(src, mandate) && before(mandate, tally) && before(tally, table) && inner.firstElementChild?.tagName === 'H2' && inner.children[1] === src,
+        rows: [...(table?.querySelectorAll('tbody tr') ?? [])].map((r) => ({ id: r.dataset.party, cells: [...r.children].map(t), href: r.querySelector('a')?.getAttribute('href'),
+          ext: r.querySelector('a')?.target === '_blank' && /noopener/.test(r.querySelector('a')?.rel ?? ''), label: r.querySelector('a')?.getAttribute('aria-label') })),
+        // One neutral style for every candidate: no class at all inside the rows.
+        styled: [...(table?.querySelectorAll('tbody *') ?? [])].filter((e) => e.className || e.getAttribute('style')).length,
+        hebrew: /[\\u0590-\\u05FF]/.test([...s.querySelectorAll('.sheet-inner *')].filter((e) => !e.closest('[lang="he"]') && !e.children.length).map((e) => e.innerText).join(' ')),
+        overflow: s.scrollWidth > s.clientWidth + 1 || document.documentElement.scrollWidth > innerWidth + 1 }; })()`;
+    const LINE_JS = `(() => { const box = document.querySelector('#builder .seats-box'); const line = box?.querySelector('.recs-line'); const b = line?.querySelector('button');
+      return { box: Boolean(box), line: Boolean(line), any: document.querySelectorAll('.recs-line, .recs-party').length, afterSrc: (line?.previousElementSibling?.classList.contains('positions-asof') && line.previousElementSibling.previousElementSibling?.classList.contains('seat-src')) ?? false,
+        text: b ? b.innerText.replace(/\\s+/g, ' ').trim() : null, h: b ? b.getBoundingClientRect().height : 0, overflow: document.documentElement.scrollWidth > innerWidth + 1 }; })()`;
+    for (const w of RESULTS ? [360, 390] : [390]) {
+      await c.send('Emulation.setDeviceMetricsOverride', { width: w, height: 800, deviceScaleFactor: 2, mobile: true });
+      for (const l of ['he', 'en']) {
+        step(`recs-${l}@${w}`);
+        recRuns++;
+        const T = l === 'en' ? EN : S;
+        const R = T.recs;
+        const lc = posCtx[l];
+        const nm = (id) => lc.byId.get(id).name;
+        const leader = (id) => (id ? lc.byId.get(id).leader : null);
+        const loc = (x) => (l === 'en' ? { ...x, ...x.en } : x);
+        await go(`${baseUrl}#build${l === 'en' ? '?l=en' : ''}`);
+        await waitFor(() => evaluate("document.querySelector('#builder .plist') !== null"));
+        const line = await evaluate(LINE_JS);
+        if (!RESULTS) {
+          if (line.any) errors.push(`[${current}] polls mode must show no recommendations line`);
+          continue;
+        }
+        const want = `${R.open(R.range(recs.consultations.from, recs.consultations.to))} ›`;
+        if (!line.line || line.text !== want) errors.push(`[${current}] seats box line: ${JSON.stringify(line.text)}, want ${JSON.stringify(want)}`);
+        if (!line.afterSrc) errors.push(`[${current}] the recommendations line must come right after the CEC results line and its positions-as-of line`);
+        if (line.h < 44) errors.push(`[${current}] the recommendations line is ${line.h}px tall (want a 44px target)`);
+        if (line.overflow) errors.push(`[${current}] horizontal overflow on the build view`);
+        await evaluate("document.querySelector('[data-act=\"recs\"]').focus(), document.querySelector('[data-act=\"recs\"]').click()");
+        await settle(250);
+        const got = await evaluate(SHEET_RECS);
+        if (!got) { errors.push(`[${current}] the recommendations sheet did not open`); continue; }
+        const m = loc(recs.mandate);
+        const day = R.date(m.date);
+        const wantRows = recommendationRows(lc, recs).map((x) => loc(x)).map((f) => ({ id: f.partyId, cells: [nm(f.partyId), leader(f.recommended) ?? R.none, T.presets.shortDate(f.date)], href: f.sourceUrl, ext: true, label: R.rowSource(nm(f.partyId), R.date(f.date)) }));
+        if (got.title !== R.title) errors.push(`[${current}] sheet title ${JSON.stringify(got.title)}`);
+        if (!got.order) errors.push(`[${current}] the sheet must open with the source line, then the mandate, the tally, the table`);
+        if (got.src !== `${R.source} ${R.office}, ${day}` || got.srcHref !== m.sourceUrl) errors.push(`[${current}] source line ${JSON.stringify(got.src)} → ${got.srcHref}`);
+        if (got.mandate !== R.mandate(day, leader(m.partyId))) errors.push(`[${current}] mandate sentence ${JSON.stringify(got.mandate)}`);
+        const q = l === 'he' ? `״${m.quote}״` : `“${m.quote}”`;
+        if (got.quote !== q || got.by !== R.tallyBy(day)) errors.push(`[${current}] tally ${JSON.stringify(got.quote)} / ${JSON.stringify(got.by)}`);
+        if (JSON.stringify(got.rows) !== JSON.stringify(wantRows)) errors.push(`[${current}] rows ${JSON.stringify(got.rows)}, want ${JSON.stringify(wantRows)}`);
+        // Only the President's office's own pages: Hebrew ones on the Hebrew page, /en/ ones in English.
+        const page = l === 'en' ? PRESIDENT_EN : PRESIDENT_HE;
+        for (const href of [got.srcHref, ...got.rows.map((r) => r.href)]) if (!page.test(href ?? '')) errors.push(`[${current}] source ${href} is not a ${l === 'en' ? 'president.gov.il/en/' : 'Hebrew president.gov.il'} page`);
+        if (got.styled) errors.push(`[${current}] ${got.styled} styled element(s) in the table rows: every candidate gets the same neutral look`);
+        if (l === 'en' && got.hebrew) errors.push(`[${current}] Hebrew in the English sheet`);
+        if (got.overflow) errors.push(`[${current}] the sheet overflows horizontally`);
+        const x = await evaluate(SHEET_X);
+        if (x !== 'ok') errors.push(`[${current}] sheet ✕: ${x}`);
+        await evaluate("document.querySelector('#sheet .sheet-close').click()");
+        await settle(200);
+        const back = await evaluate("({ open: document.querySelector('#sheet').open, focus: document.activeElement?.dataset?.act ?? null })");
+        if (back.open || back.focus !== 'recs') errors.push(`[${current}] after ✕: ${JSON.stringify(back)} (want closed, focus on the line)`);
+        // Party sheets: each list in the Knesset carries its line, a list outside it none.
+        // The matrix lists the members only: all the lists in the Knesset at once, so every party sheet opens from it.
+        await go(`${baseUrl}#results?m=${passedIds.join(',')}${l === 'en' ? '&l=en' : ''}`);
+        await waitFor(() => evaluate(`document.querySelectorAll('.party-btn').length === ${passedIds.length}`));
+        for (const f of recs.factions.map(loc)) {
+          await evaluate("(() => { const d = document.querySelector('#sheet'); if (d.open) d.close(); return true; })()");
+          await evaluate(`document.querySelector('.party-btn[data-id="${f.partyId}"]').click()`);
+          await settle(150);
+          const p = await evaluate("(() => { const e = document.querySelector('#sheet .recs-party'); return e && { text: e.innerText.replace(/\\s+/g, ' ').trim(), href: e.querySelector('a')?.getAttribute('href'), afterVotes: e.previousElementSibling?.classList.contains('votes-line') }; })()");
+          const wantText = `${R.partyLine(R.date(f.date), leader(f.recommended))} ${R.partySource}`;
+          if (!p || p.text !== wantText || p.href !== f.sourceUrl || !p.afterVotes) errors.push(`[${current}] party sheet ${f.partyId}: ${JSON.stringify(p)}, want "${wantText}" → ${f.sourceUrl}, after the votes line`);
+        }
+        await evaluate("(() => { const d = document.querySelector('#sheet'); if (d.open) d.close(); return true; })()");
+        for (const id of ctx.parties.filter((p) => !ctx.passed(p.id)).map((p) => p.id)) {
+          await go(`${baseUrl}#build${l === 'en' ? '?l=en' : ''}`);
+          await waitFor(() => evaluate(`document.querySelector('[data-act="party"][data-id="${id}"]') !== null`));
+          await evaluate(`document.querySelector('[data-act="party"][data-id="${id}"]').click()`);
+          await settle(150);
+          if (await evaluate("document.querySelector('#sheet').open && document.querySelector('#sheet .recs-party') !== null")) errors.push(`[${current}] ${id} is not in the Knesset but its sheet shows a recommendation`);
+          await evaluate("(() => { const d = document.querySelector('#sheet'); if (d.open) d.close(); return true; })()");
+        }
+        if (w === 390) {
+          await go(`${baseUrl}#build${l === 'en' ? '?l=en' : ''}`);
+          await waitFor(() => evaluate("document.querySelector('[data-act=\"recs\"]') !== null"));
+          await evaluate("document.querySelector('[data-act=\"recs\"]').click()");
+          await settle(250);
+          await shoot({ width: w, height: 800, dpr: 2, mobile: true }, `sheet-recs-${l}.png`, false);
+          await evaluate("document.querySelector('#sheet').close()");
+        }
+      }
+    }
+    await setSize(SIZES[0]);
+    log(`  ✓ recommendations: ${recRuns} runs${RESULTS ? ` (360/390 × he/en), ${recs.factions.length} party sheets each` : ' (absent in this mode)'}`);
   }
   endSection();
   log(`  ${MODE}: ${Math.round((Date.now() - t0) / 1000)}s (${sectionTimes.join(', ')})`);

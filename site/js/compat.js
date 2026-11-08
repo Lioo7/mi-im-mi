@@ -100,6 +100,28 @@ export function sourceReply(src) {
   return kind ? { kind, party: src[`${kind}By`] } : null;
 }
 
+// The factions' recommendations to the President (#4, results mode), from the President's office's releases.
+// One row per list in the Knesset, in party order (seats, then votes). `recommended` is the candidate's party id, or null.
+export function recommendationRows(ctx, data) {
+  const byId = new Map((data?.factions ?? []).map((f) => [f.partyId, f]));
+  return ctx.parties.filter((p) => ctx.passed(p.id) && byId.has(p.id)).map((p) => byId.get(p.id));
+}
+
+export function recommendationOf(data, pid) {
+  return data?.factions?.find((f) => f.partyId === pid) ?? null;
+}
+
+// MKs behind each candidate's party id ('none' for no recommendation), summed from the seats. The site never shows
+// these sums: they only check the data against the totals the President's office published (`mandate.counts`).
+export function recommendationTotals(ctx, data) {
+  const totals = {};
+  for (const f of data?.factions ?? []) {
+    const k = f.recommended ?? 'none';
+    totals[k] = (totals[k] ?? 0) + ctx.seatsOf(f.partyId);
+  }
+  return totals;
+}
+
 // A data record in the reader's language: its `en` fields over the Hebrew ones. Hebrew records are returned as is.
 export function localize(rec, lang) {
   return lang === 'he' || !rec?.en ? rec : { ...rec, ...rec.en };

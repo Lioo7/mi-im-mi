@@ -20,6 +20,8 @@ let ctx;
 let meta;
 let electionResults = null;
 let scenarioData = null;
+// The factions' recommendations to the President (#4): results mode only.
+let recData = null;
 let state = { base: null, members: [], supporters: [], abstainers: [] };
 let lastPreset = null;
 // The inline undo line (#29): { prev, lastPreset, kind: 'replaced' | 'added' | 'removed', ids } or null. No timer; it
@@ -660,7 +662,49 @@ function seatsBox() {
     body = `${html}
       <div class="meter" role="img" aria-label="${esc(S.seats.meterLabel(v.membersSeats))}"><span data-pct="${pct}"></span></div>`;
   }
-  return `<section class="seats-box" aria-label="${esc(S.seats.boxTitle)}"><h3>${esc(S.seats.boxTitle)}</h3>${seatSourceLine()}${positionsAsOfLine()}${body}</section>`;
+  return `<section class="seats-box" aria-label="${esc(S.seats.boxTitle)}"><h3>${esc(S.seats.boxTitle)}</h3>${seatSourceLine()}${positionsAsOfLine()}${recsLine()}${body}</section>`;
+}
+
+// ---------- the factions' recommendations to the President (#4) ----------
+// Results mode: one line under the CEC results line and its "positions as of" line (before any number), opening the sheet. The arrow points forward (mirrored in RTL).
+function recsLine() {
+  if (!isResults() || !recData) return '';
+  const R = S.recs;
+  return `<p class="recs-line"><button type="button" class="link-btn recs-open" data-act="recs" data-key="recs-open">${esc(R.open(R.range(recData.consultations.from, recData.consultations.to)))} <span aria-hidden="true">›</span></button></p>`;
+}
+
+const recLeader = (pid) => (pid ? party(pid).leader : null);
+const extLink = (url, text, label = '') => `<a href="${esc(url)}" rel="noopener" target="_blank"${label ? ` aria-label="${esc(label)}"` : ''}>${esc(text)}</a>`;
+
+// The source line first, then the mandate, the office's own tally (verbatim, attributed), and one row per faction in
+// party order, each linking its release. One neutral style for every candidate: no colors, no per-faction counts.
+function recsSheet() {
+  const R = S.recs;
+  const m = C.localize(recData.mandate, lang);
+  const day = R.date(m.date);
+  const q = lang === 'he' ? `״${esc(m.quote)}״` : `“${esc(m.quote)}”`;
+  const rows = C.recommendationRows(ctx, recData).map((rec) => {
+    const f = C.localize(rec, lang);
+    return `<tr data-party="${esc(f.partyId)}"><th scope="row">${esc(name(f.partyId))}</th><td>${esc(recLeader(f.recommended) ?? R.none)}</td>
+      <td>${extLink(f.sourceUrl, S.presets.shortDate(f.date), R.rowSource(name(f.partyId), R.date(f.date)))}</td></tr>`;
+  }).join('');
+  openSheet(`
+    <h2>${esc(R.title)}</h2>
+    <p class="recs-src">${esc(R.source)} ${extLink(m.sourceUrl, R.office)}, ${esc(day)}</p>
+    <p class="recs-mandate">${esc(R.mandate(day, recLeader(m.partyId)))}</p>
+    <blockquote class="recs-tally"><p class="q-text">${q}</p><footer class="q-by">${esc(R.tallyBy(day))}</footer></blockquote>
+    <div class="table-wrap"><table class="coverage recs-table">
+      <thead><tr>${R.cols.map((c) => `<th scope="col">${esc(c)}</th>`).join('')}</tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>`);
+}
+
+// The party sheet's line: what this faction recommended, with its release.
+function recsPartyLine(pid) {
+  const rec = recData && ctx.passed(pid) ? C.localize(C.recommendationOf(recData, pid), lang) : null;
+  if (!rec) return '';
+  const R = S.recs;
+  return `<p class="note recs-party">${esc(R.partyLine(R.date(rec.date), recLeader(rec.recommended)))} ${extLink(rec.sourceUrl, R.partySource)}</p>`;
 }
 
 // The poll sentence is a legal requirement in Hebrew: in English it is shown verbatim, followed by our translation.
@@ -1153,7 +1197,7 @@ function partyNotes(p) {
       : S.elected.partyBelow(l.pct.toFixed(2), electionResults.threshold);
     if (l.splitNote) notes.push(l.splitNote);
     const line = Array.isArray(result) ? result.map((x) => `<span class="nw">${esc(x)}</span>`).join(' · ') : esc(result);
-    return seatSourceLine() + `<p class="note votes-line">${line}</p>` + notes.map((n) => `<p class="note note-soft">${bidi(n)}</p>`).join('');
+    return seatSourceLine() + `<p class="note votes-line">${line}</p>` + recsPartyLine(p.id) + notes.map((n) => `<p class="note note-soft">${bidi(n)}</p>`).join('');
   }
   const seatNote = p.seatNote && showSeats();
   if (seatNote) notes.push(p.seatNote);
@@ -1442,6 +1486,9 @@ function onClick(e) {
     case 'poll-info':
       pollInfoSheet();
       break;
+    case 'recs':
+      recsSheet();
+      break;
   }
 }
 
@@ -1502,14 +1549,16 @@ async function main() {
     return r.json();
   });
   // The results file is needed only in results mode; in polls mode a missing file is fine.
-  const [parties, topics, positions, m, results, scenarios] = await Promise.all([
+  const [parties, topics, positions, m, results, scenarios, recs] = await Promise.all([
     ...['parties', 'topics', 'positions', 'meta'].map(get),
     get('results-26').catch(() => null),
     get('scenarios').catch(() => null),
+    get('recommendations').catch(() => null),
   ]);
   data = { meta: m, parties, topics, positions, results };
   electionResults = results;
   scenarioData = m.mode === 'results' ? scenarios : null;
+  recData = m.mode === 'results' ? recs : null;
   if (m.mode === 'results' && !results) throw new Error('results-26: missing');
   setLanguage(C.parseLocation(location, []).lang);
   // Lists under the threshold (results mode) cannot be selected, so a link naming them drops them like unknown ids.

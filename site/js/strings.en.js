@@ -187,6 +187,24 @@ export const S = {
     resultsText: 'The seat numbers are the results published by the Central Elections Committee, as published. They are not recomputed from vote shares, because surplus-vote agreements change the allocation.',
   },
 
+  // The factions' recommendations to the President (#4, results mode), from the President's office's releases.
+  recs: {
+    date: (iso) => `${dayMonth(iso)} ${iso.slice(0, 4)}`,
+    // "4–5 Nov 2026" within one month, else both dates in full.
+    range: (from, to) => (from.slice(0, 7) === to.slice(0, 7) ? `${Number(from.slice(8))}–${S.recs.date(to)}` : `${S.recs.date(from)}–${S.recs.date(to)}`),
+    open: (range) => `The factions' recommendations to the President (${range})`,
+    title: "The factions' recommendations to the President",
+    source: 'Source:',
+    office: "The President's Office",
+    mandate: (date, person) => `On ${date} the President tasked ${person} with forming the government.`,
+    tallyBy: (date) => `The President's Office, ${date}`,
+    cols: ['Faction', 'Recommendation', "Office's release"],
+    none: 'Recommended no one',
+    rowSource: (party, date) => `The President's Office release on ${party}, ${date}`,
+    partyLine: (date, person) => `In the consultations with the President (${date}): ${person ? `recommended ${person}` : 'recommended no one'}.`,
+    partySource: "The President's Office release",
+  },
+
   levels: {
     AGREE: { label: 'Agree', icon: '✓' },
     MINOR: { label: 'Small gap', icon: '≈' },

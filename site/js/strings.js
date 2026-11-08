@@ -189,6 +189,24 @@ export const S = {
     resultsText: 'מספרי המנדטים הם התוצאות שפרסמה ועדת הבחירות המרכזית, כפי שפורסמו. הם לא מחושבים מחדש מאחוזי ההצבעה, כי הסכמי עודפים משנים את החלוקה.',
   },
 
+  // The factions' recommendations to the President (#4, results mode), from the President's office's releases.
+  recs: {
+    date: (iso) => iso.split('-').reverse().map(Number).join('.'),
+    // "4–5.11.2026" within one month, else both dates in full.
+    range: (from, to) => (from.slice(0, 7) === to.slice(0, 7) ? `${Number(from.slice(8))}–${S.recs.date(to)}` : `${S.recs.date(from)}–${S.recs.date(to)}`),
+    open: (range) => `המלצות הסיעות לנשיא (${range})`,
+    title: 'המלצות הסיעות לנשיא',
+    source: 'מקור:',
+    office: 'לשכת נשיא המדינה',
+    mandate: (date, person) => `ב-${date} הטיל הנשיא על ${person} את מלאכת הרכבת הממשלה.`,
+    tallyBy: (date) => `לשכת נשיא המדינה, ${date}`,
+    cols: ['סיעה', 'המלצה', 'הודעת הלשכה'],
+    none: 'לא המליצה על אף מועמד',
+    rowSource: (party, date) => `הודעת לשכת הנשיא על ${party}, ${date}`,
+    partyLine: (date, person) => `בסבב ההתייעצויות אצל הנשיא (${date}): ${person ? `המליצה על ${person}` : 'לא המליצה על אף מועמד'}.`,
+    partySource: 'הודעת לשכת הנשיא',
+  },
+
   levels: {
     AGREE: { label: 'מסכימות', icon: '✓' },
     MINOR: { label: 'פער קל', icon: '≈' },

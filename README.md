@@ -124,6 +124,7 @@ node scripts/smoke.mjs --only=pair    # רק חלק אחד, בזמן תיקון
 | [`site/data/positions.json`](site/data/positions.json) | 112 עמדות: מיקום, קו אדום, סיכום (גם באנגלית), ציטוט וייחוס ותרגום הציטוט לאנגלית, מקור, סוג מקור, תאריך ועותק בארכיון |
 | [`site/data/meta.json`](site/data/meta.json) | תאריכי עדכון, `mode` (תוצאות או סקרים), סטטוס התוצאות, משפט ההסתייגות על הסקרים, קישורי המקורות ו-`showSeats` |
 | [`site/data/scenarios.json`](site/data/scenarios.json) | עד 4 תרחישים שעלו בתקשורת: חברות, תומכות ונמנעות, ומקור עם תאריך לכל אחד |
+| [`site/data/recommendations.json`](site/data/recommendations.json) | המלצות הסיעות לנשיא (#4): המלצה אחת לכל רשימה בכנסת, הטלת התפקיד והספירה של הלשכה, וקישורים להודעות ב-president.gov.il |
 | [`site/data/results-26.json`](site/data/results-26.json) | תוצאות ועדת הבחירות לכל רשימה: קולות, אחוזים ומנדטים, כפי שפורסמו (התוצאות הרשמיות, שהוגשו לנשיא ב-4.11.2026) |
 | [`docs/research/`](docs/research/) | יומן ההחלטות, הערות הראיות לכל עמדה, ותוצאות הבדיקות |
 
