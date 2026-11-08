@@ -4,7 +4,7 @@ Static, Hebrew, RTL web app showing where possible coalition partners clash or a
 More rules load with their files: `.claude/rules/data.md` (sources, quotes, modes, scenarios, the data scripts) and `.claude/rules/i18n.md` (the English version). Before data or translation work, make sure the matching one is loaded (read it if not).
 
 ## ⚠️ The site is live
-Changes under `site/` are allowed as part of agreed work. **A production deploy needs the user's explicit OK**, always after the full local smoke, a draft deploy, the light check against the draft URL and the user's phone check: run `/deploy`. If you find a critical bug (wrong data shown, a broken core flow, a privacy leak, a missing legal disclaimer), report it first and wait.
+Changes under `site/` are allowed as part of agreed work. **A production deploy needs the user's explicit OK**, always after the full local smoke, a draft deploy, the light check against the draft URL and the user's phone check: run `/deploy` (Claude may start it once a change is ready, and it always stops for the phone check before publishing). `/add-scenario` runs only when the user starts it. If you find a critical bug (wrong data shown, a broken core flow, a privacy leak, a missing legal disclaimer), report it first and wait.
 
 Backlog: GitHub Issues. Run `gh issue list` before starting new work. Reference issues in commits (closes #N, refs #N).
 Issue format: a one-sentence goal, short bullets, a "Done when" line. Labels: enhancement, tech-debt, research, data, priority:high.

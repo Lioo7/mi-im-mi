@@ -1,10 +1,11 @@
 ---
 name: deploy
 description: Deploy site/ to Netlify. Full local smoke, a draft deploy, the light check against the draft, the user's phone check, and only after the user's OK, publish that same draft and check production.
-disable-model-invocation: true
 ---
 
 # /deploy
+
+Claude may start this skill itself once a change is ready (committed, unit tests and targeted smoke passing). Starting it never covers publishing: step 5 always stops for the user's phone check, and steps 6–7 run only after the user's explicit OK for that draft.
 
 Run the steps in order and time each one (`date +%s` before and after). Stop at the first failure, report it with the rerun command smoke prints, and never drop or loosen an assertion to make a run pass. Read `smoke/<mode>/smoke.log` only when a run fails.
 
