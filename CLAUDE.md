@@ -1,10 +1,12 @@
 # מי עם מי: project rules
-Static, Hebrew, RTL web app showing where possible coalition partners clash or agree across 8 topics, for the Knesset 26 elections (27.10.2026). Since 1.11 it runs in results mode (CEC seats, party roles, investiture vote). Since 2.11 it is also in English (`l=en`; Hebrew is authoritative). Vanilla JS, no build, no dependencies; deployed from `site/` to Netlify (`mi-im-mi-2026`, https://mi-im-mi-2026.netlify.app). Current state: README.md, this file, `docs/research/decisions.md`. PLAN.md is the historical plan (24–25.10).
+Static, Hebrew, RTL web app showing where possible coalition partners clash or agree across 8 topics, for the Knesset 26 elections (27.10.2026), now in results mode (CEC seats, party roles, investiture vote) and also in English (`l=en`, Hebrew is authoritative). Vanilla JS, no build, no dependencies, deployed from `site/` to Netlify (`mi-im-mi-2026`, https://mi-im-mi-2026.netlify.app). State and history: README.md, `docs/research/decisions.md`.
+
+More rules load with their files: `.claude/rules/data.md` (sources, quotes, modes, scenarios, the data scripts) and `.claude/rules/i18n.md` (the English version). Before data or translation work, make sure the matching one is loaded (read it if not).
 
 ## ⚠️ The site is live
-The site is no longer frozen (1.11): changes under `site/` are allowed as part of agreed work. **A production deploy still needs the user's explicit OK**, always after the full local smoke, a draft deploy, the light check against the draft URL and the user's phone check (see Deploy). If you find a critical bug (wrong data shown, a broken core flow, a privacy leak, a missing legal disclaimer), report it first and wait. Open findings: GitHub Issues (`tech-debt`); the original review is `docs/review-2026-10-26.md`.
+Changes under `site/` are allowed as part of agreed work. **A production deploy needs the user's explicit OK**, always after the full local smoke, a draft deploy, the light check against the draft URL and the user's phone check: run `/deploy`. If you find a critical bug (wrong data shown, a broken core flow, a privacy leak, a missing legal disclaimer), report it first and wait.
 
-Backlog: GitHub Issues. Run `gh issue list` before starting new work. Reference issues in commits (closes #N).
+Backlog: GitHub Issues. Run `gh issue list` before starting new work. Reference issues in commits (closes #N, refs #N).
 Issue format: a one-sentence goal, short bullets, a "Done when" line. Labels: enhancement, tech-debt, research, data, priority:high.
 
 ### Working in a session (#37)
@@ -13,55 +15,31 @@ Issue format: a one-sentence goal, short bullets, a "Done when" line. Labels: en
 - Read `smoke/<mode>/smoke.log` only when a run fails, and screenshots only for a visual change.
 - Between tasks, `/clear`. When compacting, keep the issue number and its agreed decisions, the commits made, any draft `deploy_id` and URL, and what still waits for the user's OK.
 
-### Results: official since 4.11
-The CEC submitted the results to the President on 4.11.2026 (#2). `results-26.json` holds the final official votes; the seats did not change. See `docs/research/decisions.md`.
-
 ## Layout
-- `site/`: everything that is deployed.
-  - `index.html`, `css/app.css`
-  - `js/app.js`: DOM, routing (`#build`, `#results`, `#pair`, `#method`, `#why`), rendering
-  - `js/compat.js`: pure compatibility logic, seat source per mode, roles and investiture, completions to 61, and URL state (`#<view>?b=&m=&o=&a=`), unit-tested
-  - `js/strings.js`: all UI strings (Hebrew); `js/strings.en.js`: the same shape in English, plus `NAMES` (people and channels named in the data)
-  - `js/links.js`: correction mailto and quote attribution
-  - `js/stats.js`: cookieless GoatCounter beacon, sent only from `https://mi-im-mi-2026.netlify.app` (path, title, screen width, referrer origin; never the query)
-  - `data/`: `parties.json`, `topics.json`, `positions.json`, `meta.json`, `results-26.json` (CEC results per list, as published), `scenarios.json` (media scenarios, results mode)
-- `scripts/`: Node built-ins only. `lib.mjs` holds shared IO, CSV and validation.
-- `test/*.test.mjs`: unit tests for `node --test`.
-- `docs/`:
-  - `research/`: public; generated, except the hand-written `decisions.md`
-  - `screenshots/`
-  - `review-*.md`
-- Gitignored: `research/` (`merged.json` is the research source of truth, plus third-party files), `review/` (the reviewer's CSV), `smoke/` (a folder per mode: `smoke.log`, screenshots with `--shots`).
+- `site/` is everything deployed. `js/app.js`: DOM, routing, rendering. `js/compat.js`: pure logic and URL state, unit-tested. `js/strings.js` / `js/strings.en.js`: all UI strings (the English file also has `NAMES`). `js/links.js`: correction mailto and quote attribution. `js/stats.js`: cookieless GoatCounter beacon, sent only from the production host, never with the query. `data/*.json`.
+- `scripts/`: Node built-ins only, shared code in `lib.mjs`. `test/*.test.mjs`: unit tests.
+- `docs/research/` is public and generated, except the hand-written `decisions.md`.
+- Gitignored: `research/` (`merged.json` is the research source of truth), `review/` (the reviewer's CSV), `smoke/` (`<mode>/smoke.log`, screenshots).
 
 ## Commands
-- **Test:** `node --test`
-- **Validate:** `node scripts/validate.mjs`
-- **Smoke:** `node scripts/smoke.mjs [baseUrl] [--mode=results|polls|hidden|all] [--only=<sections> | --light] [--shots]` (#37)
-  - **During a fix:** only the sections the change touches, in its mode (`--only=pair,fit`; the default mode is `meta.mode`; a bad name lists the sections). A failure prints its rerun command.
-  - **Before the draft deploy:** the full suite once, `--mode=all`: the three modes in parallel, about 2 min. A local run serves `meta.json` with the mode overridden, so no scratch copies. **Against a deploy:** `--light` (see Deploy).
-  - **Output:** a line per section and the first 10 errors; everything in `smoke/<mode>/smoke.log` (`smoke/remote/` for a URL). Screenshots only with `--shots` (`*-en.png` for English); look at them when the change is visual.
-  - **What it enforces** (never drop or loosen an assertion to make a run pass): every case also with `l=en` (lang/dir, the translation notice, no Hebrew outside `lang="he"`, the same numbers, links keeping `l=en`, the toggle). Beacons: against production each one is inspected (never sent); on any other host none may be sent. Local runs send `netlify.toml`'s headers, so the CSP is enforced and any violation fails; remote runs compare every served header with `netlify.toml` and fail if Netlify injects its badge script (`/.netlify/scripts/hud`). No request to the site may carry coalition state, except the first load of an old-format link. First-screen fit (#26): Hebrew shows all three task cards at 375×667, 375×600 and 390×844; English all at 390×844, card 3's title at 375×667, cards 1–2 at 375×600; the purpose line's disclaimer is always on the first screen. Fit (#35): at 360/375/390/412, both languages, text at 100% and 125%, matrix headers stay in their columns (vertical on phones) and nothing scrolls sideways. Party sheet (#30): the ✕ stays inside the visible viewport while scrolling and across resizes.
-  - **Bounded (#27):** each CDP call times out (`SMOKE_STEP_MS`, 15s), a watchdog ends the run (`SMOKE_WATCHDOG_MS`, 20 min), Chrome is always killed. Waits are conditions, not sleeps: a settle (frames, animations, short timers, fetches, scroll) capped at the old fixed time. Runs may overlap; a leftover smoke Chrome is killed only when its run has ended. `SMOKE_SIMULATE_HANG=1` proves the timeout.
-- **Local:** `python3 -m http.server -d site 8080`
-- **Export CSV:** `node scripts/export-csv.mjs` (`research/merged.json` → `review/positions_review.csv`)
-- **Import CSV:** `node scripts/import-csv.mjs review/positions_review.csv [--dry-run]`. This validates the file, prints the diff and writes `site/data/positions.json`.
-- **Evidence:** `node scripts/export-evidence.mjs` (→ `docs/research/evidence.{json,csv}`)
-- **Translations:** `node scripts/apply-translations.mjs` (`research/translations-en.json` → `summaryEn`/`quoteTranslationEn` in `research/merged.json`, and `en` in `topics.json`). Then export, then import.
-- **Archive sources:** `node scripts/archive-sources.mjs`, then `node scripts/apply-archive.mjs`. Only snapshots listed in `research/archive-verified.json` are published. Then export, then import.
-- **OG image:** `node scripts/make-og.mjs`
-- **Deploy (#37):** the full local suite (`--mode=all`) → draft: `netlify deploy --dir=site --json` (gives `deploy_id`, `deploy_url`) → `node scripts/smoke.mjs <deploy_url> --light` (every file in `site/` served byte for byte, the headers, the views at phone width in both languages) → the user's phone check on the draft → **only after the user's OK**, publish that same deploy: `netlify api restoreSiteDeploy --data '{"site_id":"4c946bab-f25b-4dcc-9f04-8653d8c4631c","deploy_id":"<deploy_id>"}'` → `node scripts/smoke.mjs https://mi-im-mi-2026.netlify.app --light` (also inspects every production beacon). If publishing fails, fall back to `netlify deploy --prod --dir=site` and say so.
+- **Test:** `node --test` · **Validate:** `node scripts/validate.mjs` · **Local:** `python3 -m http.server -d site 8080` · **OG image:** `node scripts/make-og.mjs`
+- **Smoke:** `node scripts/smoke.mjs [baseUrl] [--mode=results|polls|hidden|all] [--only=<sections> | --light] [--shots]`
+  - During a fix: only the sections the change touches, in its mode (`--only=pair,fit`; the default mode is `meta.mode`, a bad name lists the sections). A failure prints its rerun command.
+  - Before the draft deploy: the full suite once, `--mode=all` (the three modes in parallel, about 2 min). Against a deploy: `--light`.
+  - Output: a line per section and the first 10 errors, everything in `smoke/<mode>/smoke.log` (`smoke/remote/` for a URL). Screenshots only with `--shots` (`*-en.png` for English).
+  - **Never drop or loosen an assertion to make a run pass.** What each section enforces is commented in `scripts/smoke.mjs`: both languages, beacons, CSP and headers, no coalition state in any request, first-screen fit (#26), fit at 360–412 and 125% text (#35), the party sheet's ✕ (#30). Bounded (#27): `SMOKE_STEP_MS`, `SMOKE_WATCHDOG_MS`.
+- **Data, translations, archive:** the commands are in `.claude/rules/data.md` and `.claude/rules/i18n.md`.
+- **Deploy:** `/deploy`. Full local suite → draft (`netlify deploy --dir=site --json`) → `--light` against the draft → the user's phone check → **only after the user's OK**, publish that same deploy (`netlify api restoreSiteDeploy`) → `--light` against production.
 
 ## Neutrality (a product requirement)
-- One neutral color for all parties; severity colors encode distance only. Parties are ordered by poll average (by ballot letters when `showSeats` is `false`), presets alphabetically.
+- One neutral color for all parties; severity colors encode distance only. Parties are ordered by poll average (by ballot letters when `showSeats` is `false`; by seats, then votes, in results mode), presets alphabetically.
 - No default coalition and no example clashes in UI copy. Axis numbers are never shown. Each pole is worded the way its supporters would put it.
 - Party names come only from `parties.json` (`name` / `officialName`, from the CEC list), never from bakalpi, and never include ballot letters. Ballot letters appear only as the separate `ballotLetters` tag.
 
-## Sources
-- `sourceType`: `platform` | `statement` (party/leader's own words: site, X, recorded interview, direct quote) | `record` (a bill the party initiated or advanced). Votes breaking from the bloc were planned as evidence, but no position uses one; plain bloc-discipline votes never count. A journalist's characterization is never a source.
-- `redLine=true` only when the party or its leader said in its own words, on the record, that this is a coalition condition. Never from news reports.
-- No source means `position: null`. Never guess. Summaries are in our own words; quotes are verbatim.
-- A null cell shows what was found (quote, attribution, source) without placing it. When no current position exists, an older official platform from a previous election may appear as a dated note in the null cell, only when the item answers the axis question directly (a partial fit is not enough). The note names the year and the document type exactly ("במצע יהדות התורה מ-1999 נכתב: …", "במסמך העקרונות של ש״ס מ-2006 נכתב: …"). Its source (the IDI or archive copy) goes in `extraSourceUrl`, or in `sourceUrl` when the cell has no other source, with `sourceDate` = the year alone when the exact date is unknown. It is never used for placement, and the rule applies to every party the same way.
-- The Ra'am disqualification annex (`research/cec/`) is a partisan compilation, not a source. Anything in it is taken only from the primary source (e.g. the 1999 platform, from the IDI archive).
+## Seat numbers and roles
+- `meta.json → mode`: `"results"` (current) or `"polls"`. The full rules are in `.claude/rules/data.md`.
+- Every seat number is preceded by its source line: the results status line (`meta.resultsStatus` + CEC link) in results mode, the full legal sentence (`S.seats.pollLegal`) in polls mode. Smoke enforces it.
+- Roles: member / supporter (`o=`) / abstainer (`a=`), unselected = opponent. Clash analysis is members only.
 
 ## Glossary (our voice; quotes stay verbatim)
 | Hebrew | English | Never (outside quotes) |
@@ -72,37 +50,15 @@ The CEC submitted the results to the President on 4.11.2026 (#2). `results-26.js
 | החלת ריבונות / סיפוח | applying sovereignty / annexation | one term alone |
 | חרדים | "Haredi (ultra-Orthodox)" on first use in a text, then "Haredi" | "ultra-Orthodox" alone |
 
-Loaded terms appear only inside attributed quotes. `test/glossary.test.mjs` enforces this in both languages (UI strings and data, quoted spans removed).
-
-## Quotes and attribution (`site/js/links.js`)
-- A quote is shown in ״…״ with the line "<speaker or party>, <channel>, <date>". The date is left out when `sourceDate` is null.
-- `quoteBy`: the speaker, when it is not the party itself, verified against the source. When null, the line names the party.
-- `quoteChannel`: where the words were originally published, when that differs from the `sourceUrl` host (e.g. "פייסבוק" quoted via a news site). When null, the channel comes from the `sourceUrl` host (the `MEDIA` map), or is "מצע המפלגה" / "אתר המפלגה".
-- `quoteTranslatedBy`: who translated a quote that was not said in Hebrew. An outlet's name adds "(תרגום: X)" to the attribution line. "האתר" means our own translation.
-- `quoteTranslation`: our free Hebrew translation, shown under an original-language quote (Arabic gets `lang="ar"`). It is marked "(תרגום חופשי של האתר)" and requires `quoteTranslatedBy` = "האתר". The original quote stays verbatim.
-
-## Data and polls
-- Change positions **only** via `node scripts/import-csv.mjs review/positions_review.csv`. Never hand-edit `site/data/positions.json`.
-- `meta.json → mode`: `"results"` (current) or `"polls"`. Switching back to polls (e.g. a repeat election) is this one line; `pollAvg` in `parties.json` is never touched, and a test covers the switch.
-- **Results mode:** seats come from `results-26.json`, entered **as published by the CEC, never computed** (surplus agreements change the split). The ט list's 6 seats are split 5/1 by Zehut's list slots (2, 8, 10, 11). Parties are ordered by seats, then votes. Lists under the threshold are not selectable (positions stay viewable). Every seat number is preceded by the results status line (`meta.resultsStatus` + CEC link). The poll disclaimer is not shown. `showSeats` does not apply.
-- **Polls mode:** `meta.json → showSeats` (boolean): `false` hides every seat number and all poll-derived info: the threshold badge, the joint-list seat split, the poll ordering and the seat tie-breaks. Wherever seat numbers or poll-derived figures show, the full legal sentence (`S.seats.pollLegal`, ממוצע סקרים שפורסמו עד … הסקרים אינם עדכניים …) must be visible with them, placed before the numbers.
-- Smoke enforces the source line before the numbers (results line or legal sentence) at 390×844 and 375×667, on first load and while scrolling.
-- **Scenarios (results mode):** at most 4, replacing the bloc presets. Named by composition only (generated from the roles, never hand-labeled), sorted alphabetically. Each source is opened and checked against the members and roles before it is added; a role the source doesn't clearly support is raised with the user, never guessed. Source line, one format: "מקור: <outlet>, <d.m>" or "מקורות: <a> · <b>" (main report first); a person's statement reads "<person> ב<outlet>, <d.m>" (`by`, with "ב-" before a Latin outlet: "ב-ynet"); outlet names in Hebrew where that is the common name (ג׳רוזלם פוסט); the link sits on the outlet name. A party's own reply to the report is a source with one of `denialBy` / `refusalBy` / `responseBy` (a party of the scenario), rendered "הכחשת / דחיית / תגובת <party>: <outlet>, <d.m>" ("Denial / Rejection / Response by <party>:"). When a source names a party that ran on a joint list, the whole list is included (e.g. "Smotrich" = the ט list, so זהות too). Notes are not rendered; verbatim objections from a scenario's own source go in decisions.md. Log each scenario in `docs/research/decisions.md`.
-- **הציונות הדתית / זהות:** soft-linked (one unit) in polls mode only; with results they are chosen and counted independently.
-- **Roles:** member / supporter (`o=`) / abstainer (`a=`); unselected = opponent. Clash analysis is members only; supporters' and abstainers' gaps have their own card. Investiture: for = members + supporters, against = all others except abstainers, approved when for > against. Old `o=` links mean supporters.
+Loaded terms appear only inside attributed quotes. `test/glossary.test.mjs` enforces this in both languages.
 
 ## URL and security
-- **URL state lives in the fragment:** `#<view>?b=&m=&o=&a=` (plus `l=en` for English), with the views and method anchors as routes. The pair view adds `p=<a>,<b>` on `#pair` only; it is not coalition state, and its share link carries only `p` and `l`. Never put coalition state in the query: the server, and the Referer of every same-origin request, would see it. Old `?m=` links: `moveLegacyState` moves the query state into the fragment verbatim before any request, then the ids are checked. Other query params (e.g. `?s=wa`) stay. Share links are `/#results?…`.
-- **CSP (`netlify.toml`):** `script-src 'self'; style-src 'self'; style-src-attr 'none'`: no inline scripts, no inline `<style>`, no `style=""` attributes (set styles through the CSSOM), and no new hosts without updating the policy. There are no exceptions; the Netlify badge's script hash and `style-src-elem 'unsafe-inline'` were removed with the badge (#26).
-- **Hosting:** Netlify's Free plan (not the Open Source plan, so no attribution is required). The "Powered by Netlify" badge is a project setting (dashboard: Project configuration > General > Powered by Netlify badge) and is **off**. Netlify injects it at the edge, not from our code; if it is turned on again, its script would break under our CSP, and remote smoke fails.
+- **URL state lives in the fragment:** `#<view>?b=&m=&o=&a=` (plus `l=en`). `#pair` adds `p=<a>,<b>`, which is not coalition state (its share link carries only `p` and `l`). Never put coalition state in the query: the server, and the Referer of every same-origin request, would see it. Old `?m=` links are moved into the fragment by `moveLegacyState` before any request. Share links are `/#results?…`.
+- **CSP (`netlify.toml`):** `script-src 'self'; style-src 'self'; style-src-attr 'none'`. No inline scripts, no inline `<style>`, no `style=""` attributes (set styles through the CSSOM), no new hosts without updating the policy. No exceptions.
+- **Hosting:** Netlify's Free plan (no attribution required). The "Powered by Netlify" badge is off in the dashboard (Project configuration > General). Netlify injects it at the edge, so if it is turned on again its script breaks under our CSP and remote smoke fails.
 
-## English version
-- **Every new string needs both languages:** a key in `strings.js` needs its twin in `strings.en.js` (the parity test fails otherwise). An English string has no Hebrew except the toggle label and a ballot letter.
-- **Every Hebrew text field in the data has an `en` twin** (`parties`, `topics`, `meta`, results `splitNote`, scenario sources), and every position has `summaryEn`, plus `quoteTranslationEn` for a quote not in English. `validate.mjs` fails otherwise. Records are localized with `localize()`; party order is always computed from the Hebrew data.
-- **Translation flow:** `research/translate-brief.md` (rules and glossary) → `research/translations-en.json` → independent verifier (`research/verify-en-brief.md`: blind back-translation first, then the comparison) → resolve every flag (disputes go to the user) → `apply-translations.mjs` → export → import. Before exporting, make sure `research/merged.json` matches `site/data/positions.json` (it fell behind once; see decisions.md), and check the import with `git diff`: only the intended fields may change.
-- **Names:** GPO English list → the party's or person's own English → transliteration. A Hebrew party name is transliterated unless it has an established English name. Leaders as they spell themselves. Ballot letters stay Hebrew (`lang="he"`). The official list name is shown verbatim in Hebrew with our translation. Names in the data's Hebrew fields (quote speakers, channels) go through `NAMES`.
-- **Quotes** stay in their original language; the English page shows the site's translation under them, marked as such. The required Hebrew poll sentence (polls mode) is shown verbatim before its translation.
-- **Language in the URL:** `l=en` in the fragment (never the query); Hebrew is the default and is omitted. A shared English link previews in Hebrew (#21).
+## English
+Hebrew is authoritative. Every key in `strings.js` has its twin in `strings.en.js`, and every Hebrew data field has its `en` twin (the tests and `validate.mjs` fail otherwise). The rest: `.claude/rules/i18n.md`.
 
 ## Conventions
 - No ";" in Hebrew text (UI strings, our data text, summaries): a period, a comma or a list. Quotes stay verbatim. `test/punctuation.test.mjs` enforces it.
