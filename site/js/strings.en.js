@@ -91,8 +91,12 @@ export const S = {
     ].filter(Boolean).join(' · '),
     sourcesLabel: (n) => (n === 1 ? 'Source:' : 'Sources:'),
     personIn: (person) => `${person} in `,
-    // A source that reports a party's denial of the scenario (#34): "Denial by Yisrael Beytenu: The Jerusalem Post, 5.11".
-    denialBy: (party) => `Denial by ${party}: `,
+    // A source that carries a party's own reply to the scenario (#34): "Denial by Shas: N12 (Mako), 7 Nov".
+    replyBy: {
+      denial: (party) => `Denial by ${party}: `,
+      refusal: (party) => `Rejection by ${party}: `,
+      response: (party) => `Response by ${party}: `,
+    },
     // 2026-10-31 -> 31 Oct
     shortDate: (iso) => dayMonth(iso),
   },

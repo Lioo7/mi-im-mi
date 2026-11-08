@@ -88,9 +88,15 @@ export const S = {
     ].filter(Boolean).join(' · '),
     // Source line: "מקור: <outlet>, <d.m>" or "מקורות: <a> · <b>"; a person's statement reads "<person> ב<outlet>".
     sourcesLabel: (n) => (n === 1 ? 'מקור:' : 'מקורות:'),
-    personIn: (person) => `${person} ב`,
-    // A source that reports a party's denial of the scenario (#34): "הכחשת ישראל ביתנו: ג׳רוזלם פוסט, 5.11".
-    denialBy: (party) => `הכחשת ${party}: `,
+    // A hyphen before an outlet in Latin letters: "אביגדור ליברמן ב-ynet".
+    personIn: (person, outlet = '') => `${person} ב${/^[^\u0590-\u05FF]/.test(outlet) ? '-' : ''}`,
+    // A source that carries a party's own reply to the scenario (#34), prefixed with the party's name:
+    // "הכחשת ש״ס: mako, 7.11", "דחיית ישראל ביתנו: ynet, 6.11", "תגובת יהדות התורה: ynet, 6.11".
+    replyBy: {
+      denial: (party) => `הכחשת ${party}: `,
+      refusal: (party) => `דחיית ${party}: `,
+      response: (party) => `תגובת ${party}: `,
+    },
     // 2026-10-31 -> 31.10
     shortDate: (iso) => iso.split('-').slice(1).reverse().map(Number).join('.'),
   },

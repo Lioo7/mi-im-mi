@@ -14,10 +14,19 @@ import { mkdirSync, mkdtempSync, writeFileSync, rmSync, readFileSync, existsSync
 import { tmpdir } from 'node:os';
 import { join, extname, normalize } from 'node:path';
 import { ROOT, loadData } from './lib.mjs';
-import { groupRedLines, contextFor, presets, serializeState, parseState, ballotOrder, completions, parseLocation, stateKeysIn, selected, locationFor, closestTo, redLinesCrossed, pivotal, investiture, coalitionGroups, analyze, peripheryClashes, pairSummary, matrixCell } from '../site/js/compat.js';
+import { sourceReply, groupRedLines, contextFor, presets, serializeState, parseState, ballotOrder, completions, parseLocation, stateKeysIn, selected, locationFor, closestTo, redLinesCrossed, pivotal, investiture, coalitionGroups, analyze, peripheryClashes, pairSummary, matrixCell } from '../site/js/compat.js';
 import { PROD_HOST } from '../site/js/stats.js';
 import { S } from '../site/js/strings.js';
 import { S as EN } from '../site/js/strings.en.js';
+
+// A scenario's source line in one language: "מקורות: <outlet>, <d.m> · <person> ב<outlet>, <d.m> · הכחשת <party>: …" (#34).
+function wantSourceLine(T, sc, lc) {
+  const line = (x) => {
+    const reply = sourceReply(x);
+    return `${reply ? T.presets.replyBy[reply.kind](lc.byId.get(reply.party).name) : ''}${x.by ? T.presets.personIn(x.by, x.outlet) : ''}${x.outlet}, ${T.presets.shortDate(x.date)}`;
+  };
+  return `${T.presets.sourcesLabel(sc.sources.length)} ${sc.sources.map((x) => (T === S ? x : { ...x, ...x.en })).map(line).join(' · ')}`;
+}
 
 const CHROME = process.env.CHROME_PATH ?? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const OUT = join(ROOT, 'smoke');
@@ -690,7 +699,7 @@ try {
     // One source-line format: "מקור: <outlet>, <d.m>" / "מקורות: <a> · <b>", a person's statement as "<person> ב<outlet>".
     for (const it of scen.items) {
       const sc = scenarios.scenarios.find((x) => x.id === it.id);
-      const want = `${S.presets.sourcesLabel(sc.sources.length)} ${sc.sources.map((x) => `${x.denialBy ? S.presets.denialBy(posCtx.he.byId.get(x.denialBy).name) : ''}${x.by ? S.presets.personIn(x.by) : ''}${x.outlet}, ${S.presets.shortDate(x.date)}`).join(' · ')}`;
+      const want = wantSourceLine(S, sc, posCtx.he);
       if (it.src.replace(/\s+/g, ' ').trim() !== want) errors.push(`[interaction] scenario ${it.id} source line "${it.src}" should read "${want}"`);
     }
     await evaluate("(() => { const d = document.querySelector('#presets details'); d.open = true; d.scrollIntoView(); })()");
@@ -1532,7 +1541,7 @@ try {
           const lc = posCtx[T === S ? 'he' : 'en'];
           const srcs = await evaluate("Object.fromEntries([...document.querySelectorAll('#presets .scenario')].map((li) => [li.querySelector('[data-act=\"scenario\"]').dataset.id, li.querySelector('.scen-src').innerText.replace(/\\s+/g, ' ').trim()]))");
           for (const sc of loadData().scenarios.scenarios) {
-            const want = `${T.presets.sourcesLabel(sc.sources.length)} ${sc.sources.map((x) => (T === S ? x : { ...x, ...x.en })).map((x) => `${x.denialBy ? T.presets.denialBy(lc.byId.get(x.denialBy).name) : ''}${x.by ? T.presets.personIn(x.by) : ''}${x.outlet}, ${T.presets.shortDate(x.date)}`).join(' · ')}`;
+            const want = wantSourceLine(T, sc, lc);
             if (srcs[sc.id] !== want) errors.push(`[${current}] scenario ${sc.id} source line "${srcs[sc.id]}" should read "${want}"`);
           }
         }
@@ -1906,7 +1915,10 @@ try {
       await c.send('Emulation.setDeviceMetricsOverride', { width: w, height: 800, deviceScaleFactor: 2, mobile: true });
       for (const l of ['he', 'en']) {
         const loc = (x) => (l === 'en' ? { ...x, ...x.en } : x);
-        const names = [...posCtx[l].parties.map((p) => p.name), ...scenarios.scenarios.flatMap((sc) => sc.sources.map(loc)).flatMap((x) => [x.outlet, x.by]).filter(Boolean)];
+        const T = l === 'en' ? EN : S;
+        // A party's reply prefix stays whole up to its colon ("תגובת יהדות התורה:").
+        const replyPrefix = (x) => { const r = sourceReply(x); return r && T.presets.replyBy[r.kind](posCtx[l].byId.get(r.party).name).trim(); };
+        const names = [...posCtx[l].parties.map((p) => p.name), ...scenarios.scenarios.flatMap((sc) => sc.sources.map(loc)).flatMap((x) => [x.outlet, x.by, replyPrefix(x)]).filter(Boolean)];
         const L = l === 'en' ? '&l=en' : '';
         for (const pct of [100, 125]) {
           step(`nobreak-${l}@${w}-${pct}%`);
@@ -1925,6 +1937,9 @@ try {
             nbSeen += r.seen;
             for (const b of r.bad) errors.push(`[${current} ${url.split('?')[0]}] ${b}`);
           }
+          // Each scenario source's "<ב/ב-><outlet>, <d.m>" (several text nodes, so checked as an element) is on one line.
+          const split = await evaluate("[...document.querySelectorAll('#presets .scen-src .nw')].filter((e) => new Set([...e.getClientRects()].filter((x) => x.width > 0).map((x) => Math.round(x.top))).size > 1).map((e) => e.innerText)");
+          for (const t of split) errors.push(`[${current} #build] "${t}" breaks across lines`);
         }
       }
     }

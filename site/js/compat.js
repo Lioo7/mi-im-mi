@@ -92,6 +92,14 @@ export function contextFor({ meta, parties, topics, positions, results }, lang =
 // Languages the site is published in; Hebrew is the default and the authoritative text.
 export const LANGS = ['he', 'en'];
 
+// A scenario source that carries a party's own reply to the report (#34): a denial, a refusal or a response, in the
+// field `<kind>By` (a party of the scenario). At most one per source.
+export const REPLY_KINDS = ['denial', 'refusal', 'response'];
+export function sourceReply(src) {
+  const kind = REPLY_KINDS.find((k) => src?.[`${k}By`] != null);
+  return kind ? { kind, party: src[`${kind}By`] } : null;
+}
+
 // A data record in the reader's language: its `en` fields over the Hebrew ones. Hebrew records are returned as is.
 export function localize(rec, lang) {
   return lang === 'he' || !rec?.en ? rec : { ...rec, ...rec.en };

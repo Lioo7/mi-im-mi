@@ -2,6 +2,7 @@
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { REPLY_KINDS } from '../site/js/compat.js';
 
 export const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 export const DATA = join(ROOT, 'site', 'data');
@@ -156,7 +157,9 @@ export function validateScenarios(meta, data, parties, results) {
     if (!sc.sources?.length) errors.push(`${at}: no source`);
     for (const src of sc.sources ?? []) {
       if (!src.outlet || !isDate(src.date) || !/^https:\/\/\S+$/.test(src.url ?? '')) errors.push(`${at}: each source needs outlet, YYYY-MM-DD date and an https url`);
-      if (src.denialBy != null && !all.includes(src.denialBy)) errors.push(`${at}: denialBy must be a party in the scenario (${src.denialBy})`);
+      const replies = REPLY_KINDS.map((k) => `${k}By`).filter((f) => src[f] != null);
+      if (replies.length > 1) errors.push(`${at}: a source carries at most one of ${replies.join(', ')}`);
+      for (const f of replies) if (!all.includes(src[f])) errors.push(`${at}: ${f} must be a party in the scenario (${src[f]})`);
     }
   }
   return errors;

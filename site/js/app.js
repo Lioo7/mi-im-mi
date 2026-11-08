@@ -356,11 +356,22 @@ function scenarioList() {
   })).sort((a, b) => a.label.localeCompare(b.label, S.locale));
 }
 
+// One source: "הכחשת <party>: " stays whole up to its colon, a person's name stays whole, and the "ב"/"ב-" before the
+// outlet stays with it, so the line breaks only between these pieces (#30).
+function sourceHtml(src) {
+  const P = S.presets;
+  const reply = C.sourceReply(src);
+  const replyText = reply ? P.replyBy[reply.kind](name(reply.party)) : '';
+  const person = src.by ? P.personIn(src.by, src.outlet) : '';
+  const cut = person.lastIndexOf(' ') + 1;
+  return `${keepWhole(replyText, [replyText.trim()])}${keepWhole(person.slice(0, cut), [src.by])}<span class="nw">${esc(person.slice(cut))}<a href="${esc(src.url)}" rel="noopener" target="_blank">${bidi(src.outlet)}</a>, ${esc(P.shortDate(src.date))}</span>`;
+}
+
 function renderScenarios() {
   const P = S.presets;
   const items = scenarioList().map((sc) => `<li class="scenario">
     <button type="button" class="preset" data-act="scenario" data-id="${esc(sc.id)}" data-key="scenario-${esc(sc.id)}">${esc(sc.label)}</button>
-    <p class="scen-src">${esc(P.sourcesLabel(sc.sources.length))} ${sc.sources.map((x) => C.localize(x, lang)).map((src) => `${src.denialBy ? keepWhole(P.denialBy(name(src.denialBy)), [name(src.denialBy)]) : ''}${src.by ? keepWhole(P.personIn(src.by), [src.by]) : ''}<span class="nw"><a href="${esc(src.url)}" rel="noopener" target="_blank">${bidi(src.outlet)}</a>, ${esc(P.shortDate(src.date))}</span>`).join(' · ')}</p>
+    <p class="scen-src">${esc(P.sourcesLabel(sc.sources.length))} ${sc.sources.map((x) => C.localize(x, lang)).map(sourceHtml).join(' · ')}</p>
   </li>`).join('');
   const asOf = P.shortDate(scenarioData.asOf);
   $('#presets').innerHTML = startFrom(P.scenariosStart(scenarioList().length, asOf), `

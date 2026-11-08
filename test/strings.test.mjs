@@ -224,9 +224,17 @@ test('task cards: neutral wording, no numbers of seats, both languages', async (
   assert.ok(EN.buildPurpose.endsWith('This is not a voting recommendation.'));
 });
 
-test('scenario sources (#34): a denial is prefixed with the party that denied, in both languages', () => {
-  assert.equal(S.presets.denialBy('ישראל ביתנו') + 'ג׳רוזלם פוסט, 5.11', 'הכחשת ישראל ביתנו: ג׳רוזלם פוסט, 5.11');
-  assert.equal(EN.presets.denialBy('Yisrael Beytenu') + 'The Jerusalem Post, 5.11', 'Denial by Yisrael Beytenu: The Jerusalem Post, 5.11');
+test('scenario sources (#34): a party\'s reply is prefixed with its name, in both languages', () => {
+  assert.equal(S.presets.replyBy.denial('ש״ס') + 'mako, 7.11', 'הכחשת ש״ס: mako, 7.11');
+  assert.equal(S.presets.replyBy.refusal('ישראל ביתנו') + 'ynet, 6.11', 'דחיית ישראל ביתנו: ynet, 6.11');
+  assert.equal(S.presets.replyBy.response('יהדות התורה') + 'ynet, 6.11', 'תגובת יהדות התורה: ynet, 6.11');
+  assert.equal(EN.presets.replyBy.denial('Shas') + 'N12 (Mako), 7 Nov', 'Denial by Shas: N12 (Mako), 7 Nov');
+  assert.equal(EN.presets.replyBy.refusal('Yisrael Beytenu') + 'ynet, 6 Nov', 'Rejection by Yisrael Beytenu: ynet, 6 Nov');
+  assert.equal(EN.presets.replyBy.response('United Torah Judaism') + 'ynet, 6 Nov', 'Response by United Torah Judaism: ynet, 6 Nov');
+  // A person's statement: a hyphen before an outlet in Latin letters only.
+  assert.equal(S.presets.personIn('אביגדור ליברמן', 'ynet') + 'ynet', 'אביגדור ליברמן ב-ynet');
+  assert.equal(S.presets.personIn('עמית סגל', 'כיפה') + 'כיפה', 'עמית סגל בכיפה');
+  assert.equal(EN.presets.personIn('Avigdor Liberman', 'ynet') + 'ynet', 'Avigdor Liberman in ynet');
 });
 
 test('why rows and the votes line (#30): the gap sentence in both languages, the votes as unbreakable segments', () => {
