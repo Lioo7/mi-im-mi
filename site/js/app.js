@@ -1501,7 +1501,8 @@ function bind() {
   for (const ev of ['resize', 'scroll']) window.visualViewport?.addEventListener(ev, () => { if ($('#sheet').open) fitSheet(); });
   document.addEventListener('change', (e) => {
     const el = e.target.closest('select[data-act="compare"]');
-    if (el) partySheet(el.dataset.id, el.value);
+    // The sheet is rebuilt, so focus moves to the new select (#6) instead of dropping inside the modal.
+    if (el) { partySheet(el.dataset.id, el.value); $('#sheet select[data-act="compare"]').focus(); }
     const pp = e.target.closest('select[data-act="pair-pick"]');
     if (pp) {
       pair[Number(pp.dataset.slot)] = pp.value || null;

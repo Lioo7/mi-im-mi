@@ -1943,6 +1943,11 @@ try {
           if (RESULTS && (segs.length !== 3 || segs.some((n) => n > 1))) errors.push(`[${current}] votes line at ${pct}%: segments ${JSON.stringify(segs)} (want 3, one line each)`);
         }
         await evaluate(ENLARGE(100));
+        // "Compare with…" (#6): choosing a party re-renders the sheet, and keyboard focus stays on the select.
+        const cmp = await evaluate(`(() => { const s = document.querySelector('#sheet select[data-act="compare"]'); s.focus(); s.value = 'yashar';
+          s.dispatchEvent(new Event('change', { bubbles: true })); const a = document.activeElement;
+          return a?.matches('#sheet select[data-act="compare"]') && a.value === 'yashar' ? 'ok' : 'focus on ' + (a?.dataset?.act || a?.tagName) + ', value ' + a?.value; })()`);
+        if (cmp !== 'ok') errors.push(`[${current}] party sheet "compare with": ${cmp}`);
         await evaluate("document.querySelector('#sheet').close()");
         await metrics(800);
         // Cell sheet: the why row.
@@ -1973,7 +1978,7 @@ try {
       }
     }
     await setSize(SIZES[0]);
-    log(`  ✓ party sheet: ${sheetRuns} runs (360/375/390 × he/en): close inside the visible viewport at rest, scrolled, grown and shrunk; why rows; votes line`);
+    log(`  ✓ party sheet: ${sheetRuns} runs (360/375/390 × he/en): close inside the visible viewport at rest, scrolled, grown and shrunk; why rows; votes line; compare-with focus`);
   }
 
   // Fit (#35): at phone widths, with normal and enlarged text (root and body at 125%, standing in for a wider device
