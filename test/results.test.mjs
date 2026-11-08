@@ -133,8 +133,14 @@ test('media scenarios: valid, at most 4, and their investiture math on the CEC r
   assert.deepEqual(vote('change-haredim'), [61, 59, 0, true, 61]);
   const ch = scenarios.scenarios.find((x) => x.id === 'change-haredim');
   assert.equal(parties.filter((p) => p.bloc === 'opposition').map((p) => p.id).sort().join(), ['yashar', 'together', 'democrats', 'yisrael-beiteinu'].sort().join());
-  // Yisrael Beytenu's denial (The Jerusalem Post, 5.11) is in the source line, generated from the party's name.
-  assert.deepEqual(ch.sources.map((x) => x.denialBy ?? null), [null, 'yisrael-beiteinu']);
+  // 8.11: Liberman's statement (ynet, 6.11) replaced Yisrael Beytenu's denial (The Jerusalem Post, 5.11), with UTJ's
+  // response (Asher, same article) and Shas's denial (mako, 7.11). The prefixes are generated from the party's name.
+  assert.deepEqual(ch.sources.map((x) => [x.by ?? null, x.responseBy ?? null, x.denialBy ?? null]),
+    [[null, null, null], ['אביגדור ליברמן', null, null], [null, 'utj', null], [null, null, 'shas']]);
+  // Scenario 3 keeps its sources and adds Yisrael Beytenu's rejection (ynet, 6.11): the refusing party is a member.
+  const ca = scenarios.scenarios.find((x) => x.id === 'change-arab-not-opposing');
+  assert.deepEqual(ca.sources.map((x) => x.refusalBy ?? null), [null, null, 'yisrael-beiteinu']);
+  assert.ok(ca.members.includes('yisrael-beiteinu'));
 });
 
 test('media scenarios, share text (#1): the supporters\' and abstainers\' clashes on the real data', async () => {
@@ -198,7 +204,10 @@ test('validateScenarios rejects a fifth scenario, double roles, seatless lists a
   assert.ok(bad({ ...one, supporters: [one.members[0]] }).some((e) => e.includes('two roles')));
   assert.ok(bad({ ...one, abstainers: ['kalkalit'] }).some((e) => e.includes('kalkalit')));
   assert.ok(bad({ ...one, sources: [{ outlet: 'x', url: 'https://x.y' }] }).some((e) => e.includes('date')));
-  assert.ok(bad({ ...one, sources: [{ ...one.sources[0], denialBy: 'likud' }] }).some((e) => e.includes('denialBy')), 'a denial names a party of the scenario');
+  for (const f of ['denialBy', 'refusalBy', 'responseBy']) {
+    assert.ok(bad({ ...one, sources: [{ ...one.sources[0], [f]: 'likud' }] }).some((e) => e.includes(f)), `${f} names a party of the scenario`);
+  }
+  assert.ok(bad({ ...one, sources: [{ ...one.sources[0], denialBy: one.members[0], responseBy: one.members[0] }] }).some((e) => e.includes('at most one')), 'one reply per source');
   assert.deepEqual(validateScenarios({ ...meta, mode: 'polls' }, null, parties, results), [], 'polls mode needs no scenarios');
 });
 

@@ -1,5 +1,5 @@
 {
-  "asOf": "2026-11-06",
+  "asOf": "2026-11-08",
   "scenarios": [
     {
       "id": "change-arab-not-opposing",
@@ -8,7 +8,8 @@
       "abstainers": ["raam"],
       "sources": [
         { "outlet": "mako", "date": "2026-10-28", "url": "https://www.mako.co.il/news-israel-elections/2026/Article-9b8beb9041f71a1027.htm", "en": { "outlet": "N12 (Mako)" } },
-        { "outlet": "זמן ישראל", "date": "2026-10-31", "url": "https://www.zman.co.il/live/738237/", "by": "אחמד טיבי", "en": { "outlet": "Zman Yisrael", "by": "Ahmad Tibi" } }
+        { "outlet": "זמן ישראל", "date": "2026-10-31", "url": "https://www.zman.co.il/live/738237/", "by": "אחמד טיבי", "en": { "outlet": "Zman Yisrael", "by": "Ahmad Tibi" } },
+        { "outlet": "ynet", "date": "2026-11-06", "url": "https://www.ynet.co.il/news/article/byb6xmotzl", "refusalBy": "yisrael-beiteinu", "en": { "outlet": "ynet" } }
       ]
     },
     {
@@ -37,7 +38,9 @@
       "abstainers": [],
       "sources": [
         { "outlet": "mako", "date": "2026-11-05", "url": "https://www.mako.co.il/news-politics/2026_q4/Article-92982f1e9dca1a1026.htm", "en": { "outlet": "N12 (Mako)" } },
-        { "outlet": "ג׳רוזלם פוסט", "date": "2026-11-05", "url": "https://www.jpost.com/israel-election-2026/article-914006", "denialBy": "yisrael-beiteinu", "en": { "outlet": "The Jerusalem Post" } }
+        { "outlet": "ynet", "date": "2026-11-06", "url": "https://www.ynet.co.il/news/article/byb6xmotzl", "by": "אביגדור ליברמן", "en": { "outlet": "ynet", "by": "Avigdor Liberman" } },
+        { "outlet": "ynet", "date": "2026-11-06", "url": "https://www.ynet.co.il/news/article/byb6xmotzl", "responseBy": "utj", "en": { "outlet": "ynet" } },
+        { "outlet": "mako", "date": "2026-11-07", "url": "https://www.mako.co.il/news-politics/2026_q4/Article-f32c2fa7637b1a1027.htm", "denialBy": "shas", "en": { "outlet": "N12 (Mako)" } }
       ]
     }
   ]
