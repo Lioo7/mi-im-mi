@@ -465,6 +465,16 @@ export const S = {
     corrections: 'מצאתם טעות? כתבו לנו ונתקן.',
     researchDocs: 'נימוקי המיקום והחלטות הבדיקה',
     researchDocsNote: 'לכל עמדה יש תיעוד של הראיות ושל החלטות הבדיקה, כולל קווי אדום ושיקולים שעלו.',
+    // Data changes (#19): site/data/changelog.json, loaded when the method page opens. A placement line is built from the
+    // data (party name, topic, the two axis labels); the other kinds have their own text in the file.
+    changes: {
+      title: 'שינויים בנתונים',
+      intro: 'שינויים במה שמוצג באתר: תוצאות, מיקומים, שמות, תרחישים והמלצות לנשיא. הנימוקים המלאים ביומן ההחלטות.',
+      logLink: 'יומן ההחלטות',
+      logUrl: 'https://github.com/Lioo7/mi-im-mi/blob/main/docs/research/decisions.md',
+      kinds: { results: 'תוצאות', placement: 'מיקום', name: 'שם', scenario: 'תרחיש', recommendations: 'המלצות לנשיא' },
+      placement: (p, t, from, to) => `${p}, ${t}: מ-״${from}״ ל-״${to}״`,
+    },
     // Data download (#18): the files are site/download/, written by scripts/export-download.mjs. positionNote and license
     // also go into the JSON file's metadata, so these strings are the one source for both.
     download: {

@@ -455,6 +455,15 @@ export const S = {
     corrections: 'Found a mistake? Write to us and we will fix it.',
     researchDocs: 'Placement reasoning and review decisions',
     researchDocsNote: 'Every position has a record of the evidence and of the review decisions, including red lines and considerations that came up.',
+    // Data changes (#19); see strings.js.
+    changes: {
+      title: 'Data changes',
+      intro: 'Changes to what the site shows: results, placements, names, scenarios and recommendations to the President. The full reasoning is in the decision log (in Hebrew).',
+      logLink: 'decision log',
+      logUrl: 'https://github.com/Lioo7/mi-im-mi/blob/main/docs/research/decisions.md',
+      kinds: { results: 'Results', placement: 'Placement', name: 'Name', scenario: 'Scenario', recommendations: 'Recommendations to the President' },
+      placement: (p, t, from, to) => `${p}, ${t}: from "${from}" to "${to}"`,
+    },
     // Data download (#18); see strings.js.
     download: {
       title: 'Download the data',

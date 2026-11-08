@@ -29,6 +29,7 @@ Issue format: a one-sentence goal, short bullets, a "Done when" line. Labels: en
   - Output: a line per section and the first 10 errors, everything in `smoke/<mode>/smoke.log` (`smoke/remote/` for a URL). Screenshots only with `--shots` (`*-en.png` for English).
   - **Never drop or loosen an assertion to make a run pass.** What each section enforces is commented in `scripts/smoke.mjs`: both languages, beacons, CSP and headers, no coalition state in any request, first-screen fit (#26), fit at 360–412 and 125% text (#35), the party sheet's ✕ (#30). Bounded (#27): `SMOKE_STEP_MS`, `SMOKE_WATCHDOG_MS`.
 - **Data, translations, archive:** the commands are in `.claude/rules/data.md` and `.claude/rules/i18n.md`.
+- **Data-change checklist:** a change a visitor would notice (results, a placement, a name, a scenario, the recommendations) gets an entry in `site/data/changelog.json`, the method page's public list (#19). Validate fails after any data change until `node scripts/changelog.mjs --ack` records the review (a typo fix needs no entry, only the ack). Format and neutrality rules: `.claude/rules/data.md`.
 - **Deploy:** `/deploy`. Full local suite → draft (`netlify deploy --dir=site --json`) → `--light` against the draft → the user's phone check → **only after the user's OK**, publish that same deploy (`netlify api restoreSiteDeploy`) → `--light` against production.
 
 ## Neutrality (a product requirement)

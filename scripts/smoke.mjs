@@ -238,6 +238,28 @@ function downloadErrors(lng, got) {
   if (got.license !== D.licenseUrl) errs.push(`the ${D.licenseName} link should go to ${D.licenseUrl} (${got.license})`);
   return errs;
 }
+// The method page's data changes (#19): every changelog.json entry, newest first, with its date and kind, and the exact
+// line in the page's language (a placement from the party name and the two axis labels, a token as the party's name).
+const CHANGES_JS = `(() => { const ul = document.querySelector('#changes-list'); return ul ? [...ul.children].map((li) => ({ kind: li.dataset.kind,
+  date: li.querySelector('time')?.getAttribute('datetime'), text: li.innerText.replace(/\\s+/g, ' ').trim() })) : null; })()`;
+function changesErrors(lng, got) {
+  const T = lng === 'he' ? S : EN;
+  const G = T.method.changes;
+  const { parties, topics, changelog } = loadData();
+  const L = (rec) => (lng === 'he' ? rec : { ...rec, ...rec.en });
+  const pname = (id) => L(parties.find((p) => p.id === id)).name;
+  const tp = (id) => L(topics.find((t) => t.id === id));
+  const label = (t, v) => (v == null ? T.sheet.noPositionLabel : t.axis[String(v)]);
+  if (!got?.length) return ['the changes list is missing or empty'];
+  if (got.length !== changelog.entries.length) return [`expected ${changelog.entries.length} entries, got ${got.length}`];
+  return changelog.entries.flatMap((e, i) => {
+    const t = e.kind === 'placement' ? tp(e.topic) : null;
+    const line = t ? G.placement(pname(e.party), t.name, label(t, e.from), label(t, e.to))
+      : e[lng].replace(/\{(party|topic):([^}]*)\}/g, (_, k, id) => (k === 'party' ? pname(id) : tp(id).name));
+    const want = `${T.fmtDate(e.date)} · ${G.kinds[e.kind]}: ${line}`.replace(/\s+/g, ' ');
+    return got[i].date === e.date && got[i].kind === e.kind && got[i].text === want ? [] : [`entry ${i + 1}: expected "${want}", got "${got[i].text}"`];
+  });
+}
 const CARD_JS = `(() => { const h = document.querySelector('#results-coalition'); const t = (e) => e ? e.innerText.replace(/\\s+/g, ' ').trim() : null;
   const lines = [...h.querySelectorAll(':scope > .coalition-line')]; const o = document.querySelector('#results .overall');
   const bd = o?.querySelector('.breakdown'); const ob = o?.querySelector('.outside-block');
@@ -709,6 +731,8 @@ try {
         const secs = await evaluate("(() => { const p = document.querySelector('#privacy'), a = document.querySelector('#accessibility'); const f = [...document.querySelectorAll('#footer a')].map((x) => x.getAttribute('href')); return [p?.innerText.includes('GoatCounter') && p.innerText.includes('lioz.akirav@gmail.com'), a?.innerText.includes('5568') && a.innerText.includes('1.11.2026'), f.includes('#privacy'), f.includes('#accessibility')].join(','); })()");
         if (secs !== 'true,true,true,true') errors.push(`[${current}] privacy/accessibility sections or footer links missing (${secs})`);
         for (const e of downloadErrors('he', await evaluate(DOWNLOAD_JS))) errors.push(`[${current}] download: ${e}`);
+        await waitFor(() => evaluate("document.querySelectorAll('#changes-list li').length > 0")).catch(() => {});
+        for (const e of changesErrors('he', await evaluate(CHANGES_JS))) errors.push(`[${current}] changes: ${e}`);
         if (name !== 'method') {
           const top = await evaluate(`Math.round(document.querySelector('#${name}').getBoundingClientRect().top)`);
           if (top < 0 || top > z.height - 120) errors.push(`[${current}] #${name} did not scroll into view (top ${top})`);
@@ -1429,7 +1453,14 @@ try {
       if (hebrew) errors.push(`[${current}] Hebrew text outside lang="he" (untranslated?): ${hebrew}`);
       const sw = await evaluate(SWITCH_CHECK('en'));
       if (sw !== 'ok') errors.push(`[${current}] language switch: ${sw}`);
-      if (expectView === 'method') for (const e of downloadErrors('en', await evaluate(DOWNLOAD_JS))) errors.push(`[${current}] download: ${e}`);
+      if (expectView === 'method') {
+        for (const e of downloadErrors('en', await evaluate(DOWNLOAD_JS))) errors.push(`[${current}] download: ${e}`);
+        await waitFor(() => evaluate("document.querySelectorAll('#changes-list li').length > 0")).catch(() => {});
+        for (const e of changesErrors('en', await evaluate(CHANGES_JS))) errors.push(`[${current}] changes: ${e}`);
+        // The list loads after the first check for Hebrew, so check again now that it is there.
+        const late = await evaluate(HEBREW_OUTSIDE);
+        if (late) errors.push(`[${current}] Hebrew text outside lang="he" in the changes list: ${late}`);
+      }
       if (SEATS_HIDDEN) {
         const seatText = await evaluate(`(document.body.innerText.match(${EN_POLL_TEXT}) || [])[0] || ''`);
         if (seatText) errors.push(`[${current}] showSeats is off but poll-derived text is visible: "${seatText}"`);

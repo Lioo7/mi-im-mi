@@ -1,0 +1,87 @@
+{
+  "reviewed": "147926486a35c152e8be05e76715c9bd39751a810856163d3ba43526461948c3",
+  "entries": [
+    {
+      "date": "2026-11-08",
+      "kind": "recommendations",
+      "he": "נוספו המלצות הסיעות לנשיא, לפי הודעות לשכת הנשיא, והודעת הנשיא מ-7.11 על הטלת מלאכת הרכבת הממשלה.",
+      "en": "Added the factions' recommendations to the President, per the President's office, and the President's 7 Nov announcement on who is tasked with forming the government."
+    },
+    {
+      "date": "2026-11-08",
+      "kind": "scenario",
+      "he": "בשורות המקור של שני תרחישים נוספו תגובות של {party:yisrael-beiteinu}, {party:utj} ו{party:shas}. ההרכבים והתפקידים לא השתנו.",
+      "en": "Responses by {party:yisrael-beiteinu}, {party:utj} and {party:shas} were added to the source lines of two scenarios. Members and roles did not change."
+    },
+    {
+      "date": "2026-11-06",
+      "kind": "scenario",
+      "he": "נוסף תרחיש: {party:yashar}, {party:together}, {party:democrats}, {party:yisrael-beiteinu}, {party:utj} ו{party:shas}.",
+      "en": "Added a scenario: {party:yashar}, {party:together}, {party:democrats}, {party:yisrael-beiteinu}, {party:utj} and {party:shas}."
+    },
+    {
+      "date": "2026-11-04",
+      "kind": "results",
+      "he": "התוצאות הרשמיות שוועדת הבחירות המרכזית הגישה לנשיא ב-4.11 החליפו את התוצאות מ-30.10. מספרי הקולות של 13 רשימות עודכנו, והרכב הכנסת לא השתנה.",
+      "en": "The official results the Central Elections Committee submitted to the President on 4 Nov replaced the results of 30 Oct. The vote counts of 13 lists were updated, and the makeup of the Knesset did not change."
+    },
+    {
+      "date": "2026-11-02",
+      "kind": "placement",
+      "party": "zehut",
+      "topic": "crime",
+      "from": -1,
+      "to": -2
+    },
+    {
+      "date": "2026-11-02",
+      "kind": "placement",
+      "party": "democrats",
+      "topic": "crime",
+      "from": -2,
+      "to": -1
+    },
+    {
+      "date": "2026-11-01",
+      "kind": "scenario",
+      "he": "נוסף תרחיש: {party:yashar}, {party:together}, {party:democrats} ו{party:yisrael-beiteinu}, עם {party:joint-list} כתומכת מבחוץ ו{party:raam} כנמנעת.",
+      "en": "Added a scenario: {party:yashar}, {party:together}, {party:democrats} and {party:yisrael-beiteinu}, with {party:joint-list} supporting from outside and {party:raam} abstaining."
+    },
+    {
+      "date": "2026-11-01",
+      "kind": "scenario",
+      "he": "נוסף תרחיש: {party:likud}, {party:yashar}, {party:otzma-yehudit}, {party:religious-zionism} ו{party:zehut}.",
+      "en": "Added a scenario: {party:likud}, {party:yashar}, {party:otzma-yehudit}, {party:religious-zionism} and {party:zehut}."
+    },
+    {
+      "date": "2026-11-01",
+      "kind": "scenario",
+      "he": "נוסף תרחיש: {party:likud}, {party:yashar}, {party:together}, {party:religious-zionism} ו{party:zehut}.",
+      "en": "Added a scenario: {party:likud}, {party:yashar}, {party:together}, {party:religious-zionism} and {party:zehut}."
+    },
+    {
+      "date": "2026-11-01",
+      "kind": "scenario",
+      "he": "בתצוגת התוצאות, תרחישים שעלו בתקשורת החליפו את התרחישים לפי גושים.",
+      "en": "In the results view, scenarios reported in the media replaced the bloc presets."
+    },
+    {
+      "date": "2026-11-01",
+      "kind": "results",
+      "he": "{party:kalkalit} ו{party:amcha-yisrael} לא עברו את אחוז החסימה, ולכן אי אפשר לבחור אותן לקואליציה. העמדות שלהן עדיין מוצגות.",
+      "en": "{party:kalkalit} and {party:amcha-yisrael} did not pass the electoral threshold, so they cannot be selected for a coalition. Their positions are still shown."
+    },
+    {
+      "date": "2026-11-01",
+      "kind": "results",
+      "he": "{party:religious-zionism} ו{party:zehut}, שרצו ברשימה אחת, נבחרות ונספרות כל אחת בנפרד, לפי המקומות שלהן ברשימה.",
+      "en": "{party:religious-zionism} and {party:zehut}, which ran on one list, are selected and counted separately, by their places on the list."
+    },
+    {
+      "date": "2026-11-01",
+      "kind": "results",
+      "he": "האתר עבר מממוצע הסקרים לתוצאות של ועדת הבחירות המרכזית, והמפלגות מסודרות לפי התוצאות.",
+      "en": "The site moved from the poll average to the Central Elections Committee results, and parties are ordered by the results."
+    }
+  ]
+}

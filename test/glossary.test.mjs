@@ -6,7 +6,7 @@ import { loadData } from '../scripts/lib.mjs';
 import { S as HE } from '../site/js/strings.js';
 import { S as EN } from '../site/js/strings.en.js';
 
-const { parties, topics, meta, positions, results } = loadData();
+const { parties, topics, meta, positions, results, changelog } = loadData();
 
 import { unquoted } from './text.mjs';
 
@@ -52,6 +52,7 @@ const TEXTS = {
     ...parties.flatMap((p) => partyTexts(p).map((s) => [`party ${p.id}`, s])),
     ['meta', meta.resultsStatus],
     ...(results?.lists ?? []).filter((l) => l.splitNote).map((l) => ['results', l.splitNote]),
+    ...(changelog?.entries ?? []).filter((e) => e.he).map((e) => [`changelog ${e.date}`, e.he]),
   ],
   en: [
     ...strings(EN).map((s) => ['strings.en.js', s]),
@@ -60,6 +61,7 @@ const TEXTS = {
     ...parties.flatMap((p) => partyTexts(p.en).map((s) => [`party ${p.id} en`, s])),
     ['meta en', meta.en.resultsStatus],
     ...(results?.lists ?? []).filter((l) => l.en?.splitNote).map((l) => ['results en', l.en.splitNote]),
+    ...(changelog?.entries ?? []).filter((e) => e.en).map((e) => [`changelog ${e.date} en`, e.en]),
   ],
 };
 

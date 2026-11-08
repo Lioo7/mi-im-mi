@@ -26,7 +26,7 @@ test('no ";" in Hebrew data text outside quotes (summaries, axis labels and note
     if (typeof v === 'string') { if (HEBREW.test(v) && unquoted(v).includes(';')) bad.push(`${path}: ${v.slice(0, 80)}`); return; }
     if (v && typeof v === 'object') for (const [k, x] of Object.entries(v)) if (!skip(k)) walk(x, `${path}.${k}`);
   };
-  for (const name of ['parties', 'topics', 'meta', 'positions', 'results', 'scenarios', 'recommendations']) walk(data[name], name);
+  for (const name of ['parties', 'topics', 'meta', 'positions', 'results', 'scenarios', 'recommendations', 'changelog']) walk(data[name], name);
   assert.deepEqual(bad, []);
 });
 

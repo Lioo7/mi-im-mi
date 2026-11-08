@@ -1,5 +1,6 @@
 // Shared helpers for the data scripts: paths, JSON IO, CSV, validation. Node built-ins only.
-import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { REPLY_KINDS, contextFor } from '../site/js/compat.js';
@@ -27,6 +28,7 @@ export function loadData() {
     results: exists(join(DATA, RESULTS_FILE)) ? readJson(join(DATA, RESULTS_FILE)) : null,
     scenarios: exists(join(DATA, SCENARIOS_FILE)) ? readJson(join(DATA, SCENARIOS_FILE)) : null,
     recommendations: exists(join(DATA, RECOMMENDATIONS_FILE)) ? readJson(join(DATA, RECOMMENDATIONS_FILE)) : null,
+    changelog: exists(join(DATA, 'changelog.json')) ? readJson(join(DATA, 'changelog.json')) : null,
   };
 }
 
@@ -472,4 +474,54 @@ export function validateDownload(data, files) {
   return Object.entries(DOWNLOAD_FILES)
     .filter(([k]) => files[k] !== want[k])
     .map(([k, f]) => `site/download/${f}: ${files[k] == null ? 'missing' : 'out of date'} (run node scripts/export-download.mjs)`);
+}
+
+// ---------- data changelog (site/data/changelog.json, #19) ----------
+// The method page's dated list of data changes a visitor would notice. Neutral by construction: a placement entry has no
+// text (it is rendered from parties.json names and topics.json axis labels), and the other kinds name parties and topics
+// only as {party:<id>} / {topic:<id>} tokens. `reviewed` is the fingerprint of the data files when the list was last
+// checked, so any data change fails validate until it gets an entry or an explicit `node scripts/changelog.mjs --ack`.
+export const CHANGELOG_FILE = 'changelog.json';
+export const CHANGE_KINDS = ['results', 'placement', 'name', 'scenario', 'recommendations'];
+const TOKEN = /\{(party|topic):([^}]*)\}/g;
+
+// sha256 of every data file the site shows, except the changelog itself, in name order.
+export function dataFingerprint(dir = DATA) {
+  const h = createHash('sha256');
+  for (const f of readdirSync(dir).filter((x) => x.endsWith('.json') && x !== CHANGELOG_FILE).sort()) h.update(`${f}\n`).update(readFileSync(join(dir, f)));
+  return h.digest('hex');
+}
+
+export function validateChangelog(log, { parties, topics, positions, fingerprint }) {
+  const errors = [];
+  if (!log || !Array.isArray(log.entries) || !log.entries.length) return ['changelog: entries missing or empty'];
+  const pids = new Set(parties.map((p) => p.id));
+  const tids = new Set(topics.map((t) => t.id));
+  const live = new Map(positions.map((p) => [key(p), p.position]));
+  const isPos = (v) => v === null || [-2, -1, 0, 1, 2].includes(v);
+  const seen = new Set();
+  log.entries.forEach((e, i) => {
+    const at = `changelog entry ${i + 1} (${e.date})`;
+    if (!isDate(e.date)) errors.push(`${at}: bad date`);
+    if (i && e.date > log.entries[i - 1].date) errors.push(`${at}: entries must be newest first`);
+    if (!CHANGE_KINDS.includes(e.kind)) { errors.push(`${at}: unknown kind ${e.kind}`); return; }
+    if (e.kind === 'placement') {
+      if (!pids.has(e.party) || !tids.has(e.topic)) errors.push(`${at}: unknown party or topic (${e.party}, ${e.topic})`);
+      if (!isPos(e.from) || !isPos(e.to) || e.from === e.to) errors.push(`${at}: from/to must be different positions (−2…2 or null)`);
+      if ('he' in e || 'en' in e) errors.push(`${at}: a placement entry has no text (it is rendered from the data)`);
+      // The newest entry for a cell must say what the data shows now.
+      const k = `${e.party}|${e.topic}`;
+      if (!seen.has(k) && live.has(k) && live.get(k) !== e.to) errors.push(`${at}: says ${e.party} × ${e.topic} is now ${e.to}, positions.json has ${live.get(k)}`);
+      seen.add(k);
+      return;
+    }
+    if (typeof e.he !== 'string' || !e.he.trim()) errors.push(`${at}: missing he`);
+    if (typeof e.en !== 'string' || !isEnglish(e.en.replace(TOKEN, 'x'))) errors.push(`${at}: missing or non-English en`);
+    const tokens = (s) => [...(s ?? '').matchAll(TOKEN)].map((m) => `${m[1]}:${m[2]}`).sort().join();
+    for (const f of ['he', 'en']) if (/[{}]/.test((e[f] ?? '').replace(TOKEN, ''))) errors.push(`${at}: ${f} has a brace that is not a {party:<id>} or {topic:<id>} token`);
+    for (const t of [...(e.he ?? '').matchAll(TOKEN)]) if (!(t[1] === 'party' ? pids : tids).has(t[2])) errors.push(`${at}: unknown ${t[1]} ${t[2]}`);
+    if (tokens(e.he) !== tokens(e.en)) errors.push(`${at}: he and en must name the same parties and topics`);
+  });
+  if (log.reviewed !== fingerprint) errors.push('changelog: the data changed since the changelog was last reviewed. Add an entry to site/data/changelog.json for a change a visitor would notice, then run node scripts/changelog.mjs --ack');
+  return errors;
 }

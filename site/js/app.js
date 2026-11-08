@@ -299,6 +299,7 @@ function renderMethod() {
     <p>${esc(M.pollsGuidance)} <a href="${esc(meta.pollGuidanceUrl)}" rel="noopener">${esc(M.pollsGuidanceLink)}</a></p>` : ''}
     <h3>${esc(M.researchDocs)}</h3>
     <p>${esc(M.researchDocsNote)} <a href="https://github.com/Lioo7/mi-im-mi/tree/main/docs/research" rel="noopener">${esc(M.researchDocs)}</a></p>
+    ${changesSection()}
     ${downloadSection()}
     <section id="privacy" class="anchor" tabindex="-1">
       <h3>${esc(P.title)}</h3>
@@ -317,6 +318,38 @@ function renderMethod() {
     </section>
     <p><strong>${esc(M.corrections)}</strong> <a href="mailto:lioz.akirav@gmail.com"><bdi>lioz.akirav@gmail.com</bdi></a></p>
     <p class="muted">${esc(M.updated(fmtDate(meta.dataUpdated)))}</p>`;
+}
+
+// Method page: the data changes (#19), from data/changelog.json, fetched the first time the method page opens.
+let changelog = null;
+let changelogLoad = null;
+function loadChangelog() {
+  changelogLoad ??= fetch('data/changelog.json').then((r) => {
+    if (!r.ok) throw new Error(`changelog: ${r.status}`);
+    return r.json();
+  }).then((d) => {
+    changelog = d;
+    const ul = $('#changes-list');
+    if (ul) ul.innerHTML = changeItems();
+  }).catch((err) => console.error(err));
+}
+const fillTokens = (text) => text.replace(/\{(party|topic):([^}]*)\}/g, (_, k, id) => (k === 'party' ? name(id) : topic(id)?.name ?? id));
+function changeItems() {
+  const G = S.method.changes;
+  return (changelog?.entries ?? []).map((e) => {
+    const t = e.kind === 'placement' ? topic(e.topic) : null;
+    const line = t ? G.placement(name(e.party), t.name, axisLabel(e.topic, e.from), axisLabel(e.topic, e.to)) : fillTokens(e[lang] ?? e.he);
+    return `<li data-kind="${esc(e.kind)}"><span class="muted"><time datetime="${esc(e.date)}">${esc(fmtDate(e.date))}</time> · ${esc(G.kinds[e.kind])}:</span> ${bidi(line)}</li>`;
+  }).join('');
+}
+function changesSection() {
+  const G = S.method.changes;
+  const [before, after] = G.intro.split(G.logLink);
+  return `<section id="changes" class="anchor" tabindex="-1">
+      <h3>${esc(G.title)}</h3>
+      <p>${esc(before)}<a href="${esc(G.logUrl)}" rel="noopener">${esc(G.logLink)}</a>${esc(after)}</p>
+      <ul id="changes-list" class="changes">${changeItems()}</ul>
+    </section>`;
 }
 
 // Method page: the data download (#18). The files are generated from the live data (scripts/export-download.mjs).
@@ -1324,6 +1357,7 @@ function route(initial = false) {
   for (const id of VIEWS) $(`#view-${id}`).hidden = id !== view;
   document.body.dataset.view = view;
   render();
+  if (view === 'method') loadChangelog();
   if (anchor) $(`#${anchor}`)?.scrollIntoView();
   else if (changed || initial) window.scrollTo(0, 0);
   // Coming from the entry link, focus would stay on a hidden element: move it to the view's heading.
