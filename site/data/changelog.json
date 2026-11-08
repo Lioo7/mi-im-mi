@@ -80,8 +80,8 @@
     {
       "date": "2026-11-01",
       "kind": "results",
-      "he": "האתר עבר מממוצע הסקרים לתוצאות של ועדת הבחירות המרכזית, והמפלגות מסודרות לפי התוצאות.",
-      "en": "The site moved from the poll average to the Central Elections Committee results, and parties are ordered by the results."
+      "he": "האתר עבר להציג את התוצאות של ועדת הבחירות המרכזית, והמפלגות מסודרות לפי התוצאות.",
+      "en": "The site switched to the Central Elections Committee results, and parties are ordered by the results."
     }
   ]
 }
