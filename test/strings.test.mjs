@@ -16,10 +16,6 @@ test('count labels use the singular for 1 and the digit plural otherwise', () =>
   assert.equal(S.nav.partyCount(6), '6 מפלגות נבחרו');
   assert.equal(S.results.morePairs(1), 'ועוד זוג מפלגות אחד');
   assert.equal(S.results.morePairs(4), 'ועוד 4 זוגות מפלגות');
-  assert.equal(S.builder.clashChipLabel(1), 'הוספתה תיצור סתירה חזיתית בנושא אחד');
-  assert.equal(S.builder.clashChipLabel(2), 'הוספתה תיצור סתירה חזיתית ב-2 נושאים');
-  assert.equal(S.builder.ownMissingLabel(1), 'אין עמדה מוצהרת בנושא אחד');
-  assert.equal(S.results.overall(1, 1), '1 מתוך נושא אחד ללא סתירה חזיתית');
   assert.ok(!/(^|\D)1 (נושאים|מפלגות|זוגות)/.test(S.builder.impactLabel(1, 1, 1)));
 });
 

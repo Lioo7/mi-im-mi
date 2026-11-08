@@ -25,7 +25,6 @@ export const S = {
   fmtDate: (iso) => (!iso ? '' : /^\d{4}$/.test(iso) ? iso : `${dayMonth(iso)} ${iso.slice(0, 4)}`),
   appName: 'Mi Im Mi',
   pageTitle: 'Mi Im Mi · Who With Whom',
-  tagline: 'Build a coalition and see where the parties agree and where they clash',
   updated: (d) => `Updated ${d}`,
   stubBanner: 'Dummy data for development only: these positions are not real',
   skip: 'Skip to results',
@@ -68,7 +67,6 @@ export const S = {
       'Each party has a position on 8 topics, based on its platform, official statements and actual record (bills the party initiated or advanced), with a source.',
       'The color shows the distance between positions, not what is right.',
     ],
-    more: 'Full methodology →',
     tapHint: 'Tap any cell or topic to see the source and why it has this color',
   },
 
@@ -102,48 +100,35 @@ export const S = {
   },
 
   builder: {
-    yours: 'Your coalition',
     empty: 'No parties selected yet',
     add: 'Add a partner',
     clear: 'Clear all',
     base: 'Base',
-    setBase: (n) => `Make ${n} the base`,
-    unsetBase: (n) => `Remove ${n} as the base`,
     remove: (n) => `Remove ${n}`,
-    addParty: (n) => `Add ${n}`,
     outside: 'From outside',
     borderline: 'At the threshold',
     seatsChip: (n) => seatsN(n),
     title: 'Build a coalition',
     pick: 'Pick parties',
-    baseTag: '★ Base',
     hint: 'Each party you pick has a role: in the coalition (sits in the government), supporter (supports the government from outside) or abstainer (in the confidence vote). A party you did not pick counts as opposed. Clashes are checked among coalition members, and the gaps of supporters and abstainers are shown separately. You choose a base for comparison in the results.',
     roles: { member: 'In coalition', supporter: 'Supporter', abstainer: 'Abstainer' },
     roleGroup: (n) => `${n}: role`,
     roleAnnounce: (n, role) => `${n}: ${role}`,
-    rowLabel: (n) => n,
-    ownMissing: (n) => `?${n}`,
-    ownMissingLabel: (n) => `No stated position ${inTopics(n)}`,
     impactLabel: (a, c, u) => `Compared with the current coalition: ${topicsN(a)} in agreement or a small gap, ${c} in a head-on clash, ${u} with no stated position`,
     impactHeading: 'Compared with the current coalition',
     impactAgree: 'Agreement or small gap',
     impactClash: 'Head-on clash',
     impactUnknown: 'No position',
-    clashChipLabel: (n) => `Adding it creates a head-on clash ${inTopics(n)}`,
     coverage: (n) => `Positions: ${n} of 8`,
     jointListNote: (letters) => `Ran on a joint list (${letters})`,
     linkedNote: (a, b) => `${a} and ${b} ran on a joint list and announced they would split and negotiate separately.`,
   },
 
   seats: {
-    counter: (n) => `About ${n} of 61 seats`,
     missing: (n) => `${n} short of 61`,
-    reached: 'A majority of 61',
-    withOutside: (inside, out) => `About ${inside} in the coalition, plus ${out} from outside`,
     total: (n) => `(about ${n} in total)`,
     borderlineNote: (n) => `Includes ${n} from a party at the threshold, possibly 0`,
     unityMissing: (n) => `You are ${seatsN(n)} short of 61`,
-    unit: 'seats',
     boxTitle: 'Seats',
     empty: 'Pick parties to see how many seats they have together.',
     num: (n, exact) => `${exact ? '' : '≈'}${n}`,
@@ -158,9 +143,7 @@ export const S = {
     pivotalRow: (name, role, members, f, a) => (role === 'abstainer' ? `If ${name} votes against: ${f} vs ${a}`
       : `Without ${name}${role === 'supporter' ? ' (supports from outside)' : ''}: ${members != null ? `coalition members ${members} of 61 · ` : ''}${f} vs ${a}`),
     pivotalNone: 'No single party does this.',
-    majority: 'Majority',
     short: (n) => `${n} short`,
-    outsideBit: (n) => `+ ${n} from outside`,
     // A translation for the reader; the app shows the required Hebrew sentence verbatim before it.
     pollLegal: (d) => `Average of polls published up to ${d}. The polls are not current, and nothing should be inferred from them about voting patterns or public opinion today.`,
     sourceInfo: 'Source',
@@ -225,7 +208,6 @@ export const S = {
   toParty: (name) => name,
 
   results: {
-    pickOne: 'Pick at least one party, or a ready-made scenario.',
     summaryTitle: 'Overview',
     // The snapshot title with 2+ members: everything up to the outside block is between the members only.
     summaryTitleScoped: (n) => `Overview: between the ${n} coalition members`,
@@ -287,7 +269,6 @@ export const S = {
       if (!members.length) return `Previous coalition restored · ${out}`;
       return `Previous coalition restored: ${members.join(' + ')}${out ? ` · ${out}` : ''}`;
     },
-    overall: (x, y) => `${x} of ${topicsN(y)} without a head-on clash`,
     breakdown: (a, mi, m, c, w) => [
       [`${topicsN(a)} in agreement`, 'bd-ok', false],
       [`${mi} with a small gap`, 'bd-minor', false],
@@ -353,10 +334,8 @@ export const S = {
     reference: '● Reference point',
     relBase: (n) => `Color = the gap from ${n} (the base)`,
     relWorst: 'Color = the party\'s most severe clash on the topic with any partner',
-    baseHint: 'Pick a party to see how all the others match it.',
     colorBy: 'Color by:',
     colorByAll: 'All',
-    colorByAllHint: 'All: the color shows the most severe clash with any partner',
     baseNull: 'The base has no position',
     cellLabel: (party, topic, level, ref) => (ref
       ? `${party}, ${topic}: ${level} vs. ${ref}`
@@ -374,8 +353,6 @@ export const S = {
     date: (d) => (/^\d{4}$/.test(d) ? `from ${d}` : `dated ${d}`),
     why: 'Why this color?',
     noPosition: 'We found no stated position of the party on this topic in a source that meets our rules.',
-    gap: (a, b, d, la, lb) => `${a} ↔ ${b}: ${d} steps (${la} ↔ ${lb})`,
-    gapRed: (a, b, d, red) => `${a} ↔ ${b}: ${d} steps, and ${red} has declared this a red line`,
     officialName: 'Official list name',
     archive: 'Archived copy',
     correction: 'Found a mistake in this position?',

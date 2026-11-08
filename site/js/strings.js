@@ -15,7 +15,6 @@ export const S = {
   fmtDate: (iso) => (iso ? iso.split('-').reverse().join('.') : ''),
   appName: 'מי עם מי',
   pageTitle: 'מי עם מי · בנו קואליציה וגלו איפה המפלגות מסכימות ואיפה הן מתנגשות',
-  tagline: 'בנו קואליציה וגלו איפה המפלגות מסכימות ואיפה הן מתנגשות',
   updated: (d) => `עודכן ${d}`,
   stubBanner: 'נתוני דמה לפיתוח בלבד: העמדות אינן אמיתיות',
   skip: 'דלגו לתוצאות',
@@ -64,7 +63,6 @@ export const S = {
       'לכל מפלגה מיקום ב-8 נושאים, לפי המצע, הצהרות רשמיות ורקורד בפועל (הצעות חוק שהמפלגה יזמה או קידמה), עם מקור.',
       'הצבע מראה את המרחק בין העמדות, לא מה נכון.',
     ],
-    more: 'למתודולוגיה המלאה ←',
     tapHint: 'לחצו על כל תא או נושא כדי לראות את המקור ולמה הצבע הזה',
   },
 
@@ -102,48 +100,35 @@ export const S = {
   },
 
   builder: {
-    yours: 'הקואליציה שלכם',
     empty: 'עדיין לא נבחרו מפלגות',
     add: 'הוסיפו שותפה',
     clear: 'נקו הכול',
     base: 'בסיס',
-    setBase: (n) => `קבעו את ${n} כבסיס`,
-    unsetBase: (n) => `בטלו את ${n} כבסיס`,
     remove: (n) => `הסירו את ${n}`,
-    addParty: (n) => `הוסיפו את ${n}`,
     outside: 'מבחוץ',
     borderline: 'על הסף',
     seatsChip: (n) => `${n} מנ׳`,
     title: 'בנו קואליציה',
     pick: 'בחרו מפלגות',
-    baseTag: '★ בסיס',
     hint: 'לכל מפלגה שבחרתם יש תפקיד: בקואליציה (יושבת בממשלה), תומכת (תומכת בממשלה מבחוץ) או נמנעת (בהצבעת האמון). מפלגה שלא נבחרה נחשבת מתנגדת. ההתנגשויות נבדקות בין חברות הקואליציה, והפערים של תומכות ונמנעות מוצגים בנפרד. בסיס להשוואה בוחרים בתוצאות.',
     roles: { member: 'בקואליציה', supporter: 'תומכת', abstainer: 'נמנעת' },
     roleGroup: (n) => `${n}: תפקיד`,
     roleAnnounce: (n, role) => `${n}: ${role}`,
-    rowLabel: (n) => n,
-    ownMissing: (n) => `?${n}`,
-    ownMissingLabel: (n) => `אין עמדה מוצהרת ${inTopics(n)}`,
     impactLabel: (a, c, u) => `ביחס לקואליציה הנוכחית: ${topicsN(a)} בהסכמה או בפער קל, ${c} בסתירה חזיתית, ${u} בלי עמדה מוצהרת`,
     impactHeading: 'ביחס לקואליציה הנוכחית',
     impactAgree: 'הסכמה או פער קל',
     impactClash: 'סתירה חזיתית',
     impactUnknown: 'בלי עמדה',
-    clashChipLabel: (n) => `הוספתה תיצור סתירה חזיתית ${inTopics(n)}`,
     coverage: (n) => `עמדות: ${n} מתוך 8`,
     jointListNote: (letters) => `רצו ברשימה משותפת (${letters})`,
     linkedNote: (a, b) => `${a} ו${b} רצו ברשימה משותפת והודיעו שיתפצלו וינהלו משא ומתן בנפרד.`,
   },
 
   seats: {
-    counter: (n) => `כ-${n} מנדטים מתוך 61`,
     missing: (n) => `חסרים ${n} ל-61`,
-    reached: 'יש רוב של 61',
-    withOutside: (inside, out) => `כ-${inside} בקואליציה, ועוד ${out} מבחוץ`,
     total: (n) => `(סה״כ כ-${n})`,
     borderlineNote: (n) => `כולל ${n} של מפלגה על הסף, ייתכן 0`,
     unityMissing: (n) => `חסרים לכם ${n} מנדטים ל-61`,
-    unit: 'מנדטים',
     boxTitle: 'מנדטים',
     empty: 'בחרו מפלגות כדי לראות כמה מנדטים יש להן ביחד.',
     // exact=true in results mode (official seats), else poll averages shown as "≈".
@@ -159,9 +144,7 @@ export const S = {
     pivotalRow: (name, role, members, f, a) => (role === 'abstainer' ? `אם ${name} תצביע נגד: ${f} מול ${a}`
       : `בלי ${name}${role === 'supporter' ? ' (תומכת מבחוץ)' : ''}: ${members != null ? `חברות הקואליציה ${members} מתוך 61 · ` : ''}${f} מול ${a}`),
     pivotalNone: 'אין מפלגה אחת כזו.',
-    majority: 'יש רוב',
     short: (n) => `חסרים ${n}`,
-    outsideBit: (n) => `+ ${n} מבחוץ`,
     // Required wording when earlier polls are republished during the restricted period (gov.il elections guide, section 16ה(ח)).
     pollLegal: (d) => `ממוצע סקרים שפורסמו עד ${d}. הסקרים אינם עדכניים, ואין ללמוד מהם על דפוסי הצבעה או עמדות הציבור כיום.`,
     sourceInfo: 'מקור',
@@ -227,7 +210,6 @@ export const S = {
   toParty: (name) => (name.startsWith('ה') ? `ל${name.slice(1)}` : `ל${name}`),
 
   results: {
-    pickOne: 'בחרו מפלגה אחת לפחות, או תרחיש מוכן.',
     summaryTitle: 'תמונת מצב',
     // The snapshot title with 2+ members: everything up to the outside block is between the members only.
     summaryTitleScoped: (n) => `תמונת מצב בין ${n === 2 ? 'שתי' : n} חברות הקואליציה`,
@@ -290,7 +272,6 @@ export const S = {
       if (!members.length) return `הקואליציה הקודמת שוחזרה · ${out}`;
       return `הקואליציה הקודמת שוחזרה: ${members.join(' + ')}${out ? ` · ${out}` : ''}`;
     },
-    overall: (x, y) => `${x} מתוך ${topicsN(y)} ללא סתירה חזיתית`,
     // [text, css class, always shown]; zero counts are hidden except head-on clashes and no data.
     breakdown: (a, mi, m, c, w) => [
       [`${topicsN(a)} בהסכמה`, 'bd-ok', false],
@@ -359,10 +340,8 @@ export const S = {
     reference: '● נקודת ייחוס',
     relBase: (n) => `הצבע = הפער מול ${n} (הבסיס)`,
     relWorst: 'הצבע = ההתנגשות החמורה ביותר של המפלגה בנושא מול שותפה כלשהי',
-    baseHint: 'בחרו מפלגה כדי לראות את ההתאמה של כולן ממנה.',
     colorBy: 'צבע לפי:',
     colorByAll: 'הכל',
-    colorByAllHint: 'הכל: הצבע מראה את ההתנגשות החמורה ביותר מול שותפה כלשהי',
     baseNull: 'לבסיס אין עמדה',
     cellLabel: (party, topic, level, ref) => ref
       ? `${party}, ${topic}: ${level} מול ${ref}`
@@ -381,8 +360,6 @@ export const S = {
     date: (d) => (/^\d{4}$/.test(d) ? `משנת ${d}` : `מתאריך ${d}`),
     why: 'למה בצבע הזה?',
     noPosition: 'לא מצאנו עמדה מוצהרת של המפלגה בנושא הזה במקור שעומד בכללים שלנו.',
-    gap: (a, b, d, la, lb) => `${a} ↔ ${b}: ${d} דרגות (${la} ↔ ${lb})`,
-    gapRed: (a, b, d, red) => `${a} ↔ ${b}: ${d} דרגות, ו${red} הצהירה שזה קו אדום שלה`,
     officialName: 'שם הרשימה הרשמי',
     archive: 'עותק בארכיון',
     correction: 'מצאתם טעות בעמדה הזו?',

@@ -518,7 +518,7 @@ try {
       if (gotUrl !== wantUrl) errors.push(`[${current}] URL should settle on "${wantUrl}", got "${gotUrl}"`);
       if (expectView === 'build') {
         const title = await evaluate('document.title');
-        if (title !== `${S.appName} · ${S.tagline}`) errors.push(`[${current}] <title> must be "${S.appName} · ${S.tagline}", got "${title}"`);
+        if (title !== S.pageTitle) errors.push(`[${current}] <title> must be "${S.pageTitle}", got "${title}"`);
         const purpose = await evaluate("document.querySelector('#purpose')?.innerText || ''");
         if (!purpose.endsWith('זו לא המלצת הצבעה.')) errors.push(`[${current}] build view is missing the purpose line`);
         if (!/ממצעים, מהצהרות רשמיות ומהצעות חוק שהמפלגות יזמו או קידמו/.test(purpose) || purpose.includes('הצבעות')) errors.push(`[${current}] purpose line must name all three source kinds, with record = bills (no votes)`);
