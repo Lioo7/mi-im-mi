@@ -443,7 +443,8 @@ function renderBuilder() {
     const id = p.id;
     const role = roleOf(id);
     const on = role !== null;
-    const im = !on && members.length ? C.addImpact(ctx, id, members) : null;
+    // What one tap adds (#10): in polls mode a soft-linked partner comes too, as withRole() adds it.
+    const im = !on && members.length ? C.addImpact(ctx, withRole(id, 'member').members.filter((m) => !members.includes(m)), members) : null;
     const sub = [
       showSeats() && (isResults() || p.pollAvg != null) ? S.builder.seatsChip(Math.round(ctx.seatsOf(id))) : '',
       showSeats() && !isResults() && p.threshold === 'borderline' ? B.borderline : '',
@@ -778,11 +779,12 @@ function crisesCard(r) {
       ${list}
     </li>`;
   }).join('');
-  const title = r.clashTopics > 0 ? R.crisesTitle(Math.max(r.crises.length, 1)) : R.gapsTitle;
+  const heading = C.crisesHeading(r);
+  const title = heading.kind === 'crises' ? R.crisesTitle(heading.n) : R.gapsTitle;
   return `<section class="card">
     <h3>${esc(title)}</h3>
     ${r.crises.length ? `<p class="muted small tap-hint">${esc(S.how.tapHint)}</p>` : ''}
-    ${r.crises.length ? `<ol class="list">${items}</ol>` : `<p>${esc(R.noCrises)}</p>`}
+    ${r.crises.length ? `<ol class="list">${items}</ol>` : `<p>${esc(heading.kind === 'nodata' ? R.noData : R.noCrises)}</p>`}
   </section>`;
 }
 

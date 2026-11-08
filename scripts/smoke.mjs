@@ -17,7 +17,7 @@ import { mkdirSync, mkdtempSync, writeFileSync, rmSync, readFileSync, existsSync
 import { tmpdir } from 'node:os';
 import { join, extname, normalize } from 'node:path';
 import { ROOT, loadData, PRESIDENT_HE, PRESIDENT_EN } from './lib.mjs';
-import { recommendationRows, sourceReply, groupRedLines, contextFor, presets, serializeState, parseState, ballotOrder, completions, parseLocation, stateKeysIn, selected, locationFor, closestTo, redLinesCrossed, pivotal, investiture, coalitionGroups, analyze, peripheryClashes, pairSummary, matrixCell } from '../site/js/compat.js';
+import { recommendationRows, sourceReply, groupRedLines, contextFor, presets, serializeState, parseState, ballotOrder, completions, parseLocation, stateKeysIn, selected, locationFor, closestTo, redLinesCrossed, pivotal, investiture, coalitionGroups, analyze, peripheryClashes, pairSummary, matrixCell, addImpact } from '../site/js/compat.js';
 import { PROD_HOST } from '../site/js/stats.js';
 import { S } from '../site/js/strings.js';
 import { S as EN } from '../site/js/strings.en.js';
@@ -893,6 +893,15 @@ try {
     await settle(300);
     const sel = await evaluate("[...document.querySelectorAll('#builder .prow-main[aria-checked=\"true\"]')].length");
     if (sel !== 3) errors.push(`[interaction] tapping rows should select 3 parties, got ${sel}`);
+    // The ✓/✕/? pills (#10): what one tap adds. In polls mode הציונות הדתית brings זהות, so the pills count both.
+    {
+      const rz = 'religious-zionism';
+      const add = RESULTS ? [rz] : [rz, posCtx.he.linkedOf(rz)];
+      const im = addImpact(posCtx.he, add, ['likud', 'shas', 'otzma-yehudit']);
+      const want = `✓${im.agree}✕${im.clash}?${im.unknown}`;
+      const got = await evaluate(`document.querySelector('[data-act="toggle"][data-id="${rz}"] .pills')?.textContent ?? ''`);
+      if (got !== want) errors.push(`[interaction] ${rz} pills should count ${add.join(' + ')}: want ${want}, got ${got}`);
+    }
     // The live region (#7): toggling a party off says it was removed, toggling it back on gives the added line.
     {
       const nm = posCtx.he.byId.get('otzma-yehudit').name;

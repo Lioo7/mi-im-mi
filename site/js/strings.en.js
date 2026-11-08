@@ -278,7 +278,7 @@ export const S = {
     ],
     resultsEmpty: 'You have not picked any parties yet.',
     resultsEmptyLink: 'Pick parties',
-    noData: 'No data',
+    noData: 'Not enough stated positions to compare the coalition members',
     coverageLine: (toName, n) => `* ${toName} has no stated position on ${n} of the 8 topics.`,
     coverageTail: 'Topics without a position are not counted, so the coalition may look more harmonious than it really is.',
     live: (name, n) => `${name}: ${topicsN(n)} in a head-on clash in the coalition`,

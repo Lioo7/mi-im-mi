@@ -167,6 +167,15 @@ export function crises(ctx, statuses, limit = 3) {
     }));
 }
 
+// The crises card's heading (#10). "N המשברים" only when the list is exactly the head-on clash topics, so N matches the
+// clash count above it; a list with substantial gaps, or capped below the clash count, gets the gaps title. When no
+// topic has two members with a position, 'nodata': the card must not read as agreement.
+export function crisesHeading({ statuses, crises: list, clashTopics }) {
+  if (statuses.every((s) => s.status === 'NODATA')) return { kind: 'nodata' };
+  if (clashTopics > 0 && list.length === clashTopics && list.every((c) => c.worst.level === 'CLASH')) return { kind: 'crises', n: clashTopics };
+  return { kind: 'gaps' };
+}
+
 export function glue(statuses) {
   return statuses
     .map((s, topicOrder) => ({ ...s, topicOrder }))
@@ -211,11 +220,15 @@ export function newClashTopics(ctx, candidate, members) {
 // Per-topic effect of adding `candidate` to the current coalition (informational, never used to order chips).
 // Per topic, the worst level against current members decides: AGREE/MINOR -> agree, CLASH -> clash,
 // MAJOR -> neither, no stated position (candidate, or every member) -> unknown.
+// `candidate` may be the parties one tap adds together (polls mode: a soft-linked pair, #10): then every newcomer is
+// compared with every member and with the other newcomers, and the topic is unknown only when no newcomer has a position.
 export function addImpact(ctx, candidate, members) {
+  const added = [candidate].flat();
   const out = { agree: 0, clash: 0, unknown: 0 };
   for (const t of ctx.topics) {
-    if (!hasPos(posOf(ctx.idx, candidate, t.id))) { out.unknown++; continue; }
-    const levels = members.map((m) => pairLevel(ctx.idx, candidate, m, t.id).level).filter((l) => l !== 'NONE');
+    if (!added.some((id) => hasPos(posOf(ctx.idx, id, t.id)))) { out.unknown++; continue; }
+    const levels = added.flatMap((id, i) => [...members, ...added.slice(i + 1)].map((m) => pairLevel(ctx.idx, id, m, t.id).level))
+      .filter((l) => l !== 'NONE');
     if (!levels.length) { out.unknown++; continue; }
     const worst = Math.max(...levels.map((l) => SEV[l]));
     if (worst === SEV.CLASH) out.clash++;

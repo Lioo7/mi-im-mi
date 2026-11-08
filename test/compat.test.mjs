@@ -4,7 +4,7 @@ import {
   level, makeContext, topicStatus, crises, glue, friction, newClashTopics,
   matrixCell, pairSummary, investiture, periphery, analyze, without, presets, parseState, serializeState,
   parseLocation, parsePair, locationFor, moveLegacyState, localize, contextFor,
-  lowCoverage, addImpact, breakdown, ballotOrder, selected, completions, redLinesCrossed, closestTo, groupRedLines,
+  lowCoverage, addImpact, crisesHeading, breakdown, ballotOrder, selected, completions, redLinesCrossed, closestTo, groupRedLines,
   peripheryClashes, pivotal, coalitionGroups, canUndo,
 } from '../site/js/compat.js';
 
@@ -490,6 +490,40 @@ test('addImpact: unknown when the candidate or every member lacks a position', (
   assert.deepEqual(addImpact(ctx, 'c', ['a', 'b']), { agree: 1, clash: 0, unknown: 2 });
   // members with no positions on t1 at all -> unknown
   assert.deepEqual(addImpact(ctx, 'c', ['b']), { agree: 0, clash: 0, unknown: 3 });
+});
+
+test('addImpact of a soft-linked pair: each newcomer against the members and each other; unknown only when neither has a position', () => {
+  const ctx = fixture([
+    P('a', 't1', 0), P('c', 't1', 0), P('d', 't1', 2),   // c agrees, d MAJOR vs a -> neither (c alone: agree)
+    P('a', 't2', 0), P('c', 't2', -2), P('d', 't2', 2),  // c vs d CLASH, between the newcomers -> clash (c alone: MAJOR)
+    P('a', 't3', 0),                                     // neither newcomer has a position -> unknown
+  ]);
+  assert.deepEqual(addImpact(ctx, ['c'], ['a']), addImpact(ctx, 'c', ['a']));
+  assert.deepEqual(addImpact(ctx, 'c', ['a']), { agree: 1, clash: 0, unknown: 1 }); // t2: c vs a is MAJOR
+  assert.deepEqual(addImpact(ctx, ['c', 'd'], ['a']), { agree: 0, clash: 1, unknown: 1 });
+});
+
+test('crisesHeading: "N crises" only when the list is exactly the clash topics; no data never reads as agreement', () => {
+  const heading = (pos, members) => {
+    const ctx = fixture(pos);
+    const statuses = ['t1', 't2', 't3'].map((t) => topicStatus(ctx, members, t));
+    return crisesHeading({ statuses, crises: crises(ctx, statuses), clashTopics: statuses.filter((s) => s.status === 'CLASH').length });
+  };
+  // One clash and one substantial gap: the list has 2 items, the clash count is 1, so the gaps title.
+  assert.deepEqual(heading([P('a', 't1', -2), P('b', 't1', 2), P('a', 't2', -1), P('b', 't2', 1)], ['a', 'b', 'c']), { kind: 'gaps' });
+  // Two clashes and nothing else: "2 crises", the same number as the clash count.
+  assert.deepEqual(heading([P('a', 't1', -2), P('b', 't1', 2), P('a', 't2', -2), P('b', 't2', 2)], ['a', 'b', 'c']), { kind: 'crises', n: 2 });
+  // No clash: the gaps title, as before.
+  assert.deepEqual(heading([P('a', 't1', -1), P('b', 't1', 1)], ['a', 'b', 'c']), { kind: 'gaps' });
+  // No topic with two members' positions.
+  assert.deepEqual(heading([P('a', 't1', 1), P('b', 't2', 1)], ['a', 'b', 'c']), { kind: 'nodata' });
+});
+
+test('crisesHeading: more clash topics than the list shows (capped at 3) gets the gaps title', () => {
+  const ctx = makeContext({ parties: [{ id: 'a', pollAvg: 2 }, { id: 'b', pollAvg: 1 }], topics: [1, 2, 3, 4].map((i) => ({ id: `t${i}` })),
+    positions: [1, 2, 3, 4].flatMap((i) => [P('a', `t${i}`, -2), P('b', `t${i}`, 2)]) });
+  const statuses = ctx.topics.map((t) => topicStatus(ctx, ['a', 'b'], t.id));
+  assert.deepEqual(crisesHeading({ statuses, crises: crises(ctx, statuses), clashTopics: 4 }), { kind: 'gaps' });
 });
 
 test('addImpact does not depend on member order', () => {
