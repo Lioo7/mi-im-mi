@@ -194,6 +194,20 @@ node scripts/smoke.mjs --only=pair    # רק חלק אחד, בזמן תיקון
 
 **Stack.** Static vanilla JS with no build step (<60KB gzipped including all data), JSON data, Netlify, `node --test` (124 tests, including mirror-symmetry tests, a 120-seat check, brute-force checks of the completions to 61 and of the closest coalitions to a party, a test that fails on any missing translation, a glossary test for both languages, and a test that keeps semicolons out of the Hebrew text), bilingual with no i18n library (two string files with the same shape, `en` fields next to the Hebrew data), a full Content-Security-Policy, and a headless-Chrome smoke test that also checks that the page-view beacon and every request to the site carry no coalition data, that the CSP blocks nothing (including Netlify's injected badge), and that the line explaining the seat numbers comes before them: the results source line in results mode, the legally required poll disclaimer in polls mode. Every view is also checked in English: direction and language, no untranslated Hebrew, and the same numbers.
 
+**Testing.** `node --test` (unit), `node scripts/validate.mjs` (data), and `node scripts/smoke.mjs [url]`, a headless-Chrome run of every view in both languages:
+- `--only=<sections>`: just the parts a change touches (a wrong name lists them)
+- `--mode=results|polls|hidden|all`: one data mode, or all three in parallel (the local server overrides `meta.json`)
+- `--light`: the check against a deploy: every file served byte for byte, every header, the views at phone width
+- `--shots`: save screenshots (none by default)
+
+The loop:
+1. While working: only the relevant sections, in their mode.
+2. Before a draft: the full suite once (`--mode=all`, about 2 min).
+3. Draft deploy, `--light` against the draft URL, then a check on a phone.
+4. Publish that same tested draft (`netlify api restoreSiteDeploy`), then `--light` against production.
+
+Before → after ([#37](https://github.com/Lioo7/mi-im-mi/issues/37)), every assertion kept: all three modes 13 min → 2 min, the check against a draft 6.5 min → 23 s, a small fix from request to draft URL ~20 min → ~3 min.
+
 **Corrections.** Every cell has a "found an error?" link. You can also email lioz.akirav@gmail.com or use the [data-correction form](https://github.com/Lioo7/mi-im-mi/issues/new?template=data-correction.yml).
 
 **License.** Code: MIT. Our data: CC BY 4.0. Quotes and linked sources belong to their owners. Not a voting recommendation; not affiliated with any party.
