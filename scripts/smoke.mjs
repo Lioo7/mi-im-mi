@@ -893,6 +893,15 @@ try {
     await settle(300);
     const sel = await evaluate("[...document.querySelectorAll('#builder .prow-main[aria-checked=\"true\"]')].length");
     if (sel !== 3) errors.push(`[interaction] tapping rows should select 3 parties, got ${sel}`);
+    // The live region (#7): toggling a party off says it was removed, toggling it back on gives the added line.
+    {
+      const nm = posCtx.he.byId.get('otzma-yehudit').name;
+      const liveAfter = async () => { await evaluate(`document.querySelector('[data-act="toggle"][data-id="otzma-yehudit"]').click()`); await settle(200); return evaluate("document.querySelector('#live').textContent"); };
+      const off = await liveAfter();
+      if (!off.startsWith(`${nm} הוסרה. `)) errors.push(`[interaction] toggling ${nm} off should announce its removal, got "${off}"`);
+      const on = await liveAfter();
+      if (!on.startsWith(`${nm}: `) || on.includes('הוסרה')) errors.push(`[interaction] toggling ${nm} back on should announce the added line, got "${on}"`);
+    }
     await evaluate("document.querySelector('[data-act=\"role\"][data-id=\"shas\"][data-role=\"supporter\"]').click()");
     await settle(200);
     if (!/o=shas/.test(await frag())) errors.push(`[interaction] supporter role did not set o= (${await frag()})`);

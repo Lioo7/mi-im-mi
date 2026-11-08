@@ -286,6 +286,8 @@ export const S = {
     coverageLine: (toName, n) => `* ${toName} אין עמדה מוצהרת ב-${n} מתוך 8 הנושאים.`,
     coverageTail: 'נושאים בלי עמדה לא נספרים, ולכן ייתכן שהקואליציה נראית הרמונית יותר משהיא באמת.',
     live: (name, n) => `${name}: ${topicsN(n)} בסתירה חזיתית בקואליציה`,
+    // After a party is toggled off or removed (#7): it is no longer in, so the count is the coalition without it.
+    liveRemoved: (name, n) => `${name} הוסרה. ${topicsN(n)} בסתירה חזיתית בקואליציה`,
   },
 
   completions: {

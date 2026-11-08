@@ -16,6 +16,8 @@ test('count labels use the singular for 1 and the digit plural otherwise', () =>
   assert.equal(S.nav.partyCount(6), '6 מפלגות נבחרו');
   assert.equal(S.results.morePairs(1), 'ועוד זוג מפלגות אחד');
   assert.equal(S.results.morePairs(4), 'ועוד 4 זוגות מפלגות');
+  assert.equal(S.results.live('ש״ס', 1), 'ש״ס: נושא אחד בסתירה חזיתית בקואליציה');
+  assert.equal(S.results.liveRemoved('ש״ס', 2), 'ש״ס הוסרה. 2 נושאים בסתירה חזיתית בקואליציה');
   assert.ok(!/(^|\D)1 (נושאים|מפלגות|זוגות)/.test(S.builder.impactLabel(1, 1, 1)));
 });
 

@@ -101,9 +101,10 @@ function setState(next, { announceParty, undo: nextUndo = null } = {}) {
   applyState(next);
   writeUrl();
   render();
+  // Added or removed (#7): a party with no role after the change was toggled off or removed.
   if (announceParty) {
     const r = C.analyze(ctx, state);
-    announce(S.results.live(name(announceParty), r.clashTopics));
+    announce((roleOf(announceParty) ? S.results.live : S.results.liveRemoved)(name(announceParty), r.clashTopics));
   }
 }
 
