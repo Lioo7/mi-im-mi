@@ -11,12 +11,11 @@
 // Leftover smoke Chromes (--user-data-dir=…/smoke-chrome-<owner pid>-*) are killed before a run when their owning run has
 // ended, so runs can overlap (--mode=all runs the three modes at once, each with its own server, Chrome and folder).
 // Progress is written synchronously, and to smoke/progress.log. SMOKE_SIMULATE_HANG=1 forces a CDP call that never answers.
-import { spawn, execFileSync } from 'node:child_process';
-import { createServer } from 'node:http';
-import { mkdirSync, mkdtempSync, writeFileSync, rmSync, readFileSync, existsSync, statSync, writeSync, appendFileSync, readdirSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join, extname, normalize } from 'node:path';
+import { spawn } from 'node:child_process';
+import { mkdirSync, writeFileSync, rmSync, readFileSync, existsSync, statSync, writeSync, appendFileSync, readdirSync } from 'node:fs';
+import { join } from 'node:path';
 import { ROOT, loadData, PRESIDENT_HE, PRESIDENT_EN } from './lib.mjs';
+import { sleep, waitFor as waitFor_, serve as serve_, siteHeaders, launchChrome, pageClient, SETTLE_JS } from './browser.mjs';
 import { recommendationRows, sourceReply, groupRedLines, contextFor, presets, serializeState, parseState, ballotOrder, completions, parseLocation, stateKeysIn, selected, locationFor, closestTo, redLinesCrossed, pivotal, investiture, coalitionGroups, analyze, peripheryClashes, pairSummary, matrixCell, addImpact } from '../site/js/compat.js';
 import { PROD_HOST } from '../site/js/stats.js';
 import { S } from '../site/js/strings.js';
@@ -31,7 +30,6 @@ function wantSourceLine(T, sc, lc) {
   return `${T.presets.sourcesLabel(sc.sources.length)} ${sc.sources.map((x) => (T === S ? x : { ...x, ...x.en })).map(line).join(' · ')}`;
 }
 
-const CHROME = process.env.CHROME_PATH ?? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 // smoke/<mode>/ for a local run, smoke/remote/ for a remote one (set once the options are read).
 const SMOKE = join(ROOT, 'smoke');
 let OUT = SMOKE;
@@ -42,7 +40,6 @@ const splitSuffix = (suffix) => { const i = suffix.indexOf('#'); return i < 0 ? 
 const isLegacy = (suffix) => stateKeysIn(splitSuffix(suffix).search);
 // The state params a suffix carries: the fragment's, or a legacy query's when the fragment has none.
 const stateParams = (suffix) => { const { search, hash } = splitSuffix(suffix); const f = hash.split('?')[1] ?? ''; return new URLSearchParams(stateKeysIn(f) ? f : search); };
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const STEP_MS = Number(process.env.SMOKE_STEP_MS ?? 15000);
 const WATCHDOG_MS = Number(process.env.SMOKE_WATCHDOG_MS ?? 20 * 60 * 1000);
 // The case being run; timeouts and the watchdog name it.
@@ -55,88 +52,11 @@ const log = (line) => write(1, line);
 const logErr = (line) => write(2, line);
 const step = (name) => { current = name; toLog(`… ${name}`); };
 
-// Rejects when the promise takes longer than ms (the promise itself is left to settle or not).
-function within(promise, ms, label) {
-  let timer;
-  return Promise.race([promise, new Promise((_, reject) => { timer = setTimeout(() => reject(new Error(`${label} timed out after ${Math.round(ms)}ms [${current}]`)), Math.max(ms, 0)); })])
-    .finally(() => clearTimeout(timer));
-}
-
-// Each attempt races the time left, so one attempt that never returns cannot block past the deadline.
-async function waitFor(fn, ms = 10000) {
-  const end = Date.now() + ms;
-  let last = null;
-  while (Date.now() < end) {
-    try { const v = await within(Promise.resolve().then(fn), end - Date.now(), 'waitFor attempt'); if (v) return v; } catch (e) { last = e; }
-    await sleep(50);
-  }
-  throw new Error(`timeout after ${ms}ms [${current}]${last ? ` (last error: ${last.message})` : ''}`);
-}
-
-const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.csv': 'text/csv; charset=utf-8', '.png': 'image/png', '.svg': 'image/svg+xml' };
-
-// The headers Netlify sends for every path (netlify.toml: [[headers]] for = "/*").
-function siteHeaders() {
-  const toml = readFileSync(join(ROOT, 'netlify.toml'), 'utf8');
-  const block = toml.split('[[headers]]').find((b) => /for\s*=\s*"\/\*"/.test(b)) ?? '';
-  const values = block.split('[headers.values]')[1] ?? '';
-  return Object.fromEntries([...values.matchAll(/^\s*([\w-]+)\s*=\s*"(.*)"\s*$/gm)].map((m) => [m[1], m[2]]));
-}
-
-// Minimal static server for ./site (query strings ignored, like Netlify), sending netlify.toml's headers. meta.json is
-// served with the tested mode (--mode) applied.
-async function serve() {
-  const dir = join(ROOT, 'site');
-  const headers = siteHeaders();
-  const metaFile = join(dir, 'data', 'meta.json');
-  const server = createServer((req, res) => {
-    const url = new URL(req.url, 'http://x');
-    let path = normalize(decodeURIComponent(url.pathname)).replace(/^([.][.][/\\])+/, '');
-    let file = join(dir, path);
-    if (existsSync(file) && statSync(file).isDirectory()) file = join(file, 'index.html');
-    if (!file.startsWith(dir) || !existsSync(file)) { res.writeHead(404); res.end('not found'); return; }
-    res.writeHead(200, { ...headers, 'content-type': TYPES[extname(file)] ?? 'application/octet-stream' });
-    const body = file === metaFile ? JSON.stringify({ ...JSON.parse(readFileSync(file, 'utf8')), ...MODES[MODE] }) : readFileSync(file);
-    res.end(body);
-  });
-  await new Promise((r) => server.listen(0, '127.0.0.1', r));
-  return { url: `http://127.0.0.1:${server.address().port}/`, stop: () => server.close() };
-}
-
-function cdp(wsUrl) {
-  const ws = new WebSocket(wsUrl);
-  let id = 0;
-  const pending = new Map();
-  const listeners = [];
-  let closed = false;
-  // A closed socket rejects every pending call, and every later one.
-  ws.onclose = () => {
-    closed = true;
-    for (const { reject } of pending.values()) reject(new Error(`CDP socket closed [${current}]`));
-    pending.clear();
-  };
-  ws.onmessage = (ev) => {
-    const msg = JSON.parse(ev.data);
-    if (msg.id && pending.has(msg.id)) {
-      const { resolve, reject } = pending.get(msg.id);
-      pending.delete(msg.id);
-      msg.error ? reject(new Error(msg.error.message)) : resolve(msg.result);
-    } else if (msg.method) listeners.forEach((l) => l(msg));
-  };
-  return {
-    ready: new Promise((r) => { ws.onopen = r; }),
-    // Every call has a timeout that names the method and the case (screenshots get longer).
-    send: (method, params = {}, ms = method === 'Page.captureScreenshot' ? 4 * STEP_MS : STEP_MS) => new Promise((resolve, reject) => {
-      if (closed) { reject(new Error(`CDP ${method}: socket closed [${current}]`)); return; }
-      const i = ++id;
-      const timer = setTimeout(() => { pending.delete(i); reject(new Error(`CDP ${method} got no answer in ${ms / 1000}s [${current}]`)); }, ms);
-      pending.set(i, { resolve: (v) => { clearTimeout(timer); resolve(v); }, reject: (e) => { clearTimeout(timer); reject(e); } });
-      ws.send(JSON.stringify({ id: i, method, params }));
-    }),
-    on: (fn) => listeners.push(fn),
-    close: () => ws.close(),
-  };
-}
+// Browser helpers (scripts/browser.mjs, shared with readme-media.mjs): timeouts name the current case, the server
+// applies the tested mode to meta.json.
+const where = () => current;
+const waitFor = (fn, ms = 10000) => waitFor_(fn, ms, where);
+const serve = () => serve_(MODES[MODE]);
 
 // Options (#37). --mode: which data mode to test (all: the three in parallel); a local run serves site/ with meta.json's mode overridden, so no
 // scratch copies are needed (a remote run tests the deployed mode). --only: a comma-separated list of SECTIONS.
@@ -371,42 +291,15 @@ const PIVOTAL_JS = `(() => { const o = document.querySelector('#results .overall
 const server = base ? null : await serve();
 const baseUrl = (base ?? server.url).replace(/\/?$/, '/');
 const onProd = new URL(baseUrl).hostname === PROD_HOST;
-// Leftover smoke Chromes only (matched by their profile, smoke-chrome-<owner pid>-…), never the user's browser, and only
-// when the run that started them has ended (a profile from before the owner pid counts as stale). Only processes running
-// from Chrome's own bundle: any other command line may mention such a profile (a shell running a test of this).
-const alive = (pid) => { try { process.kill(pid, 0); return true; } catch (e) { return e.code === 'EPERM'; } };
-const stale = (name) => { const owner = Number(/^smoke-chrome-(\d+)-/.exec(name)?.[1] ?? 0); return !owner || !alive(owner); };
-const CHROME_HOME = CHROME.includes('.app/') ? CHROME.slice(0, CHROME.indexOf('.app/') + 5) : CHROME;
-try {
-  for (const line of execFileSync('ps', ['-axww', '-o', 'pid=,command='], { encoding: 'utf8' }).split('\n')) {
-    const [, pid, command] = /^\s*(\d+)\s+(.*)$/.exec(line) ?? [];
-    const profileName = command?.startsWith(CHROME_HOME) && /--user-data-dir=\S*\/(smoke-chrome-[^\s/]+)/.exec(command)?.[1];
-    if (profileName && stale(profileName)) try { process.kill(Number(pid), 'SIGKILL'); } catch { /* already gone */ }
-  }
-} catch { /* no ps */ }
-for (const d of readdirSync(tmpdir()).filter((n) => n.startsWith('smoke-chrome-') && stale(n))) removeDir(join(tmpdir(), d));
-const profile = mkdtempSync(join(tmpdir(), `smoke-chrome-${process.pid}-`));
-// Its own process group (detached), so killing the group takes its helper processes too. Port 0: Chrome picks a free
-// port and writes it to DevToolsActivePort in the profile.
-const chrome = spawn(CHROME, [
-  '--headless=new', '--remote-debugging-port=0', `--user-data-dir=${profile}`,
-  '--no-first-run', '--no-default-browser-check', '--hide-scrollbars', '--lang=he', 'about:blank',
-], { stdio: 'ignore', detached: true });
-// Chrome may still be exiting after SIGKILL: retry briefly (synchronously, so 'exit' handlers can use it).
-function removeDir(dir) {
-  for (let i = 0; i < 20 && existsSync(dir); i++) {
-    try { rmSync(dir, { recursive: true, force: true }); } catch { Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 50); }
-  }
-}
+// Leftover smoke Chromes from ended runs are killed first (browser.mjs), so runs can overlap.
+const { profile, kill: killChrome } = launchChrome();
 let cleaned = false;
 // Synchronous, so it also runs from the 'exit' handler.
 function cleanup() {
   if (cleaned) return;
   cleaned = true;
-  try { process.kill(-chrome.pid, 'SIGKILL'); } catch { /* already gone */ }
-  try { chrome.kill('SIGKILL'); } catch { /* already gone */ }
   try { server?.stop(); } catch { /* ignore */ }
-  removeDir(profile);
+  killChrome();
 }
 process.on('exit', cleanup);
 for (const [sig, code] of [['SIGINT', 130], ['SIGTERM', 143], ['SIGHUP', 129]]) {
@@ -443,11 +336,7 @@ try {
   // Files from before the per-mode folders (smoke/*.png, progress.log).
   for (const f of readdirSync(SMOKE)) try { if (!statSync(join(SMOKE, f)).isDirectory()) rmSync(join(SMOKE, f), { force: true }); } catch { /* another run removed it */ }
   step('start');
-  const port = await waitFor(() => Number(readFileSync(join(profile, 'DevToolsActivePort'), 'utf8').split('\n')[0]));
-  const targets = await waitFor(() => fetch(`http://127.0.0.1:${port}/json/list`).then((r) => r.json()));
-  const page = targets.find((t) => t.type === 'page');
-  const c = cdp(page.webSocketDebuggerUrl);
-  await c.ready;
+  const c = await pageClient(profile, { stepMs: STEP_MS, where });
   c.on((m) => {
     if (m.method === 'Runtime.exceptionThrown') errors.push(`[${current}] exception: ${m.params.exceptionDetails.exception?.description ?? m.params.exceptionDetails.text}`);
     if (m.method === 'Runtime.consoleAPICalled' && m.params.type === 'error') errors.push(`[${current}] console.error: ${m.params.args.map((a) => a.value ?? a.description).join(' ')}`);
@@ -498,15 +387,7 @@ try {
     await c.send('Runtime.evaluate', { expression: 'new Promise(() => {})', awaitPromise: true });
   }
   const evaluate = async (expr) => (await c.send('Runtime.evaluate', { expression: expr, returnByValue: true, awaitPromise: true })).result.value;
-  // Waits until the page is still: two frames in a row with no running animation or transition, no pending short timer
-  // or fetch, and no scroll or viewport change. At most ms, the fixed sleep it replaces (#37).
-  const SETTLE_JS = (ms) => `new Promise((done) => { const w = window.__smoke; const end = performance.now() + ${ms}; let calm = 0, last = null;
-    const snap = () => { const s = document.querySelector('#sheet'); return [scrollX, scrollY, s ? s.scrollTop : 0, innerWidth, innerHeight, visualViewport?.offsetTop ?? 0].join(); };
-    const idle = () => !w || (w.timers === 0 && w.fetches === 0 && !document.getAnimations().some((a) => a.playState === 'running'));
-    (w ? w.setTimeout : setTimeout)(() => done(false), ${ms} + 50);
-    const tick = () => { const s = snap(); calm = idle() && s === last ? calm + 1 : 0; last = s;
-      if (calm >= 2) done(true); else if (performance.now() < end) requestAnimationFrame(tick); else done(false); };
-    requestAnimationFrame(tick); })`;
+  // Waits until the page is still (browser.mjs SETTLE_JS): at most ms, the fixed sleep it replaces (#37).
   const settles = { n: 0, capped: 0 };
   const settle = async (ms) => {
     settles.n++;

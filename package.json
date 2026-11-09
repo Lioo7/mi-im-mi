@@ -6,6 +6,7 @@
     "test": "node --test",
     "validate": "node scripts/validate.mjs",
     "smoke": "node scripts/smoke.mjs",
-    "serve": "python3 -m http.server -d site 8080"
+    "serve": "python3 -m http.server -d site 8080",
+    "media": "node scripts/readme-media.mjs"
   }
 }
