@@ -747,6 +747,60 @@ try {
       }
     }
     log(`  ✓ 360px: ${narrow.length} views × he, en (outside-party markers inside the page)`);
+    // Touch targets and small text (#43): the hit height (where a tap at the target's center column lands on it, so a
+    // larger ::after hit area counts and an overlapping neighbour does not) of the source and correction links, the
+    // matrix cells, the share button, the language toggle and the footer links is at least 44px, and the overview tile
+    // labels are at least 12px, at 360 and 412px in both languages.
+    const HIT_JS = (sel, max) => `(() => { const out = [];
+      for (const el of [...document.querySelectorAll(${JSON.stringify(sel)})].filter((e) => e.getClientRects().length).slice(0, ${max})) {
+        el.scrollIntoView({ block: 'center', inline: 'center' });
+        const r = el.getBoundingClientRect(), x = r.left + r.width / 2, y0 = r.top + r.height / 2;
+        const on = (y) => { const h = document.elementFromPoint(x, y); return h !== null && (h === el || el.contains(h)); };
+        let up = 0, down = 0; while (up < 80 && on(y0 - up - 1)) up++; while (down < 80 && on(y0 + down + 1)) down++;
+        out.push([(el.textContent || el.getAttribute('aria-label') || '').trim().slice(0, 20), up + down + 1]);
+      } return out; })()`;
+    let hitRuns = 0;
+    for (const w of [360, 412]) {
+      for (const l of ['he', 'en']) {
+        step(`hit-${l}@${w}`);
+        const zh = { width: w, height: 800, mobile: true, dpr: 3 };
+        await setSize(zh);
+        await go(`${baseUrl}#results?m=likud,yashar,together,otzma-yehudit,shas,utj${l === 'en' ? '&l=en' : ''}`);
+        await waitFor(() => evaluate("document.querySelector('#matrix .cell') !== null && document.querySelector('#footer')?.children.length > 0"));
+        await settle(200);
+        const small = [];
+        const check = async (what, sel, max = 4) => {
+          const got = await evaluate(HIT_JS(sel, max));
+          if (!got.length) small.push(`${what}: none found`);
+          for (const [t, h] of got) if (h < 44) small.push(`${what} "${t}" ${h}px`);
+        };
+        await check('matrix cell', '#matrix .cell', 3);
+        await check('share button', '#results-bar [data-act="share"]', 1);
+        await check('language toggle', '.lang-btn', 1);
+        await check('footer link', '#footer .f-links a', 3);
+        const label = await evaluate("Math.min(...[...document.querySelectorAll('#results .seg-label')].map((e) => parseFloat(getComputedStyle(e).fontSize)))");
+        if (!(label >= 12)) small.push(`overview tile labels ${label}px (want 12px or more)`);
+        await evaluate("document.querySelector('#matrix .cell[data-party=\"likud\"]').click()");
+        await waitFor(() => evaluate("document.querySelector('#sheet').open && document.querySelector('#sheet .source a') !== null"));
+        await check('source link', '#sheet .source a');
+        await check('correction link', '#sheet .correction a', 1);
+        await evaluate("document.querySelector('#sheet .sheet-close').click()");
+        await waitFor(() => evaluate('!document.querySelector(\'#sheet\').open && !history.state?.sheet'), 3000).catch(() => {});
+        // The recommendations (results mode) open from the build view's seats box.
+        if (RESULTS) {
+          await go(`${baseUrl}#build${l === 'en' ? '?l=en' : ''}`);
+          await waitFor(() => evaluate("document.querySelector('[data-act=\"recs\"]') !== null"));
+          await evaluate("document.querySelector('[data-act=\"recs\"]').click()");
+          await waitFor(() => evaluate("document.querySelector('#sheet .recs-table td a') !== null"));
+          await check('recommendation date', '#sheet .recs-table td a', 4);
+          await evaluate("document.querySelector('#sheet .sheet-close').click()");
+        }
+        if (small.length) errors.push(`[${current}] targets under 44px or text under 12px: ${small.join(' | ')}`);
+        hitRuns++;
+      }
+    }
+    await setSize(SIZES[0]);
+    log(`  ✓ touch targets (#43): ${hitRuns} runs (360/412 × he/en): sources, correction, cells, share, toggle, footer links ≥ 44px; tile labels ≥ 12px`);
   }
 
   // The served headers are netlify.toml's, every one of them (Netlify drops the space after a comma). Netlify's "Powered by
