@@ -2,7 +2,7 @@
 // Usage: node scripts/validate.mjs [--allow-stub]
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { ROOT, MERGED, exists, readJson, loadData, validateParties, validateTopics, validatePositions, validateResults, validateScenarios, validateRecommendations, validateEnglish, validateEvidence, validateDownload, DOWNLOAD_DIR, DOWNLOAD_FILES, DATA, CHANGELOG_FILE, validateChangelog, dataFingerprint } from './lib.mjs';
+import { ROOT, MERGED, exists, readJson, loadData, validateParties, validateTopics, validatePositions, validateResults, validateScenarios, validateRecommendations, validateEnglish, validateEvidence, validateDownload, DOWNLOAD_DIR, DOWNLOAD_FILES, DATA, CHANGELOG_FILE, validateChangelog, dataFingerprint, README_FILE, readmeFigures, validateReadme } from './lib.mjs';
 
 const allowStub = process.argv.includes('--allow-stub');
 const { parties, topics, meta, positions, results, scenarios, recommendations } = loadData();
@@ -31,6 +31,8 @@ const errors = [
   // The data changelog: well-formed, in step with positions.json, and reviewed since the last data change (#19).
   ...validateChangelog(exists(join(DATA, CHANGELOG_FILE)) ? readJson(join(DATA, CHANGELOG_FILE)) : null,
     { parties, topics, positions, fingerprint: dataFingerprint() }),
+  // The README's data figures, in both languages, must be what site/data has now.
+  ...validateReadme(readFileSync(README_FILE, 'utf8'), readmeFigures({ parties, topics, positions, scenarios })),
 ];
 if (typeof meta.showSeats !== 'boolean') errors.push('meta: showSeats must be true/false');
 if (meta.stub && !allowStub) errors.push('meta: stub data is active (run the real import before deploying)');

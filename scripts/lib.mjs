@@ -619,3 +619,80 @@ export function validateChangelog(log, { parties, topics, positions, fingerprint
   if (log.reviewed !== fingerprint) errors.push('changelog: the data changed since the changelog was last reviewed. Add an entry to site/data/changelog.json for a change a visitor would notice, then run node scripts/changelog.mjs --ack');
   return errors;
 }
+
+// ---------- README figures ----------
+// The README's current data figures, computed from site/data. validate fails when the Hebrew or the English section
+// states a different number, or no longer states one (so a figure can't silently go stale). Historical figures (the
+// translation check's 8 of 373, timings, the commit and test counts, the bundle size) are not data and are not checked.
+export const README_FILE = join(ROOT, 'README.md');
+export const README_ENGLISH = '\n## English\n';
+
+/** @param {Pick<Data, 'parties' | 'topics' | 'positions' | 'scenarios'>} data @returns {Record<string, number>} */
+export function readmeFigures({ parties, topics, positions, scenarios }) {
+  const placed = positions.filter((p) => p.position !== null);
+  /** @param {string} t */
+  const bySource = (t) => placed.filter((p) => p.sourceType === t).length;
+  return {
+    parties: parties.length,
+    topics: topics.length,
+    positions: positions.length,
+    platform: bySource('platform'),
+    statement: bySource('statement'),
+    record: bySource('record'),
+    noPosition: positions.length - placed.length,
+    redLines: positions.filter((p) => p.redLine).length,
+    scenarios: scenarios?.scenarios?.length ?? 0,
+  };
+}
+
+// Number words the README uses for the scenario count (a scenario: תרחיש, masculine).
+/** @type {Record<string, number>} */
+const WORDS = { שני: 2, שלושה: 3, ארבעה: 4, two: 2, three: 3, four: 4 };
+/** @param {string} s */
+const num = (s) => (/^\d+$/.test(s) ? Number(s) : WORDS[s.toLowerCase()] ?? NaN);
+
+// Per section: [pattern, the figures its groups state, in order]. Every pattern must match at least once, and every
+// match must agree with the data.
+/** @type {Record<'he' | 'en', [RegExp, string[]][]>} */
+const README_PATTERNS = {
+  he: [
+    [/(\d+) מפלגות × (\d+) נושאים = (\d+) עמדות/g, ['parties', 'topics', 'positions']],
+    [/\| (\d+) מפלגות:/g, ['parties']],
+    [/\| (\d+) נושאים,/g, ['topics']],
+    [/\| (\d+) עמדות:/g, ['positions']],
+    [/כל (\d+) העמדות להורדה/g, ['positions']],
+    [/\*\*מצע\*\* \((\d+) עמדות\)/g, ['platform']],
+    [/\*\*הצהרה רשמית\*\*[^(\n]*\((\d+)\)/g, ['statement']],
+    [/\*\*רקורד בפועל\*\*[^(\n]*\((\d+)\)/g, ['record']],
+    [/"אין עמדה מוצהרת"\*\* \((\d+) תאים\)/g, ['noPosition']],
+    [/\*\*קו אדום\*\*[^\n]*?\((\d+) מקרים\)/g, ['redLines']],
+    [/יש (\S+) תרחישים שעלו בתקשורת/g, ['scenarios']],
+  ],
+  en: [
+    [/(\d+) parties × (\d+) topics = (\d+) positions/g, ['parties', 'topics', 'positions']],
+    [/all (\d+) positions as CSV/g, ['positions']],
+    [/own platform \((\d+)\), official statements \((\d+)\) or legislative record[^(\n]*\((\d+)\)/g, ['platform', 'statement', 'record']],
+    [/"no stated position" \((\d+)\)/g, ['noPosition']],
+    [/\*\*Red lines:\*\*[^\n]*?\((\d+) cases\)/g, ['redLines']],
+    [/(\w+) scenarios raised in the media/g, ['scenarios']],
+  ],
+};
+
+/** @param {string} text the README @param {Record<string, number>} want readmeFigures() @returns {string[]} */
+export function validateReadme(text, want) {
+  const cut = text.indexOf(README_ENGLISH);
+  if (cut < 0) return [`README: no "${README_ENGLISH.trim()}" section`];
+  const sections = { he: text.slice(0, cut), en: text.slice(cut) };
+  /** @type {string[]} */
+  const errors = [];
+  for (const lang of /** @type {const} */ (['he', 'en'])) {
+    for (const [re, names] of README_PATTERNS[lang]) {
+      const found = [...sections[lang].matchAll(re)];
+      if (!found.length) errors.push(`README (${lang}): no longer states ${names.join('/')} (expected text like ${re.source})`);
+      for (const m of found) names.forEach((name, i) => {
+        if (num(m[i + 1]) !== want[name]) errors.push(`README (${lang}): "${m[0]}" says ${name} = ${m[i + 1]}, the data has ${want[name]}`);
+      });
+    }
+  }
+  return errors;
+}

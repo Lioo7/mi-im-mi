@@ -183,6 +183,7 @@ npm run media                         # צילומי המסך וההדגמה ש�
   - 1 = minor gap
   - 2 = substantial gap
   - ≥3, or 2 when a party has declared a red line = head-on clash
+- **Red lines:** marked only when a party said in its own words that it would not join a government without the topic (5 cases).
 - **No overall score:** there are no per-pair judgment calls and no single number.
 
 **Neutrality and verification.**
