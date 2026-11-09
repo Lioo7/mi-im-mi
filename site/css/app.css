@@ -181,6 +181,7 @@ blockquote { margin: .4em 0 .6em; padding-inline-start: 12px; border-inline-star
 .axis-list { padding-inline-start: 1.2em; }
 .axis-list li { margin-block-end: .5em; }
 .axis-parties { display: block; font-size: .85rem; font-weight: 600; color: var(--accent); }
+.axis-seats { display: block; font-size: .85rem; color: var(--muted); }
 
 .toast { position: fixed; inset-inline: var(--gutter); inset-block-end: 150px; z-index: 40; max-inline-size: 480px; margin-inline: auto; background: var(--fg); color: #fff; padding: 10px 14px; border-radius: 10px; display: flex; gap: 12px; align-items: center; justify-content: space-between; }
 .toast[hidden] { display: none; }

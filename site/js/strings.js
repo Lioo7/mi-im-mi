@@ -381,6 +381,9 @@ export const S = {
     noPositionLabel: 'אין עמדה מוצהרת',
     partyProfile: 'כל העמדות',
     nobodyHere: 'אין',
+    // #15: the coalition members' seats at each label of the topic's scale (members only). Poll seats are approximate.
+    membersSeats: (n, exact) => `חברות הקואליציה: ${exact ? plural(n, 'מנדט אחד', 'מנדטים') : `כ-${n} מנדטים`}`,
+    membersOnly: 'נספרים רק המנדטים של חברות הקואליציה, בלי תומכות מבחוץ ונמנעות.',
   },
 
   pair: {

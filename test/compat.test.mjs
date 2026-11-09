@@ -5,7 +5,7 @@ import {
   matrixCell, pairSummary, investiture, periphery, analyze, without, presets, parseState, serializeState,
   parseLocation, parsePair, locationFor, moveLegacyState, localize, contextFor,
   lowCoverage, addImpact, crisesHeading, breakdown, ballotOrder, selected, completions, redLinesCrossed, closestTo, groupRedLines,
-  peripheryClashes, pivotal, coalitionGroups, canUndo,
+  peripheryClashes, pivotal, coalitionGroups, canUndo, seatsByPosition, AXIS,
 } from '../site/js/compat.js';
 
 const P = (partyId, topicId, position, redLine = false) => ({ partyId, topicId, position, redLine });
@@ -850,4 +850,25 @@ test('enEntryHash: the /en/ entry page keeps the view and every parameter verbat
   assert.equal(enEntryHash('#build?b=likud&m=likud,shas&l'), '#build?b=likud&m=likud,shas&l=en');
   // Nothing moves into a query: the result is a fragment only.
   assert.ok(enEntryHash('#results?m=likud').startsWith('#'));
+});
+
+// #15: seats at each axis label in the topic sheet.
+test('seatsByPosition: members only, in axis order, and the total is the members\' seats', () => {
+  const ctx = fixture([P('a', 't1', -2), P('b', 't1', 1), P('c', 't1', 1), P('d', 't1', null), P('e', 't1', 2)]);
+  const state = { members: ['c', 'a', 'b', 'd'], supporters: ['e'], abstainers: [] };
+  const r = seatsByPosition(ctx, state.members, 't1');
+  assert.deepEqual(r.byPosition.map((g) => g.position), AXIS, 'axis order, not by size');
+  assert.deepEqual(r.byPosition.map((g) => g.seats), [30, 0, 0, 30, 0]);
+  assert.deepEqual(r.byPosition[3].partyIds, ['b', 'c'], 'party order within a label');
+  assert.deepEqual(r.noPosition, { seats: 8, partyIds: ['d'] });
+  const total = r.byPosition.reduce((n, g) => n + g.seats, 0) + r.noPosition.seats;
+  assert.equal(total, investiture(ctx, state).membersSeats, 'the supporter e (position 2) is not counted');
+});
+
+test('seatsByPosition: a member with no stated position, or no row at all, is in the no-position group', () => {
+  const ctx = fixture([P('a', 't2', null), P('b', 't2', 0)]);
+  const r = seatsByPosition(ctx, ['a', 'b', 'c'], 't2');
+  assert.deepEqual(r.noPosition, { seats: 40, partyIds: ['a', 'c'] });
+  assert.deepEqual(r.byPosition.map((g) => g.seats), [0, 0, 20, 0, 0]);
+  assert.deepEqual(seatsByPosition(ctx, [], 't2').noPosition, { seats: 0, partyIds: [] });
 });

@@ -1213,13 +1213,18 @@ function topicSheet(tid) {
   const ids = C.selected(state).length ? C.selected(state) : ctx.parties.map((p) => p.id);
   const at = (k) => ids.filter((id) => posOf(id, tid)?.position === Number(k)).map(name);
   const nulls = ids.filter((id) => posOf(id, tid)?.position == null).map(name);
+  // #15: the members' seats under each label, after the source line. Seats hidden: no numbers, the names stay.
+  const seats = showSeats() && state.members.length ? C.seatsByPosition(ctx, state.members, tid) : null;
+  const seatsAt = (group) => (group ? `<span class="axis-seats">${esc(S.sheet.membersSeats(Math.round(group.seats), isResults()))}</span>` : '');
   openSheet(`
     <h2>${esc(t.name)}</h2>
     <p class="muted">${esc(t.axisNote)}</p>
     <h3>${esc(S.sheet.axisTitle)}</h3>
-    <ol class="axis-list">${['-2', '-1', '0', '1', '2'].map((k) => `<li>${esc(t.axis[k])}
-      <span class="axis-parties">${esc(at(k).join(' · ') || S.sheet.nobodyHere)}</span></li>`).join('')}</ol>
-    ${nulls.length ? `<p>${levelBadge('NONE')} ${esc(nulls.join(' · '))}</p>` : ''}`);
+    ${seats ? seatSourceLine() : ''}
+    <ol class="axis-list">${C.AXIS.map((k, i) => `<li>${esc(t.axis[k])}
+      <span class="axis-parties">${esc(at(k).join(' · ') || S.sheet.nobodyHere)}</span>${seatsAt(seats?.byPosition[i])}</li>`).join('')}</ol>
+    ${nulls.length ? `<p class="axis-none">${levelBadge('NONE')} ${esc(nulls.join(' · '))}${seatsAt(seats?.noPosition)}</p>` : ''}
+    ${seats ? `<p class="muted small members-only">${esc(S.sheet.membersOnly)}</p>` : ''}`);
 }
 
 function partyNotes(p) {

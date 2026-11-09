@@ -372,6 +372,8 @@ export const S = {
     noPositionLabel: 'No stated position',
     partyProfile: 'All positions',
     nobodyHere: 'None',
+    membersSeats: (n, exact) => `Coalition members: ${exact ? '' : 'about '}${seatsN(n)}`,
+    membersOnly: "Only the coalition members' seats are counted, not outside supporters or abstainers.",
   },
 
   pair: {

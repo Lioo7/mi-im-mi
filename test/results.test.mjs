@@ -224,3 +224,18 @@ test('results mode: הציונות הדתית and זהות are chosen and counte
   assert.equal(polls.linkedOf('religious-zionism'), 'zehut');
   assert.ok(completions(polls, change).list.every((x) => x.add.includes('zehut') === x.add.includes('religious-zionism')));
 });
+
+test('seatsByPosition on the CEC results: every topic\'s labels and no-position group add up to the members\' seats', async () => {
+  const { contextFor, seatsByPosition, investiture } = await import('../site/js/compat.js');
+  const { topics, positions } = loadData();
+  const ctx = contextFor({ meta: { ...meta, mode: 'results' }, parties, topics, positions, results });
+  const everyone = ctx.parties.filter((p) => ctx.passed(p.id)).map((p) => p.id);
+  for (const members of [everyone, ['likud', 'otzma-yehudit', 'shas', 'utj', 'religious-zionism', 'zehut']]) {
+    for (const t of topics) {
+      const r = seatsByPosition(ctx, members, t.id);
+      const total = r.byPosition.reduce((n, g) => n + g.seats, 0) + r.noPosition.seats;
+      assert.equal(total, investiture(ctx, { members }).membersSeats, `${t.id}: ${members.join('+')}`);
+    }
+  }
+  assert.equal(investiture(ctx, { members: everyone }).membersSeats, 120);
+});

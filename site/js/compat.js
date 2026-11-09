@@ -420,6 +420,26 @@ export function investiture(ctx, { members, supporters = [], abstainers = [] }) 
   };
 }
 
+// The axis, from one pole to the other. Shown only through each topic's labels, never as numbers.
+export const AXIS = [-2, -1, 0, 1, 2];
+
+// Seats at each axis label on one topic (#15, the topic sheet): coalition members only (supporters and abstainers are
+// not counted), in axis order and never by size, plus the members with no stated position. Seats are summed as is (the
+// app rounds poll averages), so the five labels and the no-position group always add up to the members' seats.
+/**
+ * @param {Context} ctx @param {string[]} members @param {string} topicId
+ * @returns {{ byPosition: { position: number, seats: number, partyIds: string[] }[], noPosition: { seats: number, partyIds: string[] } }}
+ */
+export function seatsByPosition(ctx, members, topicId) {
+  const ids = sortByParty(ctx, members);
+  /** @param {number | null} pos */
+  const at = (pos) => {
+    const partyIds = ids.filter((id) => (posOf(ctx.idx, id, topicId)?.position ?? null) === pos);
+    return { seats: sumSeats(ctx, partyIds), partyIds };
+  };
+  return { byPosition: AXIS.map((position) => ({ position, ...at(position) })), noPosition: at(null) };
+}
+
 // Supporters and abstainers vs the coalition: per party and topic, the worst MAJOR/CLASH pair against any member.
 // Member-member pairs are covered by analyze(); these never are. Rows keep party order; items run worst first.
 /** @param {Context} ctx @param {State} state */

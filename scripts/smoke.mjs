@@ -16,7 +16,7 @@ import { mkdirSync, writeFileSync, rmSync, readFileSync, existsSync, statSync, w
 import { join } from 'node:path';
 import { ROOT, loadData, PRESIDENT_HE, PRESIDENT_EN } from './lib.mjs';
 import { sleep, waitFor as waitFor_, serve as serve_, siteHeaders, launchChrome, pageClient, SETTLE_JS } from './browser.mjs';
-import { recommendationRows, sourceReply, groupRedLines, contextFor, presets, serializeState, parseState, ballotOrder, completions, parseLocation, stateKeysIn, selected, locationFor, closestTo, redLinesCrossed, pivotal, investiture, coalitionGroups, analyze, peripheryClashes, pairSummary, matrixCell, addImpact } from '../site/js/compat.js';
+import { recommendationRows, sourceReply, groupRedLines, contextFor, presets, serializeState, parseState, ballotOrder, completions, parseLocation, stateKeysIn, selected, locationFor, closestTo, redLinesCrossed, pivotal, investiture, coalitionGroups, analyze, peripheryClashes, pairSummary, matrixCell, addImpact, seatsByPosition } from '../site/js/compat.js';
 import { PROD_HOST } from '../site/js/stats.js';
 import { S } from '../site/js/strings.js';
 import { S as EN } from '../site/js/strings.en.js';
@@ -1200,6 +1200,35 @@ try {
   const qsOf = (members) => serializeState(ctx, { base: null, members });
   if (sec('cells')) {
     await setSize(z);
+    // #15: the topic sheet shows the members' seats under each axis label, after the source line, in axis order, then the
+    // no-position group and the members-only note, in both languages. The numbers are the members' alone (a supporter is
+    // in the URL and not counted) and add up to their seats. Seats hidden: no numbers, no source line, no note.
+    const nullCell = loadData().positions.find((p) => p.position === null && passedIds.includes(p.partyId) && !['likud', 'shas', 'together'].includes(p.partyId));
+    const tMembers = [nullCell.partyId, 'likud', 'shas'];
+    for (const lng of ['he', 'en']) {
+      const T = lng === 'he' ? S : EN;
+      await go(`${baseUrl}#results${serializeState(ctx, { base: null, members: tMembers, supporters: ['together'] })}${lng === 'en' ? '&l=en' : ''}`);
+      await waitFor(() => evaluate("document.body.dataset.view === 'results' && document.querySelectorAll('.topic-btn').length > 0"));
+      await evaluate(`document.querySelector('.topic-btn[data-id="${nullCell.topicId}"]').click()`);
+      await settle(300);
+      const got = await evaluate(`(() => { const s = document.querySelector('#sheet'); const src = s.querySelector('.seat-src, .poll-legal'); const seats = [...s.querySelectorAll('.axis-seats')];
+        return { src: Boolean(src), before: Boolean(src && seats[0] && (src.compareDocumentPosition(seats[0]) & Node.DOCUMENT_POSITION_FOLLOWING)), seats: seats.map((x) => x.textContent.trim()),
+          lastInNone: seats.at(-1)?.closest('.axis-none') != null, note: s.querySelector('.members-only')?.textContent.trim() ?? null, names: s.querySelectorAll('.axis-parties').length }; })()`);
+      const r = seatsByPosition(posCtx[lng], tMembers, nullCell.topicId);
+      const want = SEATS_HIDDEN ? [] : [...r.byPosition, r.noPosition].map((g) => T.sheet.membersSeats(Math.round(g.seats), RESULTS));
+      const tag = `[cells topic-sheet ${lng}]`;
+      if (JSON.stringify(got.seats) !== JSON.stringify(want)) errors.push(`${tag} seats per label should be ${JSON.stringify(want)}, got ${JSON.stringify(got.seats)}`);
+      if (got.names !== 5) errors.push(`${tag} every axis label keeps its party names (${got.names} of 5)`);
+      if (SEATS_HIDDEN ? got.src || got.note : !got.src || !got.before || !got.lastInNone || got.note !== T.sheet.membersOnly) {
+        errors.push(`${tag} ${SEATS_HIDDEN ? 'seats hidden: no source line and no members-only note' : 'the source line comes first, the no-position group last, then the members-only note'} (${JSON.stringify(got)})`);
+      }
+      if (RESULTS) {
+        const sum = got.seats.reduce((n, x) => n + Number(/\d+/.exec(x)?.[0] ?? (/מנדט אחד|1 seat/.test(x) ? 1 : NaN)), 0);
+        const membersSeats = investiture(posCtx[lng], { members: tMembers }).membersSeats;
+        if (sum !== membersSeats) errors.push(`${tag} the seats should add up to the members' ${membersSeats}, got ${sum}`);
+      }
+      await evaluate("document.querySelector('#sheet').close()");
+    }
     // A cell sheet with a quote renders it in quotation marks with an attribution line underneath.
     const withQuote = JSON.parse(readFileSync(join(ROOT, 'site', 'data', 'positions.json'), 'utf8')).find((p) => p.quote && p.quoteBy && p.sourceDate);
     await go(`${baseUrl}#results?m=${withQuote.partyId},together`);
