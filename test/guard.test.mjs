@@ -1,7 +1,11 @@
-// The safety rails (#47): the public CSVs' formula guard and https-only meta links.
+// The safety rails (#47): the public CSVs' formula guard, https-only meta links, and the positions guard hook.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { loadData, toCsv, parseCsv, validateResults, META_URLS } from '../scripts/lib.mjs';
+import { spawnSync } from 'node:child_process';
+import { mkdtempSync, rmSync, symlinkSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { ROOT, loadData, toCsv, parseCsv, validateResults, META_URLS } from '../scripts/lib.mjs';
 
 test('toCsv formulaSafe: text cells that a spreadsheet would run get a leading apostrophe, numbers stay', () => {
   const rows = [{ a: '=HYPERLINK("x")', b: -2 }, { a: '+1', b: 0 }, { a: '-x', b: 1 }, { a: '@SUM(1)', b: 2 }, { a: '\tx', b: null }, { a: 'שלום = 1', b: '' }];
@@ -22,4 +26,22 @@ test('meta links are https only, in both modes', () => {
       }
     }
   }
+});
+
+const hook = (filePath, cwd = ROOT) => spawnSync(process.execPath, [join(ROOT, '.claude', 'hooks', 'guard-positions.mjs')], {
+  input: JSON.stringify({ cwd, tool_input: { file_path: filePath } }), env: { ...process.env, CLAUDE_PROJECT_DIR: ROOT }, encoding: 'utf8',
+}).status;
+
+test('the positions hook blocks the file by any path, a symlink included, and nothing else', (t) => {
+  const dir = mkdtempSync(join(tmpdir(), 'guard-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  symlinkSync(join(ROOT, 'site', 'data', 'positions.json'), join(dir, 'p.json'));
+  symlinkSync(join(ROOT, 'site', 'data'), join(dir, 'data'));
+  assert.equal(hook('site/data/positions.json'), 2);
+  assert.equal(hook(join(ROOT, 'site', 'data', 'positions.json')), 2);
+  assert.equal(hook(join(ROOT, 'site', 'DATA', 'Positions.json')), process.platform === 'linux' ? 0 : 2);
+  assert.equal(hook(join(dir, 'p.json')), 2, 'a symlink to the file');
+  assert.equal(hook(join(dir, 'data', 'positions.json')), 2, 'a symlink to its folder');
+  assert.equal(hook('site/data/meta.json'), 0);
+  assert.equal(hook(join(dir, 'new.json')), 0);
 });
