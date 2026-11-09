@@ -16,7 +16,7 @@ import { mkdirSync, writeFileSync, rmSync, readFileSync, existsSync, statSync, w
 import { join } from 'node:path';
 import { ROOT, loadData, PRESIDENT_HE, PRESIDENT_EN } from './lib.mjs';
 import { sleep, waitFor as waitFor_, serve as serve_, siteHeaders, launchChrome, pageClient, SETTLE_JS } from './browser.mjs';
-import { recommendationRows, sourceReply, groupRedLines, contextFor, presets, serializeState, parseState, ballotOrder, completions, parseLocation, stateKeysIn, selected, locationFor, closestTo, redLinesCrossed, pivotal, investiture, coalitionGroups, analyze, peripheryClashes, pairSummary, matrixCell, addImpact, seatsByPosition, powerIndices } from '../site/js/compat.js';
+import { recommendationRows, sourceReply, groupRedLines, contextFor, presets, serializeState, parseState, ballotOrder, completions, parseLocation, stateKeysIn, selected, locationFor, closestTo, redLinesCrossed, pivotal, investiture, coalitionGroups, analyze, peripheryClashes, pairSummary, matrixCell, addImpact, seatsByPosition, powerIndices, METHOD_ANCHORS } from '../site/js/compat.js';
 import { PROD_HOST } from '../site/js/stats.js';
 import { S } from '../site/js/strings.js';
 import { S as EN } from '../site/js/strings.en.js';
@@ -153,6 +153,25 @@ const POWER_JS = `(() => { const s = document.querySelector('#power'); if (!s) r
 // text inside closed <details> is checked too.
 const ENTITY_JS = `(() => { const m = document.body.textContent.match(/&(?:quot|amp|lt|gt|#39|#x?[0-9a-f]+);/i); if (!m) return '';
   const t = document.body.textContent; return t.slice(Math.max(0, m.index - 30), m.index + 20).replace(/\\s+/g, ' '); })()`;
+// Routes that stay in the fragment as written: the views, and the method page's in-page targets.
+const ROUTE_TOKENS = ['build', 'results', 'method', ...METHOD_ANCHORS];
+// The method page (progressive disclosure): five <details> groups, all closed on a plain #method. A deep link opens the
+// target's group and scrolls the target into view; the rest stay closed. Checked before anything is opened by hand,
+// since inside a closed group an element's rect is empty (top 0 would pass a position check).
+const METHOD_GROUPS = ['calc', 'rules', 'data', 'changes', 'privacy-a11y'];
+const methodLinkErrors = (target, height) => `(() => { const gs = [...document.querySelectorAll('#method details.mgroup')]; const out = [];
+  if (gs.map((g) => g.id).join() !== ${JSON.stringify(METHOD_GROUPS.join())}) out.push('groups ' + gs.map((g) => g.id).join());
+  if (gs.some((g) => g.querySelector(':scope > summary > h2') === null)) out.push('a group summary without its h2');
+  const t = ${JSON.stringify(target)}; const el = t && document.getElementById(t); const g = el?.closest('details.mgroup');
+  const open = gs.filter((x) => x.open).map((x) => x.id);
+  if (!t && open.length) out.push('open on load: ' + open.join());
+  if (t && !el) out.push('#' + t + ' is missing');
+  if (el && g && (!g.open || open.length !== 1)) out.push('#' + t + ': expected only its group (' + g.id + ') open, open: ' + (open.join() || 'none'));
+  if (el && !g && open.length) out.push('#' + t + ' is outside the groups, yet open: ' + open.join());
+  if (el) { const r = el.getBoundingClientRect(); if (!r.height || r.top < 0 || r.top > ${height} - 120) out.push('#' + t + ' did not scroll into view (top ' + Math.round(r.top) + ', height ' + Math.round(r.height) + ')'); }
+  return out.join('; '); })()`;
+// Every group opened, so the content checks read the same text as before the groups (innerText skips closed <details>).
+const OPEN_GROUPS_JS = "document.querySelectorAll('#method details.mgroup').forEach((d) => { d.open = true; }), true";
 function powerErrors(lng, got) {
   if (!RESULTS) return got ? ['the power section must not appear in polls mode'] : [];
   if (!got) return ['the power section is missing'];
@@ -288,6 +307,9 @@ const cases = [
   ['privacy', '#privacy', 'method'],
   ['accessibility', '#accessibility', 'method'],
   ['privacy-with-state', '#privacy?m=likud,yashar', 'method'],
+  // A group from the table of contents, and (results mode) a section inside a group: each opens its group on first load.
+  ['changes', '#changes', 'method'],
+  ...(RESULTS ? [['power', '#power', 'method']] : []),
   // Links from before the move: the query is read, then moved to the fragment; other params (?s=wa) stay.
   ['legacy-results', coalitionQs, 'results'], // a shared link without a hash opens #results
   ['legacy-build', `${coalitionQs}#build`, 'build'],
@@ -464,10 +486,17 @@ try {
       // The URL settles as <other query params>#<route>?<normalized state>: an old link's state has moved to the
       // fragment, ids that can't be selected are gone, and a link without a view opens #results.
       const exp = parseLocation(splitSuffix(suffix), passedIds);
-      const token = exp.route && ['build', 'results', 'method', 'why', 'privacy', 'accessibility'].includes(exp.route) ? exp.route : expectView;
+      const token = exp.route && ROUTE_TOKENS.includes(exp.route) ? exp.route : expectView;
       const wantUrl = exp.search + (selected(exp.state).length || exp.route ? `#${token}${serializeState(ctx, exp.state)}` : '');
       const gotUrl = await evaluate('location.search + location.hash');
       if (gotUrl !== wantUrl) errors.push(`[${current}] URL should settle on "${wantUrl}", got "${gotUrl}"`);
+      // The method page: groups closed on #method, a deep link (the route) opens its group and is scrolled into view.
+      // Then every group is opened for the content checks below.
+      if (expectView === 'method') {
+        const bad = await evaluate(methodLinkErrors(exp.route === 'method' ? null : exp.route, z.height));
+        if (bad) errors.push(`[${current}] method page: ${bad}`);
+        await evaluate(OPEN_GROUPS_JS);
+      }
       if (expectView === 'build') {
         const title = await evaluate('document.title');
         if (title !== S.pageTitle) errors.push(`[${current}] <title> must be "${S.pageTitle}", got "${title}"`);
@@ -642,10 +671,6 @@ try {
         for (const e of powerErrors('he', await evaluate(POWER_JS))) errors.push(`[${current}] power: ${e}`);
         await waitFor(() => evaluate("document.querySelectorAll('#changes-list li').length > 0")).catch(() => {});
         for (const e of changesErrors('he', await evaluate(CHANGES_JS))) errors.push(`[${current}] changes: ${e}`);
-        if (name !== 'method') {
-          const top = await evaluate(`Math.round(document.querySelector('#${name}').getBoundingClientRect().top)`);
-          if (top < 0 || top > z.height - 120) errors.push(`[${current}] #${name} did not scroll into view (top ${top})`);
-        }
       }
       if (expectView === 'method' && RESULTS) {
         const joint = await evaluate("(() => { const h = [...document.querySelectorAll('#method h3')].find((x) => x.textContent.includes('רשימות משותפות')); const src = h?.nextElementSibling; const ul = src?.nextElementSibling; return src?.classList.contains('seat-src') && /5 להציונות הדתית ו-1 לזהות/.test(ul?.innerText ?? '') ? 'ok' : 'missing'; })()");
@@ -1121,6 +1146,7 @@ try {
         // The method page states the rule.
         await go(`${baseUrl}#method${lng === 'he' ? '' : '?l=en'}`);
         await waitFor(() => evaluate("document.querySelector('#method h1') !== null"));
+        await evaluate(OPEN_GROUPS_JS);
         // #32: an intro, then a real <ul> of what is included and a real <ol> of the sort order, then the closing rules.
         const rule = await evaluate(`(() => { const b = document.querySelector('#closest-rule')?.nextElementSibling; if (!b || b.id !== 'closest-rule-body') return null; const t = (e) => e.innerText.replace(/\\s+/g, ' ').trim();
           return { kids: [...b.children].map((e) => e.tagName.toLowerCase()), intro: t(b.querySelector('.rule-intro')), heads: [...b.querySelectorAll('h4')].map(t),
@@ -1196,7 +1222,7 @@ try {
           // "How is this calculated?" closes the sheet and lands on the rule on the method page.
           await evaluate(`[...document.querySelectorAll('#sheet a[href="#closest-rule"]')].find((a) => a.innerText === ${JSON.stringify(T.closest.howLink)})?.click()`);
           await settle(400);
-          const how = await evaluate("JSON.stringify([document.querySelector('#sheet').open, document.body.dataset.view, (() => { const r = document.querySelector('#closest-rule')?.getBoundingClientRect(); return Boolean(r) && r.top >= 0 && r.top < innerHeight / 2; })(), document.documentElement.lang])");
+          const how = await evaluate("JSON.stringify([document.querySelector('#sheet').open, document.body.dataset.view, (() => { const e = document.querySelector('#closest-rule'); const r = e?.getBoundingClientRect(); return Boolean(r) && e.closest('details').open && r.height > 0 && r.top >= 0 && r.top < innerHeight / 2; })(), document.documentElement.lang])");
           if (how !== JSON.stringify([false, 'method', true, lng])) errors.push(`[${tag}] the method link should close the sheet and show the rule (${how})`);
           // The build-view picker opens the same list (Yisrael Beytenu: its red lines lead the order) and resets.
           await go(`${baseUrl}#build${lng === 'he' ? '' : '?l=en'}`);
@@ -1346,7 +1372,28 @@ try {
     if (pasted.hash !== `#results${qsOf(['together', 'democrats'])}` || !pasted.same || !pastedNames.every((n) => pasted.line.includes(n)) || pasted.line.includes(ctx.byId.get('likud').name)) {
       errors.push(`[interaction] a pasted fragment should replace the coalition without a reload (${JSON.stringify(pasted)})`);
     }
-    log('  ✓ fragment state: nav links, history, a pasted link');
+    // The method page's deep links on hashchange (no reload): from #method with every group closed, a section inside a
+    // group (#power in results mode, else #privacy) opens only its group and scrolls to it. A table-of-contents link opens
+    // its group and moves focus to its summary, also when the address bar already holds that fragment (no hashchange).
+    await go(`${baseUrl}#method`);
+    await waitFor(() => evaluate("document.querySelector('#method h1') !== null && document.querySelector('#footer')?.children.length > 0"));
+    await settle(250);
+    const closed = await evaluate(methodLinkErrors(null, z.height));
+    if (closed) errors.push(`[fragment] #method: ${closed}`);
+    const inner = RESULTS ? 'power' : 'privacy';
+    await evaluate(`window.smokeNoReload = true; location.hash = '#${inner}'`);
+    await settle(400);
+    const deep = await evaluate(methodLinkErrors(inner, z.height));
+    if (deep || !(await evaluate('window.smokeNoReload === true'))) errors.push(`[fragment] #${inner} on hashchange: ${deep || 'the page reloaded'}`);
+    for (const pass of ['link', 'same fragment']) {
+      await evaluate("document.querySelectorAll('#method details.mgroup').forEach((d) => { d.open = false; }), window.scrollTo(0, 0), true");
+      await evaluate(`document.querySelector('#method .mtoc a[href="#privacy-a11y"]').click()`);
+      await settle(400);
+      const toc = await evaluate(methodLinkErrors('privacy-a11y', z.height));
+      const focus = await evaluate("document.activeElement === document.querySelector('#privacy-a11y > summary')");
+      if (toc || !focus) errors.push(`[fragment] the table of contents (${pass}): ${toc || 'focus should move to the group summary'}`);
+    }
+    log('  ✓ fragment state: nav links, history, a pasted link; method deep links on hashchange and from the table of contents');
   }
 
   // The /en/ entry page (#21): link previews can't see the fragment, so English share links go to /en/#…. Its head is
@@ -1423,9 +1470,14 @@ try {
       if (page.note !== EN.translatedNote) errors.push(`[${current}] the translation notice is missing (${page.note})`);
       if (page.overflow) errors.push(`[${current}] horizontal page overflow`);
       const exp = parseLocation(splitSuffix(suffix), passedIds);
-      const token = ['build', 'results', 'method', 'why', 'privacy', 'accessibility'].includes(exp.route) ? exp.route : expectView;
+      const token = ROUTE_TOKENS.includes(exp.route) ? exp.route : expectView;
       const wantUrl = locationFor(ctx, exp.state, token, exp.search, 'en');
       if (page.url !== wantUrl) errors.push(`[${current}] URL should settle on "${wantUrl}", got "${page.url}"`);
+      if (expectView === 'method') {
+        const bad = await evaluate(methodLinkErrors(exp.route === 'method' ? null : exp.route, z2.height));
+        if (bad) errors.push(`[${current}] method page: ${bad}`);
+        await evaluate(OPEN_GROUPS_JS);
+      }
       const hebrew = await evaluate(HEBREW_OUTSIDE);
       if (hebrew) errors.push(`[${current}] Hebrew text outside lang="he" (untranslated?): ${hebrew}`);
       const entity = await evaluate(ENTITY_JS);

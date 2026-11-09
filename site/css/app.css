@@ -199,6 +199,18 @@ blockquote { margin: .4em 0 .6em; padding-inline-start: 12px; border-inline-star
 .level-rules { list-style: none; padding: 0; display: grid; gap: 6px; }
 details.axis { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; margin-block-end: 6px; }
 details.axis summary { cursor: pointer; font-weight: 600; min-block-size: 32px; }
+/* Method page: the table of contents and the five collapsed groups. The heading sits inline in the summary, beside the
+   native marker (which points the right way in both directions). */
+.mtoc { background: var(--card-tint); border: 1px solid var(--line); border-radius: 10px; padding: 4px 16px 6px; margin-block: 18px 12px; }
+.mtoc-title { margin-block: 8px 2px; }
+.mtoc ul { margin: 0; padding-inline-start: 20px; }
+.mtoc a { display: inline-block; padding-block: 6px; }
+details.mgroup { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 0 14px; margin-block: 10px; }
+details.mgroup > summary { cursor: pointer; padding-block: 10px; min-block-size: 44px; box-sizing: border-box; }
+details.mgroup > summary > .mgroup-title { display: inline; font-size: 1.15rem; margin: 0; }
+details.mgroup[open] { padding-block-end: 12px; }
+details.mgroup[open] > summary { border-block-end: 1px solid var(--line); margin-block-end: 12px; }
+.method-end { margin-block-start: 20px; }
 .coverage { border-collapse: collapse; inline-size: 100%; font-size: .85rem; }
 .coverage th, .coverage td { border-block-end: 1px solid var(--line); padding: 6px 4px; text-align: start; font-variant-numeric: tabular-nums; }
 

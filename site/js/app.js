@@ -240,6 +240,16 @@ function renderMethod() {
   const W = S.why;
   const P = S.privacy;
   const A = S.a11y;
+  const G = M.groups;
+  // Progressive disclosure: why, the three steps and the color legend stay visible; the rest is in five native <details>
+  // groups, all closed on load. A deep link (#power, #privacy…) opens its group (openMethodAnchor). The text is unchanged.
+  const group = (id, title, body) => `<details class="mgroup anchor" id="${id}">
+      <summary><h2 class="mgroup-title">${esc(title)}</h2></summary>
+      <div class="mgroup-body">${body}</div>
+    </details>`;
+  const toc = [['calc', G.calc], ['rules', G.rules], ['data', G.data], ['changes', M.changes.title], ['privacy-a11y', G.privacy]];
+  // The groups the reader opened stay open when the page is rebuilt (the language switch).
+  const wasOpen = [...document.querySelectorAll('#method details[open][id]')].map((d) => d.id);
   $('#method').innerHTML = `
     <section id="why" class="why-box" tabindex="-1">
       <h2>${esc(W.title)}</h2>
@@ -248,30 +258,29 @@ function renderMethod() {
     </section>
     <h1 class="page-title">${esc(M.title)}</h1>
     <p>${esc(M.intro(ctx.parties.length))}</p>
-    ${M.translation ? `<h3>${esc(M.translationTitle)}</h3><p>${esc(M.translation)}</p>` : ''}
     <ol>${S.how.lines.map((l) => `<li>${esc(l)}</li>`).join('')}</ol>
-    <h3>${esc(M.rolesTitle)}</h3>
-    <ul>${M.rolesRules(showSeats(), !isResults()).map((r) => `<li>${esc(r)}</li>`).join('')}</ul>
     <p class="disclaimer"><strong>${esc(M.disclaimer)}</strong> ${esc(M.independent)}</p>
 
     <h3>${esc(M.levelsTitle)}</h3>
     <ul class="level-rules">${M.levelRules.map(([lv, txt]) => `<li>${levelBadge(lv)} ${esc(txt)}</li>`).join('')}</ul>
     <p>${esc(M.colorRule)}</p>
+
+    <nav class="mtoc" aria-labelledby="mtoc-title">
+      <p class="mtoc-title" id="mtoc-title"><strong>${esc(M.toc)}</strong></p>
+      <ul>${toc.map(([id, t]) => `<li><a href="#${id}">${esc(t)}</a></li>`).join('')}</ul>
+    </nav>
+
+    ${group('calc', G.calc, `
+    <h3>${esc(M.rolesTitle)}</h3>
+    <ul>${M.rolesRules(showSeats(), !isResults()).map((r) => `<li>${esc(r)}</li>`).join('')}</ul>
     <p>${esc(M.matrixRule)}</p>
     <p>${esc(M.resultsRule(showSeats()))}</p>
     <p>${esc(M.impactRule)}</p>
     <p>${esc(M.breakdownRule)}</p>
     <p>${esc(M.pairRule)}</p>
-    ${isResults() ? closestRuleHtml(M) : ''}
+    ${isResults() ? closestRuleHtml(M) : ''}`)}
 
-    <h3>${esc(M.axesTitle)}</h3>
-    ${ctx.topics.map((t) => `
-      <details class="axis">
-        <summary>${esc(t.name)}</summary>
-        <p class="muted">${esc(t.axisNote)}</p>
-        <ol class="axis-list">${['-2', '-1', '0', '1', '2'].map((k) => `<li>${esc(t.axis[k])}</li>`).join('')}</ol>
-      </details>`).join('')}
-
+    ${group('rules', G.rules, `
     <h3>${esc(M.sourcesTitle)}</h3>
     <ul>${M.sourceRules.map(([, txt]) => `<li>${esc(txt)}</li>`).join('')}</ul>
     <p>${esc(M.redLineRule)}</p>
@@ -287,6 +296,25 @@ function renderMethod() {
     ${showSeats() && !isResults() ? pollLegalLine() : ''}
     <p class="small"><a href="https://www.ynet.co.il/news/elections2026/article/rjuhrwvdfl" rel="noopener">${esc(M.jointSource)}</a></p>
 
+    <h3>${esc(M.orderTitle)}</h3>
+    <ul>${(isResults() ? M.orderRulesResults : M.orderRules(showSeats() ? 'polls' : 'ballot', name(C.presets(ctx).unity.members[1]))).map((r) => `<li>${esc(r)}</li>`).join('')}</ul>
+
+    <h3>${esc(M.axesTitle)}</h3>
+    ${ctx.topics.map((t) => `
+      <details class="axis" id="axis-${t.id}">
+        <summary>${esc(t.name)}</summary>
+        <p class="muted">${esc(t.axisNote)}</p>
+        <ol class="axis-list">${['-2', '-1', '0', '1', '2'].map((k) => `<li>${esc(t.axis[k])}</li>`).join('')}</ol>
+      </details>`).join('')}`)}
+
+    ${group('data', G.data, `
+    ${M.translation ? `<h3>${esc(M.translationTitle)}</h3><p>${esc(M.translation)}</p>` : ''}
+    <h3>${esc(M.coverageTitle)}</h3>
+    <div class="table-wrap"><table class="coverage">
+      <thead><tr>${M.coverageCols.map((c) => `<th scope="col">${esc(c)}</th>`).join('')}</tr></thead>
+      <tbody>${coverage}</tbody>
+    </table></div>
+
     <h3>${esc(M.sourceMixTitle)}</h3>
     <p>${esc(M.sourceMixIntro)}</p>
     <div class="table-wrap"><table class="coverage">
@@ -295,25 +323,19 @@ function renderMethod() {
     </table></div>
     <p class="muted small">${esc(M.undatedNote)}</p>
 
-    <h3>${esc(M.coverageTitle)}</h3>
-    <div class="table-wrap"><table class="coverage">
-      <thead><tr>${M.coverageCols.map((c) => `<th scope="col">${esc(c)}</th>`).join('')}</tr></thead>
-      <tbody>${coverage}</tbody>
-    </table></div>
-
-    <h3>${esc(M.orderTitle)}</h3>
-    <ul>${(isResults() ? M.orderRulesResults : M.orderRules(showSeats() ? 'polls' : 'ballot', name(C.presets(ctx).unity.members[1]))).map((r) => `<li>${esc(r)}</li>`).join('')}</ul>
-
     ${examples ? `<h3>${esc(M.examplesTitle)}</h3><ul>${examples}</ul>` : ''}
 
     ${isResults() ? `<h3>${esc(S.elected.resultsTitle)}</h3><p>${esc(S.elected.resultsText)}</p>${seatSourceLine()}${pollsVsResults()}` : ''}
-    ${powerSection()}
     ${showSeats() && !isResults() ? `<h3>${esc(M.pollsTitle)}</h3><p>${esc(M.pollsText)}</p><p><strong>${pollLegalText()}</strong></p>
     <p>${esc(M.pollsGuidance)} <a href="${esc(meta.pollGuidanceUrl)}" rel="noopener">${esc(M.pollsGuidanceLink)}</a></p>` : ''}
+    ${powerSection()}
     <h3>${esc(M.researchDocs)}</h3>
     <p>${esc(M.researchDocsNote)} <a href="https://github.com/Lioo7/mi-im-mi/tree/main/docs/research" rel="noopener">${esc(M.researchDocs)}</a></p>
-    ${changesSection()}
-    ${downloadSection()}
+    ${downloadSection()}`)}
+
+    ${group('changes', M.changes.title, changesBody())}
+
+    ${group('privacy-a11y', G.privacy, `
     <section id="privacy" class="anchor" tabindex="-1">
       <h3>${esc(P.title)}</h3>
       <ul>${P.lines.map((l) => `<li>${bidi(l)}</li>`).join('')}</ul>
@@ -328,9 +350,25 @@ function renderMethod() {
       <ul>${A.limits.map((l) => `<li>${bidi(l)}</li>`).join('')}</ul>
       <p>${esc(A.contact)} <a href="mailto:lioz.akirav@gmail.com"><bdi>lioz.akirav@gmail.com</bdi></a></p>
       <p class="muted">${esc(A.date)}</p>
-    </section>
-    <p><strong>${esc(M.corrections)}</strong> <a href="mailto:lioz.akirav@gmail.com"><bdi>lioz.akirav@gmail.com</bdi></a></p>
+    </section>`)}
+
+    <p class="method-end"><strong>${esc(M.corrections)}</strong> <a href="mailto:lioz.akirav@gmail.com"><bdi>lioz.akirav@gmail.com</bdi></a></p>
     <p class="muted">${esc(M.updated(fmtDate(meta.dataUpdated)))}</p>`;
+  for (const id of wasOpen) { const d = document.getElementById(id); if (d) /** @type {HTMLDetailsElement} */ (d).open = true; }
+}
+
+// A method anchor (#power, #privacy, a group from the TOC…): open the group that holds it (and the group itself), then
+// scroll to it. Coming from a link, focus moves there too, so Tab continues from the target: the group's summary, or the
+// section (tabindex=-1).
+function openMethodAnchor(id, focus) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const g = /** @type {HTMLDetailsElement | null} */ (el.closest('details.mgroup'));
+  if (g) g.open = true;
+  el.scrollIntoView();
+  if (!focus) return;
+  const target = el.matches('details.mgroup') ? el.querySelector('summary') : el;
+  /** @type {HTMLElement | null} */ (target)?.focus({ preventScroll: true });
 }
 
 // Method page: the data changes (#19), from data/changelog.json, fetched the first time the method page opens.
@@ -355,14 +393,12 @@ function changeItems() {
     return `<li data-kind="${esc(e.kind)}"><span class="muted"><time datetime="${esc(e.date)}">${esc(fmtDate(e.date))}</time> · ${esc(G.kinds[e.kind])}:</span> ${bidi(line)}</li>`;
   }).join('');
 }
-function changesSection() {
+// The data-changes group's body: its title is the group's summary.
+function changesBody() {
   const G = S.method.changes;
   const [before, after] = G.intro.split(G.logLink);
-  return `<section id="changes" class="anchor" tabindex="-1">
-      <h3>${esc(G.title)}</h3>
-      <p>${esc(before)}<a href="${esc(G.logUrl)}" rel="noopener">${esc(G.logLink)}</a>${esc(after)}</p>
-      <ul id="changes-list" class="changes">${changeItems()}</ul>
-    </section>`;
+  return `<p>${esc(before)}<a href="${esc(G.logUrl)}" rel="noopener">${esc(G.logLink)}</a>${esc(after)}</p>
+      <ul id="changes-list" class="changes">${changeItems()}</ul>`;
 }
 
 // Method page: the data download (#18). The files are generated from the live data (scripts/export-download.mjs).
@@ -391,6 +427,7 @@ function powerSection() {
     <h3>${esc(Pw.title)}</h3>
     <p class="power-label"><strong>${esc(Pw.label)}</strong></p>
     <p>${esc(Pw.how)}</p>
+    <p class="power-example">${esc(Pw.example)}</p>
     ${ref('banzhaf')}${ref('shapley')}
     ${seatSourceLine()}
     <div class="table-wrap"><table class="coverage power-table">
@@ -1369,8 +1406,6 @@ let view = 'build';
 // The fragment's route: the view, or a method anchor.
 let routeToken = 'build';
 
-// In-page sections of the method view that the footer links to.
-const METHOD_ANCHORS = ['why', 'privacy', 'accessibility', 'closest-rule', 'power'];
 
 function route(initial = false) {
   const loc = C.parseLocation(location, passedIds(), ctx.parties.map((p) => p.id));
@@ -1387,7 +1422,7 @@ function route(initial = false) {
   // A pair link (or back/forward) brings its pair; the bare entry link `#pair` keeps the last one.
   if (loc.route === 'pair' && loc.hasParams) pair = loc.pair;
   let v = loc.route;
-  const anchor = METHOD_ANCHORS.includes(v) ? v : null;
+  const anchor = C.METHOD_ANCHORS.includes(v) ? v : null;
   if (anchor) v = 'method';
   if (!VIEWS.includes(v)) v = initial && C.selected(state).length ? 'results' : 'build';
   const changed = v !== view;
@@ -1400,7 +1435,7 @@ function route(initial = false) {
   document.body.dataset.view = view;
   render();
   if (view === 'method') loadChangelog();
-  if (anchor) $(`#${anchor}`)?.scrollIntoView();
+  if (anchor) openMethodAnchor(anchor, !initial);
   else if (changed || initial) window.scrollTo(0, 0);
   // Coming from the entry link, focus would stay on a hidden element: move it to the view's heading.
   if (view === 'pair' && changed && !initial) $('#pair-title')?.focus({ preventScroll: true });
@@ -1590,6 +1625,12 @@ function bind() {
   document.addEventListener('click', onClick);
   document.addEventListener('keydown', onRadioKey);
   window.addEventListener('hashchange', () => route());
+  // A method anchor link to the fragment already in the address bar fires no hashchange: open and scroll here instead.
+  document.addEventListener('click', (e) => {
+    const a = /** @type {Element} */ (e.target).closest?.('a[href^="#"]');
+    const id = a?.getAttribute('href')?.slice(1) ?? '';
+    if (a && C.METHOD_ANCHORS.includes(id) && location.hash === `#${id}` && view === 'method') { e.preventDefault(); openMethodAnchor(id, true); }
+  });
   window.addEventListener('resize', () => { if (view === 'results') syncResbarHeight(); });
   for (const ev of ['resize', 'scroll']) window.visualViewport?.addEventListener(ev, () => { if ($('#sheet').open) fitSheet(); });
   document.addEventListener('change', (e) => {

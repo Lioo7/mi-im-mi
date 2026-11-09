@@ -158,6 +158,7 @@ export const S = {
     title: 'Mathematical voting power',
     label: 'Mathematical power from seats alone, ignoring positions, red lines and who will actually sit together.',
     how: 'Computed exactly, over every combination of the factions in the Knesset, with a majority of 61 of 120.',
+    example: 'For example: three factions with 50, 40 and 30 seats, and a majority of 61. Any two together make a majority and none alone does, so each has a third of the power despite their different sizes.',
     banzhaf: "The Banzhaf index is a faction's share of all the cases in which one faction leaving a coalition of 61 or more drops it below 61",
     banzhafRef: 'Dubey and Shapley, 1979',
     shapley: 'The Shapley-Shubik index lines the factions up in every possible order, joining one after another, and is the share of the orders in which this faction is the one that brings the coalition to 61',
@@ -417,6 +418,8 @@ export const S = {
 
   method: {
     title: 'Methodology, sources and clarifications',
+    toc: 'On this page',
+    groups: { calc: "How it's calculated", rules: 'Sources and rules', data: 'The data', privacy: 'Privacy and accessibility' },
     translationTitle: 'About this translation',
     translation: 'This English version was translated from the Hebrew, which is authoritative. The summaries, the translations of quotes and the topic and scale labels were translated by the site, then checked by an independent reviewer: first a blind back-translation into Hebrew, then a comparison with the original. Quotes stay in their original language. Party and leader names follow the Government Press Office\'s English list or the party\'s own English, and are otherwise transliterated.',
     colorRule: 'Red = the parties are 3 or more steps apart on the scale, or 2 steps when one of them has declared it a red line.',

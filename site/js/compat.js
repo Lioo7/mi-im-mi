@@ -699,6 +699,9 @@ export const canUndo = (ctx, prev, next) => selected(prev).length > 0 && seriali
 
 // The state lives in the fragment, `#<route>?b=…&m=…&o=…&a=…`, which browsers never send to the server.
 // Links from before the move carry it in the query (`?m=…#results`); they are read once and rewritten.
+// In-page targets of the method view (#why, a group, or a section inside a group): a fragment route that opens the
+// method view, opens the target's group and scrolls to it. The routes the footer, the closest sheet and the TOC link to.
+export const METHOD_ANCHORS = ['why', 'calc', 'closest-rule', 'rules', 'data', 'power', 'download', 'changes', 'privacy-a11y', 'privacy', 'accessibility'];
 export const STATE_KEYS = ['b', 'm', 'o', 'a'];
 
 /** @param {string | URLSearchParams} params */

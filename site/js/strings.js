@@ -160,6 +160,7 @@ export const S = {
     title: 'כוח הצבעה מתמטי',
     label: 'כוח מתמטי לפי המנדטים בלבד, בלי להתחשב בעמדות, בקווים אדומים ובשאלה מי באמת תשב עם מי.',
     how: 'החישוב מדויק, על כל הצירופים של הסיעות בכנסת, עם רוב של 61 מתוך 120.',
+    example: 'דוגמה: שלוש סיעות עם 50, 40 ו-30 מנדטים, ורוב של 61. כל שתיים יחד הן רוב ואף אחת לבדה לא, ולכן לכל אחת שליש מהכוח, למרות הגדלים השונים.',
     banzhaf: 'מדד Banzhaf הוא החלק של הסיעה מכל המקרים שבהם יציאה של סיעה אחת מקואליציה של 61 ומעלה מורידה אותה מתחת ל-61',
     banzhafRef: 'Dubey ו-Shapley, 1979',
     shapley: 'מדד Shapley-Shubik מצרף את הסיעות אחת אחרי השנייה בכל הסדרים האפשריים, והוא החלק של הסדרים שבהם דווקא הסיעה הזאת מביאה את הקואליציה ל-61',
@@ -428,6 +429,9 @@ export const S = {
 
   method: {
     title: 'מתודולוגיה, מקורות והבהרות',
+    // Progressive disclosure: the table of contents and the five groups (the fourth is titled by changes.title).
+    toc: 'בעמוד הזה',
+    groups: { calc: 'איך מחושב', rules: 'מקורות וכללים', data: 'הנתונים', privacy: 'פרטיות ונגישות' },
     // On a translation only: what was translated and how it was checked (the Hebrew is the original).
     translationTitle: '',
     translation: '',
