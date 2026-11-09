@@ -2613,6 +2613,8 @@ try {
         if (got.styled) errors.push(`[${current}] ${got.styled} styled element(s) in the table rows: every candidate gets the same neutral look`);
         if (l === 'en' && got.hebrew) errors.push(`[${current}] Hebrew in the English sheet`);
         if (got.overflow) errors.push(`[${current}] the sheet overflows horizontally`);
+        // The sheet slides in (.18s): under load (three modes at once) settle(250) can end first, so wait for it to land.
+        await waitFor(() => evaluate("document.querySelector('#sheet').getAnimations().every((a) => a.playState !== 'running')"), 3000).catch(() => {});
         const x = await evaluate(SHEET_X);
         if (x !== 'ok') errors.push(`[${current}] sheet ✕: ${x}`);
         await evaluate("document.querySelector('#sheet .sheet-close').click()");
