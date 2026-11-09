@@ -406,7 +406,7 @@ export const S = {
 
   share: {
     button: 'Share',
-    copied: 'Link copied',
+    copied: 'Text and link copied',
     whatsapp: 'Send on WhatsApp',
     // names: the members. outside: [name, role] of the supporters and abstainers, with periphery = their head-on clashes
     // with the members; without outside parties the text is unchanged.

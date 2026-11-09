@@ -1212,11 +1212,14 @@ async function share(text = shareText(C.analyze(ctx, state)), url = shareUrl()) 
   if (navigator.share) {
     try { await navigator.share({ title: S.appName, text, url }); return; } catch (e) { if (e.name === 'AbortError') return; }
   }
+  // Without Web Share (in-app browsers, desktop), the text and the link are copied together, as the WhatsApp link
+  // sends them (#41).
+  const both = `${text}\n${url}`;
   try {
-    await navigator.clipboard.writeText(url);
+    await navigator.clipboard.writeText(both);
     toast(S.share.copied, 2500);
   } catch {
-    prompt(S.share.button, url);
+    prompt(S.share.button, both);
   }
 }
 
@@ -1230,6 +1233,23 @@ function fitSheet() {
   if (vv) $('#sheet').style.setProperty('--vvh', `${Math.floor(vv.height)}px`);
 }
 
+// An open sheet has its own history entry (#41), with the same URL, so Back closes the sheet instead of changing the
+// view under it (or leaving the site from a shared link). The fragment doesn't change, so no state leaves the page.
+// A sheet opened from another sheet reuses the entry. Every close (✕, Esc, the backdrop, Android's back gesture
+// through CloseWatcher, which closes without going back) goes back over the entry, so the next Back is never a dead
+// press. An action that follows a close (a new URL, a language) runs once that is done: closeSheet(then).
+// history.back() lands later: at most one is on its way (sheetBack), and a sheet opened meanwhile gets a fresh entry
+// when it lands (reopened), so entries never pile up.
+let afterSheetClose = null;
+let sheetBack = false;
+let reopened = false;
+
+function leaveSheetEntry() {
+  if (sheetBack) return;
+  sheetBack = true;
+  history.back();
+}
+
 function openSheet(html, { back = '' } = {}) {
   const d = $('#sheet');
   fitSheet();
@@ -1237,8 +1257,56 @@ function openSheet(html, { back = '' } = {}) {
     <button type="button" class="sheet-close" data-act="close-sheet" aria-label="${esc(S.sheet.close)}"><span aria-hidden="true">✕</span></button></div>
     <div class="sheet-inner">${html}</div>`;
   d.querySelector('h2')?.setAttribute('id', 'sheet-title');
-  if (!d.open) d.showModal();
+  if (!d.open) {
+    // A stale sheet entry (reached with Forward) is reused.
+    if (sheetBack) reopened = true;
+    else if (!history.state?.sheet) history.pushState({ sheet: true }, '', location.href);
+    d.showModal();
+  }
   d.scrollTop = 0;
+}
+
+/** @param {() => void} [then] */
+function closeSheet(then) {
+  const d = $('#sheet');
+  if (history.state?.sheet || sheetBack) {
+    // The close goes back over the entry (onSheetClosed); `then` runs on the popstate that follows.
+    afterSheetClose = then ?? null;
+    if (d.open) d.close(); else leaveSheetEntry();
+    return;
+  }
+  if (d.open) d.close();
+  then?.();
+}
+
+// The dialog closed (any way): go back over its entry, unless that is on its way or the entry is gone (a new fragment).
+function onSheetClosed() {
+  reopened = false;
+  if (!$('#sheet').open && history.state?.sheet) leaveSheetEntry();
+}
+
+// The history moved. After our own history.back(): a sheet opened meanwhile gets its fresh entry. After the reader's
+// Back with a sheet open: close it. Then run what was waiting for the close. A sheet entry with no sheet open
+// (Forward) is left at once.
+function onPopState() {
+  const d = $('#sheet');
+  if (sheetBack) {
+    sheetBack = false;
+    if (reopened && d.open) {
+      reopened = false;
+      history.pushState({ sheet: true }, '', location.href);
+      return;
+    }
+    reopened = false;
+  }
+  if (history.state?.sheet) {
+    if (!d.open) leaveSheetEntry();
+    return;
+  }
+  if (d.open) d.close();
+  const then = afterSheetClose;
+  afterSheetClose = null;
+  then?.();
 }
 
 function whyHtml(cell, pid, tid) {
@@ -1398,6 +1466,8 @@ let routeToken = 'build';
 
 
 function route(initial = false) {
+  // A new fragment (a link, an edited address) closes an open sheet. It is on a new entry, so the close doesn't go back.
+  if ($('#sheet').open) $('#sheet').close();
   const loc = C.parseLocation(location, passedIds(), ctx.parties.map((p) => p.id));
   // A fragment with state (a pasted link, back/forward) brings its coalition; one without (a nav link) keeps the current one.
   // A full link also brings its language (none = Hebrew); a nav link keeps the current one.
@@ -1452,14 +1522,16 @@ function onClick(e) {
   const { act, id } = el.dataset;
   switch (act) {
     case 'lang':
-      // The view, the coalition and the scroll position stay; only the language changes.
-      if ($('#sheet').open) $('#sheet').close();
-      setLanguage(S.langSwitch.other);
-      renderChrome();
-      writeUrl();
-      render();
-      // The switch was re-rendered: keep focus on it (now the button for the language just left).
-      $('#lang-switch button').focus();
+      // The view, the coalition and the scroll position stay; only the language changes. An open sheet closes first,
+      // so the URL written is the view's, not the sheet's entry (#41).
+      closeSheet(() => {
+        setLanguage(S.langSwitch.other);
+        renderChrome();
+        writeUrl();
+        render();
+        // The switch was re-rendered: keep focus on it (now the button for the language just left).
+        $('#lang-switch button').focus();
+      });
       break;
     case 'preset': {
       const p = C.presets(ctx)[id];
@@ -1545,12 +1617,14 @@ function onClick(e) {
       const next = { base: id, members, supporters: [], abstainers: [] };
       const u = undoFor('replaced', members, next);
       lastPreset = null;
-      $('#sheet').close();
-      setState(next, { undo: u });
-      // From the build view the route change re-renders asynchronously: focus the heading once it has (route()).
-      if (view !== 'results') { focusOnArrival = true; location.hash = 'results'; } else focusResultsHeading();
-      const names = ordered(members).map(name).join(' + ');
-      announce(S.closest.applied(names));
+      // The sheet's entry goes first, so the new coalition is written on the view's entry (#41).
+      closeSheet(() => {
+        setState(next, { undo: u });
+        // From the build view the route change re-renders asynchronously: focus the heading once it has (route()).
+        if (view !== 'results') { focusOnArrival = true; location.hash = 'results'; } else focusResultsHeading();
+        const names = ordered(members).map(name).join(' + ');
+        announce(S.closest.applied(names));
+      });
       break;
     }
     case 'undo': {
@@ -1579,9 +1653,13 @@ function onClick(e) {
     case 'pair-sheet':
       partySheet(el.dataset.a, el.dataset.b);
       break;
-    case 'close-sheet':
-      $('#sheet').close();
+    case 'close-sheet': {
+      // A link that also closes the sheet (the closest rule) follows its href once the sheet's entry is gone (#41).
+      const href = el.tagName === 'A' ? el.getAttribute('href') : null;
+      if (href?.startsWith('#')) e.preventDefault();
+      closeSheet(href?.startsWith('#') ? () => { location.hash = href; } : undefined);
       break;
+    }
     case 'share':
       share();
       break;
@@ -1615,6 +1693,8 @@ function bind() {
   document.addEventListener('click', onClick);
   document.addEventListener('keydown', onRadioKey);
   window.addEventListener('hashchange', () => route());
+  window.addEventListener('popstate', onPopState);
+  $('#sheet').addEventListener('close', onSheetClosed);
   // A method anchor link to the fragment already in the address bar fires no hashchange: open and scroll here instead.
   document.addEventListener('click', (e) => {
     const a = /** @type {Element} */ (e.target).closest?.('a[href^="#"]');
@@ -1670,6 +1750,8 @@ async function main() {
   // (a fetch's Referer is this URL). The ids are checked once the data has loaded.
   const moved = C.moveLegacyState(location);
   if (moved) history.replaceState(null, '', location.pathname + moved);
+  // Read before route(true) rewrites the entry (see below).
+  const staleSheet = Boolean(history.state?.sheet);
   const get = (f) => fetch(`data/${f}.json`).then((r) => {
     if (!r.ok) throw new Error(`${f}: ${r.status}`);
     return r.json();
@@ -1693,6 +1775,9 @@ async function main() {
   renderChrome();
   bind();
   route(true);
+  // A reload with a sheet open lands on the sheet's entry, with no sheet: go back over it (same URL, same document in
+  // Chrome, so nothing reloads), so the next Back leaves the view instead of doing nothing (#41).
+  if (staleSheet) leaveSheetEntry();
   countPageview();
 }
 

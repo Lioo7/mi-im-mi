@@ -443,6 +443,9 @@ try {
   const ready = () => waitFor(() => evaluate("document.querySelector('#builder')?.children.length > 0"));
   // A fresh load (a URL that differs only in its fragment would otherwise be a same-document navigation).
   const go = async (url) => {
+    // A sheet just closed goes back over its own history entry (#41), asynchronously: let that land first, or it would
+    // undo this navigation. An open sheet (left open on purpose) has nothing pending.
+    await waitFor(() => evaluate("location.protocol === 'about:' || document.querySelector('#sheet')?.open || !history.state?.sheet"), 3000).catch(() => {});
     await c.send('Page.navigate', { url: 'about:blank' });
     legacyNav = isLegacy(url.slice(baseUrl.length));
     await c.send('Page.navigate', { url });
@@ -1291,11 +1294,11 @@ try {
     await settle(300);
     const q = await evaluate("(() => { const b = document.querySelector('#sheet blockquote'); return b ? { text: b.querySelector('.q-text')?.textContent, by: b.querySelector('.q-by')?.textContent } : null; })()");
     if (!q || !/^״.+״$/.test(q.text ?? '')) errors.push(`[interaction] quote must be wrapped in quotation marks (${JSON.stringify(q)})`);
-    if (!q || !q.by.startsWith(withQuote.quoteBy) || !/\d{2}\.\d{2}\.\d{4}$/.test(q.by)) errors.push(`[interaction] quote attribution should read "<speaker>, <channel>, <date>" (${q?.by})`);
+    if (!q || !q.by.startsWith(withQuote.quoteBy) || !/, ([1-9]|[12]\d|3[01])\.([1-9]|1[0-2])\.\d{4}$/.test(q.by)) errors.push(`[interaction] quote attribution should read "<speaker>, <channel>, <date>", the date without leading zeros (#42) (${q?.by})`);
     await shoot(z, 'interaction-cell-quote-m.png', false);
     // Null rows show what was found: the "no stated position" label, the quote with its attribution, and the source; a dated
     // note from an older platform links its source as the additional source.
-    for (const [lng, T, by] of /** @type {[string, typeof S, string][]} */ ([['he', S, 'משה פייגלין, ערוץ 7, 02.07.2026'], ['en', EN, 'Moshe Feiglin, Arutz Sheva (Israel National News), 2 Jul 2026']])) {
+    for (const [lng, T, by] of /** @type {[string, typeof S, string][]} */ ([['he', S, 'משה פייגלין, ערוץ 7, 2.7.2026'], ['en', EN, 'Moshe Feiglin, Arutz Sheva (Israel National News), 2 Jul 2026']])) {
       const l = lng === 'he' ? '' : '&l=en';
       await go(`${baseUrl}#results?m=likud,zehut${l}`);
       await waitFor(() => evaluate("document.body.dataset.view === 'results' && document.querySelectorAll('.cell').length > 0"));
@@ -1312,7 +1315,7 @@ try {
       await evaluate("document.querySelector('.cell[data-party=\"raam\"][data-topic=\"religion\"]').click()");
       await settle(300);
       const rel = await evaluate("(() => { const p = document.querySelector('#sheet .pos'); return { quote: p?.querySelector('blockquote .q-text')?.textContent ?? '', by: p?.querySelector('blockquote .q-by')?.textContent.trim() ?? '', tag: p?.querySelector('.tag-src') !== null }; })()");
-      const relBy = lng === 'he' ? 'מנסור עבאס, פייסבוק, 26.08.2026 (תרגום: כיפה)' : 'Mansour Abbas, Facebook, 26 Aug 2026 (Hebrew translation: Kipa)';
+      const relBy = lng === 'he' ? 'מנסור עבאס, פייסבוק, 26.8.2026 (תרגום: כיפה)' : 'Mansour Abbas, Facebook, 26 Aug 2026 (Hebrew translation: Kipa)';
       if (!rel.quote.includes('נאלצו לקבל זאת מבחינה מעשית') || rel.by !== relBy || rel.tag) errors.push(`[interaction-${lng}] רע״ם × דת should show the full quote (with the practical acceptance) and "${relBy}", with no type tag (${JSON.stringify(rel)})`);
       await evaluate("document.querySelector('#sheet').close()");
       await evaluate("document.querySelector('.cell[data-party=\"raam\"][data-topic=\"draft\"]').click()");
@@ -2181,7 +2184,87 @@ try {
       const latin = await evaluate(LATIN_OUT('#pair-view .pair-sum, #pair-view .q-by, #pair-view .pos > p'));
       if (latin.length) errors.push(`[${current}] the pair view ${id}+${other}: Latin outside <bdi>: ${latin.join(' | ')}`);
     }
+    // Back and the sheet (#41). A sheet has its own history entry with the same URL: Back closes it and stays on the
+    // view; a close (✕) goes back over the entry, so one Back then leaves the view; a reload with a sheet open does
+    // the same. A link inside a sheet (the closest rule) leaves no entry behind it. The history here starts on #build,
+    // so "leaves the view" is a same-document move back to it. Chrome keeps 50 entries per tab and, once full, drops the
+    // oldest entry left without a user gesture (every scripted click here): each case starts from a fresh history.
+    const SHEET_STATE = "JSON.stringify([document.body.dataset.view, location.hash, document.querySelector('#sheet').open])";
+    const backMembers = ['likud', 'yashar', 'together'];
+    const backHash = `#results${qsOf(backMembers)}`;
+    const toResults = async () => {
+      await go(`${baseUrl}#build`);
+      await ready();
+      await c.send('Page.resetNavigationHistory');
+      await evaluate(`location.hash = '${backHash}'`);
+      await waitFor(() => evaluate("document.body.dataset.view === 'results' && document.querySelector('.party-btn[data-id=\"likud\"]') !== null"));
+    };
+    const openLikud = async () => {
+      await evaluate("document.querySelector('.party-btn[data-id=\"likud\"]').click()");
+      await waitFor(() => evaluate("document.querySelector('#sheet').open && history.state?.sheet === true"));
+    };
+    const backTo = async (want, what) => {
+      await evaluate('history.back()');
+      await waitFor(() => evaluate(`${SHEET_STATE} === ${JSON.stringify(JSON.stringify(want))}`), 3000).catch(() => {});
+      const got = await evaluate(SHEET_STATE);
+      if (got !== JSON.stringify(want)) errors.push(`[${current}] ${what}: want ${JSON.stringify(want)}, got ${got}`);
+    };
+    step('sheet-back');
+    await toResults();
+    await openLikud();
+    await backTo(['results', backHash, false], 'Back with a sheet open should close it and stay on the view');
+    await openLikud();
+    await evaluate("document.querySelector('#sheet .sheet-close').click()");
+    await waitFor(() => evaluate('!history.state?.sheet'), 3000).catch(() => {});
+    await backTo(['build', `#build${qsOf(backMembers)}`, false], 'after ✕, one Back should leave the view');
+    // Sheets opened and closed one after another, each before the last close's history.back() lands: no entries pile
+    // up, so one Back still leaves the view.
+    await toResults();
+    for (const id of ['likud', 'yashar', 'together']) {
+      await evaluate(`document.querySelector('.party-btn[data-id="${id}"]').click()`);
+      await waitFor(() => evaluate('document.querySelector(\'#sheet\').open'));
+      await evaluate("document.querySelector('#sheet .sheet-close').click()");
+    }
+    await waitFor(() => evaluate('!history.state?.sheet'), 3000).catch(() => {});
+    await backTo(['build', `#build${qsOf(backMembers)}`, false], 'three sheets opened and closed in a row, then one Back, should leave the view');
+    step('sheet-reload');
+    await toResults();
+    await openLikud();
+    await c.send('Page.reload');
+    await waitFor(() => evaluate("document.querySelector('.party-btn[data-id=\"likud\"]') !== null && !history.state?.sheet"));
+    await settle(200);
+    await backTo(['build', `#build${qsOf(backMembers)}`, false], 'a reload with a sheet open, then one Back, should leave the view');
+    if (RESULTS) {
+      step('sheet-link');
+      await toResults();
+      await evaluate("document.querySelector('.party-btn[data-id=\"likud\"]').click()");
+      await waitFor(() => evaluate("document.querySelector('#sheet [data-act=\"closest\"]') !== null"));
+      await evaluate("document.querySelector('#sheet [data-act=\"closest\"]').click()");
+      await waitFor(() => evaluate("document.querySelector('#sheet a[href=\"#closest-rule\"]') !== null"));
+      await evaluate("document.querySelector('#sheet a[href=\"#closest-rule\"]').click()");
+      await waitFor(() => evaluate("document.body.dataset.view === 'method' && !document.querySelector('#sheet').open"), 3000).catch(() => {});
+      const onMethod = await evaluate(SHEET_STATE);
+      if (!onMethod.startsWith('["method","#closest-rule')) errors.push(`[${current}] the closest-rule link should close the sheet and open the method page, got ${onMethod}`);
+      await backTo(['results', backHash, false], 'Back from a link followed inside a sheet should return to the view');
+    }
+    // The share fallback (#41): without Web Share, the clipboard gets the text and the link, as the WhatsApp link sends
+    // them, in both languages (and in hidden mode, the same text with no seats: it never had any).
+    step('share-fallback');
+    for (const l of ['he', 'en']) {
+      await go(`${baseUrl}#results${qsOf(backMembers)}${l === 'en' ? '&l=en' : ''}`);
+      await waitFor(() => evaluate("document.querySelector('[data-act=\"share\"]') !== null"));
+      await evaluate("(() => { Object.defineProperty(navigator, 'share', { value: undefined, configurable: true }); window.__copied = null; Object.defineProperty(navigator, 'clipboard', { value: { writeText: async (t) => { window.__copied = t; } }, configurable: true }); return true; })()");
+      await evaluate("document.querySelector('[data-act=\"share\"]').click()");
+      await waitFor(() => evaluate('window.__copied !== null'), 3000).catch(() => {});
+      const [copied, wa, toastText] = await evaluate("JSON.stringify([window.__copied, document.querySelector('#results a[href^=\"https://wa.me/\"]')?.href ?? '', document.querySelector('#toast, .toast')?.textContent ?? ''])").then(JSON.parse);
+      const want = shareTextFor(l, { base: null, members: backMembers, supporters: [], abstainers: [] });
+      const waText = wa ? new URL(wa).searchParams.get('text') : null;
+      if (!copied?.startsWith(`${want}\n`) || copied !== waText) errors.push(`[${current}] the share fallback (${l}) should copy the text and the link, as WhatsApp sends them: ${JSON.stringify(copied)} vs ${JSON.stringify(waText)}`);
+      const T = l === 'he' ? S : EN;
+      if (!toastText.includes(T.share.copied)) errors.push(`[${current}] the share fallback (${l}) toast should say "${T.share.copied}", got "${toastText}"`);
+    }
     log(`  ✓ party sheet: ${sheetRuns} runs (360/375/390 × he/en): close inside the visible viewport at rest, scrolled, grown and shrunk; why rows; votes line; compare-with focus`);
+    log(`  ✓ sheets and Back (#41): Back closes, ✕ then Back leaves, no entries pile up, reload then Back leaves${RESULTS ? ', an in-sheet link leaves none' : ''}; the share fallback copies the text and the link (he/en)`);
     log(`  ✓ bidi and dates (#42): ${sheetsScanned} party sheets (he/en) and ${allIds.length} pair views: no Latin outside <bdi> in Hebrew, no zero-padded date`);
   }
 
