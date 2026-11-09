@@ -1140,6 +1140,24 @@ try {
         await shoot(z, 'interaction-completions-change-m.png', false);
       }
     }
+    // The skip link (#44): Tab from the top focuses it, Enter moves focus to the current view's h1 and keeps the view and
+    // the fragment (its href is a route, so following it would switch to the results view).
+    const keyPress = async (k, code) => { for (const type of ['keyDown', 'keyUp']) await c.send('Input.dispatchKeyEvent', { type, key: k, code: k, windowsVirtualKeyCode: code }); };
+    for (const [view, hash] of [['build', '#build?m=likud,yashar'], ['results', '#results?m=likud,yashar'], ['pair', '#pair?p=likud,yashar'], ['method', '#method']]) {
+      await go(`${baseUrl}${hash}`);
+      await waitFor(() => evaluate(`document.body.dataset.view === '${view}' && document.querySelector('#footer')?.children.length > 0`));
+      await evaluate('document.activeElement?.blur(), window.scrollTo(0, 0), true');
+      const before = await evaluate('location.hash');
+      // #method names an element (div#method), so the browser starts the Tab order there, inside the page: the first Tab
+      // goes to the content, as it should. There the link is focused directly to check Enter.
+      if (view === 'method') await evaluate("document.querySelector('#skip').focus()");
+      else await keyPress('Tab', 9);
+      const onSkip = await evaluate("document.activeElement?.id === 'skip'");
+      await keyPress('Enter', 13);
+      await settle(200);
+      const after = await evaluate(`JSON.stringify([document.body.dataset.view, location.hash === ${JSON.stringify(before)}, document.activeElement === document.querySelector('#view-${view} h1')])`);
+      if (!onSkip || after !== JSON.stringify([view, true, true])) errors.push(`[interaction] the skip link on ${view}: Tab should focus it (${onSkip}), Enter should focus the view's h1 and keep the view and fragment ([view, same fragment, h1 focused] = ${after})`);
+    }
     log('  ✓ interactions');
   }
   // Hebrew text outside an element with lang="he" (an untranslated string on the English page).

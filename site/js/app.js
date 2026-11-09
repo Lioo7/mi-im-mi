@@ -245,18 +245,19 @@ function renderMethod() {
     </details>`;
   // The groups the reader opened stay open when the page is rebuilt (the language switch).
   const wasOpen = [...document.querySelectorAll('#method details[open][id]')].map((d) => d.id);
+  // The h1 comes first (#44): the "why" box is a section under it.
   $('#method').innerHTML = `
+    <h1 class="page-title">${esc(M.title)}</h1>
     <section id="why" class="why-box" tabindex="-1">
       <h2>${esc(W.title)}</h2>
       <p>${esc(W.p1)}</p>
       <p>${esc(W.p2)} <a href="mailto:lioz.akirav@gmail.com">${esc(W.writeMe)}</a> · <a href="https://github.com/Lioo7/mi-im-mi" rel="noopener"><bdi>GitHub</bdi></a></p>
     </section>
-    <h1 class="page-title">${esc(M.title)}</h1>
     <p>${esc(M.intro(ctx.parties.length))}</p>
     <ol>${S.how.lines.map((l) => `<li>${esc(l)}</li>`).join('')}</ol>
     <p class="disclaimer"><strong>${esc(M.disclaimer)}</strong> ${esc(M.independent)}</p>
 
-    <h3>${esc(M.levelsTitle)}</h3>
+    <h2>${esc(M.levelsTitle)}</h2>
     <ul class="level-rules">${M.levelRules.map(([lv, txt]) => `<li>${levelBadge(lv)} ${esc(txt)}</li>`).join('')}</ul>
     <p>${esc(M.colorRule)}</p>
 
@@ -546,13 +547,14 @@ function renderBuilder() {
       showSeats() && !isResults() && p.threshold === 'borderline' ? B.borderline : '',
       isResults() && p.linkedWith ? B.jointListNote(p.ballotLetters) : '',
     ].filter(Boolean).join(' · ');
-    const label = `${p.name}${im ? `. ${B.impactLabel(im.agree, im.clash, im.unknown)}` : ''}`;
+    // The name comes from the row's own text (#44: it then starts with what is shown); the pills are read as a sentence.
+    const spoken = im ? `<span class="sr-only">. ${esc(B.impactLabel(im.agree, im.clash, im.unknown))}</span>` : '';
     return `<li class="prow${on ? ' is-on' : ''}">
-      <button type="button" role="checkbox" aria-checked="${on}" class="prow-main" data-act="toggle" data-id="${id}" data-key="row-${id}" aria-label="${esc(label)}">
+      <button type="button" role="checkbox" aria-checked="${on}" class="prow-main" data-act="toggle" data-id="${id}" data-key="row-${id}">
         <span class="cb" aria-hidden="true">${on ? '✓' : ''}</span>
         <span class="slip-tag"${lang === 'he' ? '' : ' lang="he"'}>${esc(p.ballotLetters)}</span>
         <span class="prow-text"><span class="prow-name">${esc(p.name)}</span>${sub ? `<span class="prow-sub">${bidi(sub)}</span>` : ''}</span>
-        <span class="prow-end">${im ? pillsHtml(im.agree, im.clash, im.unknown) : ''}</span>
+        <span class="prow-end">${im ? pillsHtml(im.agree, im.clash, im.unknown) : ''}</span>${spoken}
       </button>
       ${on ? roleControl(id, role) : ''}
     </li>`;
@@ -579,7 +581,7 @@ function renderBuilder() {
   $('#builder').innerHTML = `
     ${seatsBox()}
     ${members.length ? `<p class="muted small">${esc(B.impactHeading)}: <span class="impact-legend"><span class="im-ok" aria-hidden="true">✓</span> ${esc(B.impactAgree)} · <span class="im-clash" aria-hidden="true">✕</span> ${esc(B.impactClash)} · <span class="im-unk" aria-hidden="true">?</span> ${esc(B.impactUnknown)}</span></p>` : ''}
-    <ul class="plist" role="group" aria-label="${esc(B.pick)}">${rows}</ul>
+    <div role="group" aria-label="${esc(B.pick)}"><ul class="plist">${rows}</ul></div>
     ${belowThreshold()}
     <p class="muted small">${esc(B.hint)}</p>
     ${linkedNotes.join('')}
@@ -677,7 +679,8 @@ const redTag = () => `<span class="tag tag-red"><span aria-hidden="true">🚩</s
 const whyRow = (level, textHtml) => `<p class="why-row">${levelBadge(level)}<span class="why-text">${textHtml}</span></p>`;
 const gapRow = (level, a, b, d) => whyRow(level, d === 0 ? esc(S.sheet.agree(a, b)) : `<strong>${esc(S.sheet.gapTitle(a, b, d))}</strong>`);
 
-function pairHtml(a, b) {
+// level: the pair's heading level, 3 under a card or sheet heading, 2 in the pair view (under its h1, #44).
+function pairHtml(a, b, level = 3) {
   const s = C.pairSummary(ctx, a, b);
   const rows = s.rows.map((r) => `
     <details class="pair-row">
@@ -690,13 +693,13 @@ function pairHtml(a, b) {
       <div class="pair-detail">
         ${r.level === 'NONE' ? whyRow('NONE', esc(S.sheet.noneExplainPair)) : gapRow(r.level, name(a), name(b), r.d)}
         ${r.byRedLine ? [a, b].filter((x) => isRedLine(x, r.topicId)).map((x) => `<p>${esc(S.sheet.redByLine(name(x)))}</p>`).join('') : ''}
-        <h4>${esc(name(a))}</h4>${positionBlock(a, r.topicId, { heading: false })}
-        <h4>${esc(name(b))}</h4>${positionBlock(b, r.topicId, { heading: false })}
+        <h${level + 1}>${esc(name(a))}</h${level + 1}>${positionBlock(a, r.topicId, { heading: false })}
+        <h${level + 1}>${esc(name(b))}</h${level + 1}>${positionBlock(b, r.topicId, { heading: false })}
       </div>
     </details>`).join('');
   const c = s.counts;
   return `<div class="pair">
-    <h3>${esc(name(a))} ↔ ${esc(name(b))}</h3>
+    <h${level}>${esc(name(a))} ↔ ${esc(name(b))}</h${level}>
     <p class="muted">${esc(S.pair.summary(c.AGREE, c.MINOR, c.MAJOR, c.CLASH, s.n))}</p>
     ${rows}
   </div>`;
@@ -865,7 +868,7 @@ function crisesCard(r) {
       <li><button type="button" class="pair-btn" data-act="pair-sheet" data-a="${p.a}" data-b="${p.b}" data-key="pair-${c.topicId}-${p.a}-${p.b}">
         <span>${esc(name(p.a))} ↔ ${esc(name(p.b))}</span>${levelBadge(p.level)}</button></li>`).join('')}</ul>` : '';
     return `<li class="gap${open ? ' is-open' : ''}">
-      <button type="button" class="row-btn gap-head" data-act="expand" data-id="${c.topicId}" data-key="gap-${c.topicId}" aria-expanded="${open}"${open ? ` aria-controls="pairs-${c.topicId}"` : ''} aria-label="${esc(`${topic(c.topicId).name}: ${name(w.a)} ↔ ${name(w.b)}, ${tag}. ${open ? R.collapse : R.expand}`)}">
+      <button type="button" class="row-btn gap-head" data-act="expand" data-id="${c.topicId}" data-key="gap-${c.topicId}" aria-expanded="${open}"${open ? ` aria-controls="pairs-${c.topicId}"` : ''} aria-label="${esc(`${topic(c.topicId).short}: ${name(w.a)} ↔ ${name(w.b)}, ${tag}${w.byRedLine ? `, ${S.redLine}` : ''}. ${topic(c.topicId).name}. ${open ? R.collapse : R.expand}`)}">
         <span class="gap-main">
           <span class="row-title">${esc(topic(c.topicId).short)}: ${esc(name(w.a))} ↔ ${esc(name(w.b))}</span>
           <span class="row-meta"><span class="lv lv-${w.level}"><span aria-hidden="true">${S.levels[w.level].icon}</span> ${esc(tag)}</span>${w.byRedLine ? ` <span class="tag tag-red"><span aria-hidden="true">🚩</span> ${esc(S.redLine)}</span>` : ''}</span>
@@ -1038,7 +1041,7 @@ function renderPair() {
     <h1 class="page-title" id="pair-title" tabindex="-1">${esc(P.viewTitle)}</h1>
     <p class="muted">${esc(P.intro(ctx.topics.length))}</p>
     <div class="pair-pickers">${pairPicker(0)}${pairPicker(1)}</div>
-    ${a && b ? `${linked}<section class="card">${pairHtml(a, b)}</section>
+    ${a && b ? `${linked}<section class="card">${pairHtml(a, b, 2)}</section>
       <p class="share-row pair-share">
         <button type="button" class="btn" data-act="pair-share" data-key="pair-share">${esc(S.share.button)}</button>
         <a class="btn btn-ghost" href="${esc(wa)}" target="_blank" rel="noopener">${esc(S.share.whatsapp)}</a>
@@ -1059,9 +1062,9 @@ function completionsCard() {
     const names = c.add.map((id) => (roleOf(id) ? `${name(id)} ${K.nowRole[roleOf(id)]}` : name(id)));
     const meta = [K.seats(n(c.seats), n(c.total)), K.clashes(c.clashTopics, c.newClashTopics)];
     const red = c.newRedLines.length ? K.newRedLines(c.newRedLines.length, redList(c.newRedLines)) : K.noNewRedLines;
-    return `<li><button type="button" class="row-btn completion" data-act="complete" data-ids="${c.add.join(',')}" data-key="complete-${c.add.join('-')}"
-      aria-label="${esc(K.aria(names.join(', '), meta.join(', '), red))}">
-      <span class="row-title">+ ${keepWhole(names.join(' + '), partyNames())}</span>
+    // Named by its own text (#44), with the verb for screen readers in place of the "+".
+    return `<li><button type="button" class="row-btn completion" data-act="complete" data-ids="${c.add.join(',')}" data-key="complete-${c.add.join('-')}">
+      <span class="row-title"><span class="sr-only">${esc(K.verb)} </span><span aria-hidden="true">+ </span>${keepWhole(names.join(' + '), partyNames())}</span>
       <span class="row-meta muted small">${esc(meta.join(' · '))}</span>
       <span class="row-meta small">${c.newRedLines.length ? `<span class="tag tag-red"><span aria-hidden="true">🚩</span> ${keepWhole(red, partyNames())}</span>` : `<span class="muted">${esc(red)}</span>`}</span>
     </button></li>`;
@@ -1163,7 +1166,7 @@ function renderMatrix() {
     <p class="muted small">${esc(base ? M.relBase(name(base)) : M.relWorst)}</p>
     <div class="table-wrap">
       <table class="matrix">
-        <thead><tr><td></td>${ctx.topics.map((t) => `<th scope="col"><button type="button" class="topic-btn" data-act="topic" data-id="${t.id}" data-key="topic-${t.id}" aria-label="${esc(t.name)}">${esc(t.short)}</button></th>`).join('')}</tr></thead>
+        <thead><tr><td></td>${ctx.topics.map((t) => `<th scope="col"><button type="button" class="topic-btn" data-act="topic" data-id="${t.id}" data-key="topic-${t.id}" ${t.short === t.name ? '' : ` aria-label="${esc(`${t.short}: ${t.name}`)}"`}>${esc(t.short)}</button></th>`).join('')}</tr></thead>
         <tbody>${rows}</tbody>
       </table>
     </div>
@@ -1386,10 +1389,10 @@ function closestRow(x, c, hasRedLines) {
   const counts = [K.xClash(c.xClash, name(x)), K.wholeClash(c.wholeClash), K.agree(c.agree), K.seats(c.seats)];
   const red = hasRedLines ? K.redLines(c.redLines.length, c.redLines.map((r) => topic(r.topicId).short).join(', ')) : '';
   const warn = c.low.length ? K.warn(c.low.map((l, i) => K.warnItem(name(l.partyId), l.missing, i === 0)).join(', ')) : '';
-  return `<li><button type="button" class="row-btn closest-row" data-act="closest-apply" data-id="${x}" data-ids="${c.add.join(',')}" data-key="closest-${c.add.join('-')}"
-    aria-label="${esc(K.aria(partners, [red, ...counts, warn].filter(Boolean).join(', ')))}">
+  // Named by its own text (#44), with the verb for screen readers in place of the "+".
+  return `<li><button type="button" class="row-btn closest-row" data-act="closest-apply" data-id="${x}" data-ids="${c.add.join(',')}" data-key="closest-${c.add.join('-')}">
     <span class="closest-main">
-      <span class="row-title">+ ${esc(partners)}</span>
+      <span class="row-title"><span class="sr-only">${esc(K.verb)} </span><span aria-hidden="true">+ </span>${esc(partners)}</span>
       ${red ? `<span class="row-meta small">${c.redLines.length ? `<span class="tag tag-red"><span aria-hidden="true">🚩</span> ${esc(red)}</span>` : `<span class="muted">${esc(red)}</span>`}</span>` : ''}
       <span class="row-meta muted small closest-counts">${counts.map((t) => `<span>${esc(t)}</span>`).join('<span aria-hidden="true">·</span>')}</span>
       ${warn ? `<span class="row-meta small"><span class="tag tag-warn"><span aria-hidden="true">⚠</span> ${esc(warn)}</span></span>` : ''}
@@ -1653,6 +1656,13 @@ function onClick(e) {
     case 'pair-sheet':
       partySheet(el.dataset.a, el.dataset.b);
       break;
+    case 'skip': {
+      // Skip the header to the current view's heading (#44). The href is not followed: as a route it would switch views.
+      e.preventDefault();
+      const h1 = /** @type {HTMLElement | null} */ (document.querySelector(`#view-${view} h1`));
+      if (h1) { h1.tabIndex = -1; h1.focus(); }
+      break;
+    }
     case 'close-sheet': {
       // A link that also closes the sheet (the closest rule) follows its href once the sheet's entry is gone (#41).
       const href = el.tagName === 'A' ? el.getAttribute('href') : null;

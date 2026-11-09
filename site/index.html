@@ -26,7 +26,7 @@
   <script type="module" src="js/app.js"></script>
 </head>
 <body>
-  <a class="skip" id="skip" href="#results"></a>
+  <a class="skip" id="skip" href="#results" data-act="skip"></a>
   <header class="topbar">
     <div class="wrap topbar-in">
       <a class="brand" href="#build" id="brand">
@@ -39,8 +39,8 @@
       </span>
     </div>
   </header>
-  <p id="lang-note" class="lang-note wrap" hidden></p>
   <main>
+    <p id="lang-note" class="lang-note wrap" hidden></p>
     <section id="view-build" class="view wrap" data-view="build">
       <h1 class="intro" id="intro"></h1>
       <p class="purpose" id="purpose"></p>
@@ -68,9 +68,9 @@
       <p><a id="method-back" class="back" href="#build"></a></p>
       <div id="method" class="method"></div>
     </section>
+    <div id="bar" class="bar" hidden></div>
   </main>
   <footer id="footer" class="wrap footer"></footer>
-  <div id="bar" class="bar" hidden></div>
   <dialog id="sheet" class="sheet" aria-labelledby="sheet-title"></dialog>
   <div id="toast" class="toast" role="status" hidden></div>
   <div id="live" class="sr-only" aria-live="polite"></div>
