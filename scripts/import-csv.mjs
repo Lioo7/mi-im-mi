@@ -12,7 +12,7 @@ const file = args.find((a) => !a.startsWith('--')) ?? REVIEW_CSV;
 const allowFlagged = args.includes('--allow-flagged');
 const dryRun = args.includes('--dry-run');
 
-const { parties, topics, meta } = loadData();
+const { parties, topics } = loadData();
 const rows = parseCsv(readFileSync(file, 'utf8'));
 
 /** @param {unknown} v */
@@ -97,5 +97,4 @@ const po = new Map(parties.map((p, i) => [p.id, i]));
 const to = new Map(topics.map((t, i) => [t.id, i]));
 out.sort((a, b) => (to.get(a.topicId) ?? 0) - (to.get(b.topicId) ?? 0) || (po.get(a.partyId) ?? 0) - (po.get(b.partyId) ?? 0));
 writeJson(join(DATA, 'positions.json'), out);
-if (meta.stub) writeJson(join(DATA, 'meta.json'), { ...meta, stub: false });
-console.log(`✓ wrote ${out.length} positions to site/data/positions.json${meta.stub ? ' (stub mode turned off)' : ''}`);
+console.log(`✓ wrote ${out.length} positions to site/data/positions.json`);

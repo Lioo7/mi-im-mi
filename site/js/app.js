@@ -178,11 +178,6 @@ function renderHeader() {
   $('#source-mix').textContent = S.sourceMix(placed.filter((p) => p.position != null).length, n('platform'), n('statement'), n('record'));
   $('#skip').textContent = S.skip;
   $('#method-back').textContent = S.nav.backFromMethod;
-  if (meta.stub) {
-    const b = $('#banner');
-    b.textContent = S.stubBanner;
-    b.hidden = false;
-  }
 }
 
 function renderFooter() {
@@ -404,6 +399,7 @@ function downloadSection() {
       <h3>${esc(D.title)}</h3>
       <p>${esc(D.line(data.positions.length))} ${file('csv', D.csv)} · ${file('json', D.json)}</p>
       <p class="small">${bidi(D.positionNote)}</p>
+      <p class="small">${bidi(D.csvNote)}</p>
       <p class="small">${bidi(before)}<a href="${esc(D.licenseUrl)}" rel="noopener license"><bdi>${esc(D.licenseName)}</bdi></a>${bidi(after)}</p>
     </section>`;
 }

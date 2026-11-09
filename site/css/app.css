@@ -50,7 +50,6 @@ button, select { font: inherit; color: inherit; }
 .skip { position: absolute; inset-inline-start: 8px; inset-block-start: -40px; background: var(--card); padding: 6px 10px; z-index: 30; }
 .skip:focus { inset-block-start: 8px; }
 
-.banner { background: #b91c1c; color: #fff; text-align: center; padding: 8px var(--gutter); font-weight: 600; }
 
 
 

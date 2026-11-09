@@ -17,7 +17,6 @@ export const S = {
   appName: 'מי עם מי',
   pageTitle: 'מי עם מי · בנו קואליציה וגלו איפה המפלגות מסכימות ואיפה הן מתנגשות',
   updated: (d) => `עודכן ${d}`,
-  stubBanner: 'נתוני דמה לפיתוח בלבד: העמדות אינן אמיתיות',
   skip: 'דלגו לתוצאות',
   loadError: 'שגיאה בטעינת הנתונים. נסו לרענן את הדף.',
   // The language switch shows both names, each in its own language; the current one is plain text.
@@ -504,6 +503,7 @@ export const S = {
       csv: 'CSV',
       json: 'JSON',
       positionNote: 'עמודת position היא המיקום על הציר של כל נושא (\u200E−2 עד 2). הכיוון נקבע לכל נושא בנפרד, והוא לא ציון של שמאל וימין.',
+      csvNote: 'בקובץ ה-CSV, תא טקסט שמתחיל ב-=, +, - או @ מקבל גרש (\') בתחילתו, כדי שגיליון אלקטרוני לא יריץ אותו כנוסחה. בקובץ ה-JSON הטקסט מופיע כמו שהוא.',
       license: 'הנתונים שלנו (מיקומים, סיכומים ותוויות הצירים) ברישיון CC BY 4.0: מותר לשתף ולעבד בציון המקור. הציטוטים והמקורות המקושרים שייכים לבעליהם.',
       licenseName: 'CC BY 4.0',
       licenseUrl: 'https://creativecommons.org/licenses/by/4.0/',

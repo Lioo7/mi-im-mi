@@ -84,11 +84,15 @@ export function parseCsv(text) {
   return body.map((r, i) => ({ _row: i + 2, ...Object.fromEntries(header.map((h, j) => [h.trim(), r[j] ?? ''])) }));
 }
 
-/** @param {string[]} columns @param {Rec[]} records */
-export function toCsv(columns, records) {
+// `formulaSafe` (the public CSVs, #47): a text cell starting with = + - @ or a tab/CR gets a leading ', so a spreadsheet
+// shows it as text instead of running it as a formula. Numbers (the negative positions) stay as they are. Not for the
+// review CSV, which import-csv reads back verbatim, and never for the JSON.
+/** @param {string[]} columns @param {Rec[]} records @param {{ formulaSafe?: boolean }} [opts] */
+export function toCsv(columns, records, { formulaSafe = false } = {}) {
   /** @param {unknown} v */
   const esc = (v) => {
-    const s = v == null ? '' : String(v);
+    let s = v == null ? '' : String(v);
+    if (formulaSafe && typeof v === 'string' && /^[=+\-@\t\r]/.test(s)) s = `'${s}`;
     return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   };
   return '﻿' + [columns.join(','), ...records.map((r) => columns.map((c) => esc(r[c])).join(','))].join('\r\n') + '\r\n';
@@ -138,6 +142,8 @@ export function validateParties(parties) {
 
 export const MODES = ['polls', 'results'];
 
+export const META_URLS = ['resultsSourceUrl', 'partyNamesSourceUrl', 'pollGuidanceUrl', 'pollSourceUrl'];
+
 // meta.mode and, in results mode, the CEC results file. Seats are entered as published (surplus agreements
 // make them differ from a proportional split), so only their consistency is checked here, never recomputed.
 /** @param {Rec} meta @param {Rec | null} results @param {Rec[]} parties @returns {string[]} */
@@ -145,6 +151,8 @@ export function validateResults(meta, results, parties) {
   /** @type {string[]} */
   const errors = [];
   if (!MODES.includes(meta.mode)) errors.push(`meta: mode must be one of ${MODES.join('/')}`);
+  // The meta links the site renders as hrefs are https only (#47), like every source link.
+  for (const f of META_URLS) if (meta[f] != null && !isHttps(meta[f])) errors.push(`meta: ${f} must be an https:// URL`);
   if (meta.mode !== 'results') return errors;
   for (const f of ['resultsAsOf', 'resultsStatus', 'resultsSourceUrl']) if (!meta[f]) errors.push(`meta: missing ${f}`);
   if (meta.resultsAsOf && !isDate(meta.resultsAsOf)) errors.push('meta: resultsAsOf must be YYYY-MM-DD');
@@ -472,7 +480,7 @@ export function validateEvidence({ positions, parties, topics, evidenceJson, evi
     const cols = Object.keys(w).filter((c) => !MERGED_ONLY.includes(c) && String(got[c] ?? '') !== String(w[c]));
     if (cols.length) errors.push(`evidence.json row ${i + 1} (${w.party_id}|${w.topic_id}): stale ${cols.join(', ')}${fix}`);
   });
-  if (evidenceJson.length && evidenceCsv !== toCsv(Object.keys(evidenceJson[0]), evidenceJson)) errors.push('evidence.csv: differs from evidence.json' + fix);
+  if (evidenceJson.length && evidenceCsv !== toCsv(Object.keys(evidenceJson[0]), evidenceJson, { formulaSafe: true })) errors.push('evidence.csv: differs from evidence.json' + fix);
   if (merged) {
     const live = new Map(positions.map((p) => [key(p), JSON.stringify(publicRecord(p))]));
     if (merged.length !== positions.length) errors.push(`research/merged.json: ${merged.length} rows, positions.json has ${positions.length}`);
@@ -550,7 +558,7 @@ export function buildDownload(data) {
     rows,
   };
   return {
-    csv: toCsv(Object.keys(rows[0]), rows.map((r) => ({ ...r, red_line: r.red_line ? 'TRUE' : 'FALSE', components_disagree: r.components_disagree ? 'TRUE' : 'FALSE' }))),
+    csv: toCsv(Object.keys(rows[0]), rows.map((r) => ({ ...r, red_line: r.red_line ? 'TRUE' : 'FALSE', components_disagree: r.components_disagree ? 'TRUE' : 'FALSE' })), { formulaSafe: true }),
     json: JSON.stringify(json, null, 2) + '\n',
   };
 }

@@ -12,5 +12,5 @@ const rows = evidenceRows(readJson(MERGED), parties, topics);
 
 mkdirSync(OUT, { recursive: true });
 writeFileSync(join(OUT, 'evidence.json'), JSON.stringify(rows, null, 2) + '\n');
-writeFileSync(join(OUT, 'evidence.csv'), toCsv(Object.keys(rows[0]), rows));
+writeFileSync(join(OUT, 'evidence.csv'), toCsv(Object.keys(rows[0]), rows, { formulaSafe: true }));
 console.log(`✓ wrote ${rows.length} evidence rows to docs/research/evidence.{json,csv}`);

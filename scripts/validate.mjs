@@ -1,10 +1,9 @@
 // Validates site/data before a deploy. Exit code 1 on any error.
-// Usage: node scripts/validate.mjs [--allow-stub]
+// Usage: node scripts/validate.mjs
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ROOT, MERGED, exists, readJson, loadData, validateParties, validateTopics, validatePositions, validateResults, validateScenarios, validateRecommendations, validateEnglish, validateEvidence, validateDownload, DOWNLOAD_DIR, DOWNLOAD_FILES, DATA, CHANGELOG_FILE, validateChangelog, dataFingerprint, README_FILE, readmeFigures, validateReadme } from './lib.mjs';
 
-const allowStub = process.argv.includes('--allow-stub');
 const { parties, topics, meta, positions, results, scenarios, recommendations } = loadData();
 
 const errors = [
@@ -35,7 +34,8 @@ const errors = [
   ...validateReadme(readFileSync(README_FILE, 'utf8'), readmeFigures({ parties, topics, positions, scenarios })),
 ];
 if (typeof meta.showSeats !== 'boolean') errors.push('meta: showSeats must be true/false');
-if (meta.stub && !allowStub) errors.push('meta: stub data is active (run the real import before deploying)');
+// make-stub.mjs is gone (#47). The key stays false in meta.json until #51 removes it, and true is never deployed.
+if (meta.stub) errors.push('meta: stub must not be true');
 const expected = parties.length * topics.length;
 if (positions.length !== expected) errors.push(`positions: expected ${expected} rows, got ${positions.length}`);
 
@@ -45,4 +45,4 @@ if (errors.length) {
 }
 const nulls = positions.filter((p) => p.position === null).length;
 const red = positions.filter((p) => p.redLine).length;
-console.log(`✓ ${parties.length} parties, ${topics.length} topics, ${positions.length} positions (${nulls} null, ${red} red lines)${meta.stub ? ' [STUB]' : ''}; mode=${meta.mode}; showSeats=${meta.showSeats}`);
+console.log(`✓ ${parties.length} parties, ${topics.length} topics, ${positions.length} positions (${nulls} null, ${red} red lines); mode=${meta.mode}; showSeats=${meta.showSeats}`);
