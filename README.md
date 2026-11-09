@@ -55,6 +55,8 @@
 - **מה אפשר לעשות כאן:** בעמוד הבית שלושה כרטיסים: בניית קואליציה, מציאת הקואליציות למפלגה, והשוואה בין שתי מפלגות.
 - **המלצות הסיעות לנשיא:** לכל סיעה בכנסת, את מי המליצה ומתי, עם קישור להודעה של לשכת הנשיא, והספירה שפרסמה הלשכה ב-7.11, כלשונה.
 - **הורדה ויומן שינויים:** כל 112 העמדות להורדה, ב-CSV וב-JSON, ורשימה ציבורית של שינויים בנתונים שמבקר באתר יבחין בהם, בעמוד "איך זה עובד".
+- **מנדטים לפי עמדה:** בגיליון של כל נושא, כמה מנדטים של חברות הקואליציה יש מתחת לכל תווית בסולם, וכמה בלי עמדה מוצהרת. תומכות ונמנעות לא נספרות.
+- **כוח הצבעה מתמטי:** בעמוד "איך זה עובד", מדד Banzhaf ומדד Shapley-Shubik לכל סיעה, לפי המנדטים בלבד, בלי להתחשב בעמדות, בקווים אדומים ובשאלה מי באמת תשב עם מי.
 
 המתודולוגיה המלאה, כולל כל התוויות של הצירים, כללי המקורות וטבלאות הכיסוי, נמצאת [באתר](https://mi-im-mi-2026.netlify.app/#method). נימוקי המיקום של כל עמדה וכל החלטות הבדיקה נמצאים ב-[`docs/research/`](docs/research/).
 
@@ -152,6 +154,8 @@ npm run media                         # צילומי המסך וההדגמה ש�
 - **What you can do here:** three cards on the home page: build a coalition, find the coalitions for a party, compare two parties.
 - **Recommendations to the President:** whom each Knesset faction recommended and when, linked to the President's Office announcement, and the tally the Office published on 7 November, verbatim.
 - **Download and changelog:** all 112 positions as CSV and JSON, and a public list of the data changes a visitor would notice, on the About page.
+- **Seats by position:** in each topic's sheet, how many of the coalition members' seats sit at each label of the scale, and how many have no stated position. Supporters and abstainers are not counted.
+- **Mathematical voting power:** on the About page, the Banzhaf and Shapley-Shubik indices for each faction, from seats alone, ignoring positions, red lines and who will actually sit together.
 
 🔗 https://mi-im-mi-2026.netlify.app · in English: [mi-im-mi-2026.netlify.app/en/](https://mi-im-mi-2026.netlify.app/en/)
 
