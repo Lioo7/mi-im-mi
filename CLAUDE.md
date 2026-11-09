@@ -7,7 +7,7 @@ More rules load with their files: `.claude/rules/data.md` (sources, quotes, mode
 Changes under `site/` are allowed as part of agreed work. **A production deploy needs the user's explicit OK**, always after the full local smoke, a draft deploy, the light check against the draft URL and the user's phone check: run `/deploy` (Claude may start it once a change is ready, and it always stops for the phone check before publishing). `/add-scenario` runs only when the user starts it. If you find a critical bug (wrong data shown, a broken core flow, a privacy leak, a missing legal disclaimer), report it first and wait.
 
 Backlog: GitHub Issues. Run `gh issue list` before starting new work. Reference issues in commits (closes #N, refs #N).
-Issue format: a one-sentence goal, short bullets, a "Done when" line. Labels: enhancement, tech-debt, research, data, priority:high.
+Issue format: a one-sentence goal, short bullets, a "Done when" line. Labels: a priority, p1 (fix soon), p2 (should do) or p3 (nice to have), and an area: ux, accessibility, perf, correctness, security, data, documentation, tech-debt, enhancement, research. Milestones: "E: site fixes", "F: data and neutrality", "G: code quality".
 
 ### Working in a session (#37)
 - During a fix: `node --test` and the targeted smoke sections. The full suite once, before the draft.
@@ -16,16 +16,16 @@ Issue format: a one-sentence goal, short bullets, a "Done when" line. Labels: en
 - Between tasks, `/clear`. When compacting, keep the issue number and its agreed decisions, the commits made, any draft `deploy_id` and URL, and what still waits for the user's OK.
 
 ## Layout
-- `site/` is everything deployed. `js/app.js`: DOM, routing, rendering. `js/compat.js`: pure logic and URL state, unit-tested. `js/strings.js` / `js/strings.en.js`: all UI strings (the English file also has `NAMES`). `js/links.js`: correction mailto and quote attribution. `js/stats.js`: cookieless GoatCounter beacon, sent only from the production host, never with the query. `data/*.json`.
+- `site/` is everything deployed. `js/app.js`: DOM, routing, rendering. `js/compat.js`: pure logic and URL state, unit-tested. `js/strings.js` / `js/strings.en.js`: all UI strings (the English file also has `NAMES`). `js/links.js`: correction mailto and quote attribution. `js/stats.js`: cookieless GoatCounter beacon, sent only from the production host, never with the query. `js/en-entry.js`: the `/en/` entry page's redirect to `/#…&l=en` (#21). `data/*.json`.
 - `scripts/`: Node built-ins only, shared code in `lib.mjs`. `test/*.test.mjs`: unit tests.
-- `docs/research/` is public and generated, except the hand-written `decisions.md`.
+- `docs/research/` is public and generated, except the hand-written `decisions.md` and `review-notes.md` (a historical record).
 - Gitignored: `research/` (`merged.json` is the research source of truth), `review/` (the reviewer's CSV), `smoke/` (`<mode>/smoke.log`, screenshots).
 
 ## Commands
 - **Test:** `node --test` (includes the tsc type-check, `test/typecheck.test.mjs`, #20: pinned via npx, skipped with a reason when npx can't provide it) · **Validate:** `node scripts/validate.mjs` · **Local:** `python3 -m http.server -d site 8080` · **OG image:** `node scripts/make-og.mjs`
 - **Smoke:** `node scripts/smoke.mjs [baseUrl] [--mode=results|polls|hidden|all] [--only=<sections> | --light] [--shots]`
   - During a fix: only the sections the change touches, in its mode (`--only=pair,fit`; the default mode is `meta.mode`, a bad name lists the sections). A failure prints its rerun command.
-  - Before the draft deploy: the full suite once, `--mode=all` (the three modes in parallel, about 2 min). Against a deploy: `--light`.
+  - Before the draft deploy: the full suite once, `--mode=all` (the three modes in parallel, about 3 min). Against a deploy: `--light`.
   - Output: a line per section and the first 10 errors, everything in `smoke/<mode>/smoke.log` (`smoke/remote/` for a URL). Screenshots only with `--shots` (`*-en.png` for English).
   - **Never drop or loosen an assertion to make a run pass.** What each section enforces is commented in `scripts/smoke.mjs`: both languages, beacons, CSP and headers, no coalition state in any request, first-screen fit (#26), fit at 360–412 and 125% text (#35), the party sheet's ✕ (#30). Bounded (#27): `SMOKE_STEP_MS`, `SMOKE_WATCHDOG_MS`.
 - **Data, translations, archive:** the commands are in `.claude/rules/data.md` and `.claude/rules/i18n.md`.

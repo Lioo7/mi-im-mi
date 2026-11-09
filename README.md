@@ -95,7 +95,7 @@
 - **תכנון:** גיבוש הרעיון, השיטה והצירים בשיחה עם Claude, כולל ביקורת על כל החלטה.
 - **פיתוח:** [Claude Code](https://claude.com/claude-code), עם סוכני מחקר שרצו במקביל לפי נושאים, וסוכנים נפרדים לבדיקת המקורות.
 - **בקרה אנושית:** אישור הצירים, בדיקת כל העמדות השנויות במחלוקת, ובדיקה בטלפון לפני כל פריסה.
-- **בערך 40 קומיטים** בפחות מיממה, מהקומיט הראשון ועד הגרסה הסופית.
+- **בערך 50 קומיטים** בפחות מיומיים, מהקומיט הראשון ועד הגרסה של יום הבחירות, ויותר מ-200 עד היום.
 
 ### הסטאק, ולמה
 
@@ -104,7 +104,7 @@
 | HTML, CSS ו-JavaScript (ES modules), בלי framework ובלי build | עמוד אחד עם כמה תצוגות. כ-130KB דחוס בטעינה הראשונה, כולל כל הנתונים, נטען מהר בטלפון, ואין שלב בנייה שיכול להישבר ביום הבחירות |
 | נתונים ב-JSON סטטי | אין שרת ואין מסד נתונים שיכולים ליפול. תיקון הוא עריכת קובץ ופריסה |
 | Netlify | פריסה בפקודה אחת, CDN, וכתובות טיוטה לבדיקה לפני פרודקשן |
-| `node --test` | 150 בדיקות לאלגוריתם ולנתונים, כולל בדיקת סימטריה (היפוך כיוון הציר חייב לתת תוצאה זהה), בדיקה שהמנדטים מסתכמים ב-120, בדיקה מול חיפוש ממצה של הצירופים ל-61 ושל הקואליציות הקרובות למפלגה, בדיקות לשתי השפות, ובדיקה שאין נקודה-פסיק בטקסט העברי |
+| `node --test` | יותר מ-170 בדיקות לאלגוריתם ולנתונים, כולל בדיקת סימטריה (היפוך כיוון הציר חייב לתת תוצאה זהה), בדיקה שהמנדטים מסתכמים ב-120, בדיקה מול חיפוש ממצה של הצירופים ל-61 ושל הקואליציות הקרובות למפלגה, בדיקות לשתי השפות, ובדיקה שאין נקודה-פסיק בטקסט העברי |
 | שתי שפות בלי ספרייה | `strings.js` ו-`strings.en.js` באותו מבנה, ושדות `en` ליד העברית בנתונים. בדיקה נכשלת אם חסר תרגום לאחת המחרוזות, `validate.mjs` נכשל אם חסר תרגום בנתונים, ובדיקת מילון מונחים רצה על שתי השפות |
 | בדיקת smoke עם Chrome headless | צילומי מסך ב-390 וב-1280 פיקסלים, בדיקת שגיאות, בדיקה ששורת המקור של המנדטים גלויה לפני המספרים (בתצוגת התוצאות: שורת ועדת הבחירות, ובתצוגת סקרים: ההסתייגות שנדרשת בחוק), בדיקה שמונה הכניסות לא מקבל נתוני קואליציה ושאף בקשה לשרת לא נושאת אותה, ובדיקה שמדיניות האבטחה (CSP) לא חוסמת כלום ושהאחסון לא מוסיף לדף סקריפט (התג של Netlify כבוי). כל התצוגות נבדקות גם באנגלית: כיוון ושפה, שאין טקסט עברי שלא תורגם, ואותם מספרים |
 
@@ -115,9 +115,20 @@ python3 -m http.server -d site 8080   # האתר: http://localhost:8080
 node --test                           # בדיקות
 node scripts/validate.mjs             # אימות הנתונים
 node scripts/smoke.mjs --mode=all     # בדיקת smoke בשלושת המצבים במקביל (צילומי מסך עם --shots)
-node scripts/smoke.mjs --only=pair    # רק חלק אחד, בזמן תיקון
-npm run media                         # צילומי המסך וההדגמה של ה-README, מחדש
+node scripts/smoke.mjs --only=pair    # רק החלקים שהשינוי נוגע בהם (שם שגוי מציג את הרשימה)
+node scripts/smoke.mjs <url> --light  # הבדיקה מול פריסה: כל קובץ בית אחר בית, כל כותרת, והתצוגות ברוחב טלפון
+npm run media                         # צילומי המסך וההדגמה של ה-README, מחדש (ה-GIF דורש ffmpeg)
 ```
+
+`--mode=results|polls|hidden|all` בוחר מצב נתונים אחד או את שלושתם במקביל (השרת המקומי משנה את `meta.json` בזמן ההגשה).
+
+סדר העבודה:
+1. בזמן עבודה: רק החלקים הרלוונטיים, במצב שלהם.
+2. לפני טיוטה: הסוויטה המלאה פעם אחת (`--mode=all`).
+3. פריסת טיוטה, `--light` מול כתובת הטיוטה, ואז בדיקה בטלפון.
+4. פרסום של אותה טיוטה שנבדקה (`netlify api restoreSiteDeploy`), ואז `--light` מול הפרודקשן.
+
+לפני ואחרי [#37](https://github.com/Lioo7/mi-im-mi/issues/37), בלי לוותר על אף בדיקה: שלושת המצבים מ-13 דקות ל-2, הבדיקה מול טיוטה מ-6.5 דקות ל-23 שניות, ותיקון קטן מהבקשה ועד כתובת טיוטה מכ-20 דקות לכ-3.
 
 שינויים בעמדות נעשים רק דרך `scripts/export-csv.mjs` ו-`scripts/import-csv.mjs`, שמאמת את הקובץ ומציג את ההבדלים.
 
@@ -205,9 +216,9 @@ npm run media                         # צילומי המסך וההדגמה ש�
 - planning with Claude
 - implementation with Claude Code, with parallel research agents and independent source verifiers
 - human checkpoints throughout
-- about 40 commits
+- about 50 commits up to the election-day version, over 200 to date
 
-**Stack.** Static vanilla JS with no build step (about 130KB gzipped on first load, including all data), JSON data, Netlify, `node --test` (150 tests, including mirror-symmetry tests, a 120-seat check, brute-force checks of the completions to 61 and of the closest coalitions to a party, a test that fails on any missing translation, a glossary test for both languages, a test that keeps semicolons out of the Hebrew text, and a code scan that every seat-bearing string is gated), bilingual with no i18n library (two string files with the same shape, `en` fields next to the Hebrew data), a full Content-Security-Policy, and a headless-Chrome smoke test that also checks that the page-view beacon and every request to the site carry no coalition data, that the CSP blocks nothing and the host injects no script (Netlify's badge is off), and that the line explaining the seat numbers comes before them: the results source line in results mode, the legally required poll disclaimer in polls mode. Every view is also checked in English: direction and language, no untranslated Hebrew, and the same numbers.
+**Stack.** Static vanilla JS with no build step (about 130KB gzipped on first load, including all data), JSON data, Netlify, `node --test` (over 170 tests, including mirror-symmetry tests, a 120-seat check, brute-force checks of the completions to 61 and of the closest coalitions to a party, a test that fails on any missing translation, a glossary test for both languages, a test that keeps semicolons out of the Hebrew text, and a code scan that every seat-bearing string is gated), bilingual with no i18n library (two string files with the same shape, `en` fields next to the Hebrew data), a full Content-Security-Policy, and a headless-Chrome smoke test that also checks that the page-view beacon and every request to the site carry no coalition data, that the CSP blocks nothing and the host injects no script (Netlify's badge is off), and that the line explaining the seat numbers comes before them: the results source line in results mode, the legally required poll disclaimer in polls mode. Every view is also checked in English: direction and language, no untranslated Hebrew, and the same numbers.
 
 **Testing.** `node --test` (unit), `node scripts/validate.mjs` (data), and `node scripts/smoke.mjs [url]`, a headless-Chrome run of every view in both languages:
 - `--only=<sections>`: just the parts a change touches (a wrong name lists them)
@@ -219,7 +230,7 @@ README media: `npm run media` (`scripts/readme-media.mjs [url]`) recaptures the 
 
 The loop:
 1. While working: only the relevant sections, in their mode.
-2. Before a draft: the full suite once (`--mode=all`, about 2 min).
+2. Before a draft: the full suite once (`--mode=all`).
 3. Draft deploy, `--light` against the draft URL, then a check on a phone.
 4. Publish that same tested draft (`netlify api restoreSiteDeploy`), then `--light` against production.
 
