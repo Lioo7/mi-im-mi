@@ -62,7 +62,7 @@ const serve = () => serve_(MODES[MODE]);
 // scratch copies are needed (a remote run tests the deployed mode). --only: a comma-separated list of SECTIONS.
 // --shots: save screenshots (otherwise only a failing first-load legal check saves one).
 const SECTIONS = ['views', 'legal', 'narrow', 'headers', 'files', 'interaction', 'closest', 'cells', 'fragment', 'entry', 'en-views', 'en-interaction',
-  'pair', 'tasks', 'undo', 'layout', 'party-sheet', 'fit', 'nobreak', 'recs'];
+  'pair', 'tasks', 'undo', 'layout', 'party-sheet', 'fit', 'nobreak', 'recs', 'load'];
 const LIGHT_SECTIONS = ['files', 'headers', 'entry', 'views', 'en-views'];
 const MODES = { results: { mode: 'results' }, polls: { mode: 'polls', showSeats: true }, hidden: { mode: 'polls', showSeats: false } };
 const args = process.argv.slice(2);
@@ -365,6 +365,8 @@ const failedSections = new Set();
 const pushError = errors.push.bind(errors);
 errors.push = (...e) => { failedSections.add(section || '*'); return pushError(...e); };
 const beacons = [];
+// The site's requests while the load section records them (#45: no data file is fetched twice).
+let siteRequests = null;
 const siteHost = new URL(baseUrl).host;
 const partyIds = new RegExp(parties.map((p) => p.id).join('|'), 'i');
 // Set by go() while an old-format link (state in the query) loads.
@@ -394,6 +396,7 @@ try {
     // link's own load (the document and what the parser starts before the app runs) may, and never a data fetch.
     if (m.method === 'Network.requestWillBeSent' && new URL(m.params.request.url).host === siteHost) {
       const { url, headers } = m.params.request;
+      siteRequests?.push(new URL(url).pathname);
       const carries = (u) => { try { const q = new URL(u).search; return stateKeysIn(q) || partyIds.test(q); } catch { return false; } };
       const leaked = [url, headers.Referer ?? headers.referer].filter((u) => u && carries(u));
       const parserLoad = ['Document', 'Stylesheet', 'Script', 'Image'].includes(m.params.type);
@@ -815,7 +818,15 @@ try {
       if (norm(served) !== norm(v)) errors.push(`[headers] the served ${k} differs from netlify.toml:\n    served: ${served}\n    toml:   ${v}`);
     }
     if (/\/\.netlify\/scripts\/hud|data-nf-variant/.test(await res.text())) errors.push('[headers] Netlify injects its badge script again: turn the badge off in Project configuration > General > Powered by Netlify badge');
-    log(`  ✓ served headers match netlify.toml (${Object.keys(siteHeaders()).length}); no injected badge script`);
+    // Every file revalidates (#45): netlify.toml sets no Cache-Control, so Netlify's default (max-age=0, must-revalidate,
+    // with an ETag) applies, and a deploy never mixes old and new files. robots.txt is plain text.
+    for (const path of ['', 'js/app.js', 'data/positions.json']) {
+      const cc = (await fetch(new URL(path, baseUrl))).headers.get('cache-control') ?? '';
+      if (!/max-age=0\b/.test(cc) || !/must-revalidate/.test(cc)) errors.push(`[headers] /${path} should revalidate on every load, got Cache-Control "${cc}"`);
+    }
+    const robots = await fetch(new URL('robots.txt', baseUrl));
+    if (!robots.ok || !(robots.headers.get('content-type') ?? '').startsWith('text/plain') || !/^User-agent: \*$/m.test(await robots.text())) errors.push(`[headers] /robots.txt should be plain text with "User-agent: *" (HTTP ${robots.status}, ${robots.headers.get('content-type')})`);
+    log(`  ✓ served headers match netlify.toml (${Object.keys(siteHeaders()).length}); no injected badge script; every file revalidates; robots.txt`);
   }
   // The deploy serves exactly site/: every file, byte for byte (so the tested draft is what goes live).
   if (base && sec('files')) {
@@ -2482,6 +2493,63 @@ try {
   // president.gov.il release (the /en/ page in English), no candidate colors, no Hebrew in English, the ✕ in view (#30),
   // focus back on the line after closing. Each party sheet carries its faction's line; a list outside the Knesset has
   // none. Polls modes: nothing of this anywhere.
+  // Loading (#45). A shared results link and the method page land without a layout shift (the shell waits for the first
+  // render), with each data file fetched once (the preloads are the ones the app uses). When the data can't load, the
+  // message shows in the link's language; when app.js never runs, the CSS shows the shell after 3s (no blank page).
+  if (sec('load')) {
+    await setSize(SIZES[0]);
+    await c.send('Page.addScriptToEvaluateOnNewDocument', { source: `window.__cls = 0; try { new PerformanceObserver((l) => { for (const e of l.getEntries()) if (!e.hadRecentInput) window.__cls += e.value; }).observe({ type: 'layout-shift', buffered: true }); } catch {}` });
+    const shown = "['main', '#footer', '.topnav'].every((s) => getComputedStyle(document.querySelector(s)).visibility === 'visible')";
+    // A slow phone (4× CPU, a 150ms round trip, as Lighthouse's mobile run): on a fast machine the old skeleton moved before
+    // the first paint, so no shift was measured. Throttled, the old shell measures 0.95 here, as Lighthouse did.
+    const throttle = async (on) => {
+      await c.send('Emulation.setCPUThrottlingRate', { rate: on ? 4 : 1 });
+      await c.send('Network.emulateNetworkConditions', on ? { offline: false, latency: 150, downloadThroughput: 1.6e6 / 8, uploadThroughput: 750e3 / 8 } : { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
+    };
+    for (const [name, hash] of [['results', `#results?m=likud,yashar,together,democrats,yisrael-beiteinu`], ['method', '#method']]) {
+      step(`load-${name}`);
+      await throttle(true);
+      siteRequests = [];
+      await go(`${baseUrl}${hash}`);
+      await waitFor(() => evaluate("document.documentElement.classList.contains('ready') && document.querySelector('#footer')?.children.length > 0"), 30000).finally(() => throttle(false));
+      await settle(600);
+      const [cls, visible] = await evaluate(`JSON.stringify([window.__cls, ${shown}])`).then(JSON.parse);
+      if (!(cls < 0.1)) errors.push(`[${current}] ${name}: layout shift ${cls.toFixed(3)} on load (want < 0.1)`);
+      if (!visible) errors.push(`[${current}] ${name}: the shell is still hidden after the first render`);
+      const twice = ['parties', 'topics', 'positions', 'meta'].map((f) => [f, siteRequests.filter((p) => p.endsWith(`/data/${f}.json`)).length]).filter(([, n]) => n !== 1);
+      if (twice.length) errors.push(`[${current}] ${name}: each data file is fetched once (the preload is used): ${twice.map(([f, n]) => `${f}.json × ${n}`).join(', ')}`);
+      siteRequests = null;
+    }
+    // The failures are deliberate: their own blocked-request and failed-fetch errors are expected, nothing else.
+    const blocked = async (urls, fn) => {
+      const keep = errors.length;
+      await c.send('Network.setBlockedURLs', { urls });
+      try { await fn(); } finally { await c.send('Network.setBlockedURLs', { urls: [] }); }
+      const own = errors.splice(keep);
+      // A blocked request fails with an empty errorText (or ERR_BLOCKED_BY_CLIENT), and the app logs its failed fetch.
+      errors.push(...own.filter((e) => !/request failed: (net::ERR_BLOCKED_BY_CLIENT)?$|ERR_BLOCKED_BY_CLIENT|Failed to fetch/.test(e)));
+    };
+    for (const [l, T] of [['he', S], ['en', EN]]) {
+      step(`load-error-${l}`);
+      await blocked(['*/data/meta.json'], async () => {
+        await go(`${baseUrl}#results?m=likud,yashar${l === 'en' ? '&l=en' : ''}`);
+        await waitFor(() => evaluate("document.documentElement.classList.contains('ready')"), 5000).catch(() => {});
+        const got = await evaluate(`JSON.stringify([${shown}, document.querySelector('.view:not([hidden]) .empty')?.textContent ?? null])`);
+        if (got !== JSON.stringify([true, T.loadError])) errors.push(`[${current}] with the data blocked, the load error should show in ${l}: [shell shown, message] = ${got}`);
+      });
+    }
+    step('load-no-js');
+    await blocked(['*/js/app.js'], async () => {
+      await go(`${baseUrl}#build`);
+      await sleep(1000);
+      const early = await evaluate(shown);
+      await sleep(2800);
+      const late = await evaluate(shown);
+      if (early || !late) errors.push(`[${current}] with app.js blocked, the shell should stay hidden at 1s and show by 3.8s (got ${early} then ${late})`);
+    });
+    log('  ✓ load (#45): no layout shift on a results link and #method, each data file fetched once; the load error in he/en; the shell shows without app.js');
+  }
+
   if (sec('recs')) {
     const { recommendations: recs } = loadData();
     let recRuns = 0;

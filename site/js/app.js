@@ -1784,6 +1784,10 @@ async function main() {
   applyState(C.parseLocation(location, passedIds()).state);
   renderChrome();
   bind();
+  // The shell is shown with the first view (#45), so a shared link lands without a layout shift: from here to the end
+  // of route(true) is one task, so nothing paints in between. It is set first because route(true) may move focus
+  // (a method deep link), and a hidden element can't take it.
+  document.documentElement.classList.add('ready');
   route(true);
   // A reload with a sheet open lands on the sheet's entry, with no sheet: go back over it (same URL, same document in
   // Chrome, so nothing reloads), so the next Back leaves the view instead of doing nothing (#41).
@@ -1793,5 +1797,8 @@ async function main() {
 
 main().catch((err) => {
   console.error(err);
-  $('#results').innerHTML = `<p class="empty">${esc(S.loadError)}</p>`;
+  // No view rendered: the message replaces the one on screen (the build view at load), in the link's language.
+  const view = document.querySelector('.view:not([hidden])') ?? $('#view-build');
+  view.innerHTML = `<p class="empty">${esc((STRINGS[C.parseLocation(location, []).lang] ?? HE).loadError)}</p>`;
+  document.documentElement.classList.add('ready');
 });

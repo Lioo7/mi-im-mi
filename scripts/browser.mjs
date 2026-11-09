@@ -31,7 +31,7 @@ export async function waitFor(fn, ms = 10000, where = none) {
   throw new Error(`timeout after ${ms}ms [${where()}]${last ? ` (last error: ${last.message})` : ''}`);
 }
 
-export const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.csv': 'text/csv; charset=utf-8', '.png': 'image/png', '.svg': 'image/svg+xml' };
+export const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.csv': 'text/csv; charset=utf-8', '.png': 'image/png', '.svg': 'image/svg+xml', '.txt': 'text/plain; charset=utf-8' };
 
 // The headers Netlify sends for every path (netlify.toml: [[headers]] for = "/*").
 export function siteHeaders() {

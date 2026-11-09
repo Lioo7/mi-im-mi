@@ -47,6 +47,11 @@ button, select { font: inherit; color: inherit; }
 .small { font-size: .85rem; }
 .block { display: block; }
 .sr-only { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+/* The shell waits for the first render (#45): the empty skeleton would paint, then everything would move (CLS). Hidden
+   elements keep their layout and don't count as a shift. If app.js never runs (blocked, or an old browser), the
+   animation shows the shell after 3s anyway: no blank page. */
+html:not(.ready) :is(main, #footer, .topnav) { visibility: hidden; animation: shell-reveal 0s 3s forwards; }
+@keyframes shell-reveal { to { visibility: visible; } }
 .skip { position: absolute; inset-inline-start: 8px; inset-block-start: -40px; background: var(--card); padding: 6px 10px; z-index: 30; }
 .skip:focus { inset-block-start: 8px; }
 
