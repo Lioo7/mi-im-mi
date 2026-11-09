@@ -5,7 +5,7 @@ import {
   matrixCell, pairSummary, investiture, periphery, analyze, without, presets, parseState, serializeState,
   parseLocation, parsePair, locationFor, moveLegacyState, localize, contextFor,
   lowCoverage, addImpact, crisesHeading, breakdown, ballotOrder, selected, completions, redLinesCrossed, closestTo, groupRedLines,
-  peripheryClashes, pivotal, coalitionGroups, canUndo, seatsByPosition, AXIS,
+  peripheryClashes, pivotal, coalitionGroups, canUndo, seatsByPosition, shownBreakdown, AXIS,
 } from '../site/js/compat.js';
 
 const P = (partyId, topicId, position, redLine = false) => ({ partyId, topicId, position, redLine });
@@ -22,6 +22,8 @@ function fixture(positions) {
     ],
     topics: [{ id: 't1' }, { id: 't2' }, { id: 't3' }],
     positions,
+    // A toy house of the fixture's 72 seats, so "against = everyone else" reads off the numbers below.
+    house: 72,
   });
 }
 
@@ -252,6 +254,17 @@ test('without() removes a party from any role', () => {
   assert.equal(without(ctx, { members: ['a'], supporters: ['c'] }, 'c').vote.for, 30);
 });
 
+test('investiture (#46): the house is 120 seats in both modes, so 61 members always win the vote', () => {
+  // Poll averages that add up to 123, as in October 2026: 61 members against the other 62 would fail on the sum.
+  const polls = makeContext({ parties: [{ id: 'x', pollAvg: 61 }, { id: 'y', pollAvg: 40 }, { id: 'z', pollAvg: 22 }], topics: [], positions: [] });
+  assert.deepEqual([polls.house, investiture(polls, { members: ['x'] }).against, investiture(polls, { members: ['x'] }).approved], [120, 59, true]);
+  const results = makeContext({ parties: [{ id: 'x' }, { id: 'y' }], topics: [], positions: [], seats: new Map([['x', 61], ['y', 59]]), mode: 'results' });
+  assert.equal(investiture(results, { members: ['x'] }).approved, true);
+  // Every selection reaching 61 members passes, whatever the averages add up to; against never goes below 0.
+  for (const m of [['x'], ['x', 'y'], ['x', 'y', 'z']]) assert.equal(investiture(polls, { members: m }).approved, true);
+  assert.equal(investiture(polls, { members: ['x', 'y', 'z'] }).against, 0);
+});
+
 // Exact seats (results-style) for the pivotal tests; parties in the given order.
 const seated = (pairs) => makeContext({ parties: pairs.map(([id]) => ({ id })), topics: [], positions: [], seats: new Map(pairs) });
 const piv = (ctx, state) => pivotal(ctx, state).map((p) => [p.partyId, p.role, p.breaksMajority, p.breaksVote]);
@@ -463,6 +476,10 @@ test('moveLegacyState moves query state into the fragment verbatim, before any i
   assert.equal(moveLegacyState({ search: '?s=wa&m=a&utm_source=x', hash: '#results' }), '?s=wa&utm_source=x#results?m=a');
   // A fragment that already has state wins; the query's copy is dropped.
   assert.equal(moveLegacyState({ search: '?m=c', hash: '#results?m=a' }), '#results?m=a');
+  // The fragment's other params stay, after the moved state (#46).
+  assert.equal(moveLegacyState({ search: '?m=likud,shas', hash: '#results?l=en' }), '#results?m=likud,shas&l=en');
+  assert.equal(moveLegacyState({ search: '?m=a&s=wa', hash: '#pair?p=b,c&l=en' }), '?s=wa#pair?m=a&p=b,c&l=en');
+  assert.equal(moveLegacyState({ search: '?m=c', hash: '#results?m=a&l=en' }), '#results?m=a&l=en');
 });
 
 test('lowCoverage lists members with 3+ null topics', () => {
@@ -529,6 +546,14 @@ test('crisesHeading: more clash topics than the list shows (capped at 3) gets th
 test('addImpact does not depend on member order', () => {
   const ctx = fixture([P('a', 't1', -2), P('b', 't1', 2), P('c', 't1', 0)]);
   assert.deepEqual(addImpact(ctx, 'c', ['a', 'b']), addImpact(ctx, 'c', ['b', 'a']));
+});
+
+test('shownBreakdown (#46) hides zero rows by their count, never by the text', () => {
+  const rows = [['A', 'bd-ok', false], ['B', 'bd-minor', false], ['C', 'bd-major', false], ['D', 'bd-clash', true], ['E', 'bd-none', true]];
+  const counts = { agree: 2, minor: 0, major: 1, clash: 0, nodata: 0 };
+  assert.deepEqual(shownBreakdown(counts, rows).map((r) => r[0]), ['A', 'C', 'D', 'E']);
+  // A row whose text starts with "0 " is still shown when its count is not zero, and vice versa.
+  assert.deepEqual(shownBreakdown({ ...counts, minor: 3 }, [['0 x', 'bd-ok', false], ['No topics', 'bd-minor', false]]).map((r) => r[0]), ['0 x', 'No topics']);
 });
 
 test('breakdown counts agreement and minor gaps separately', () => {

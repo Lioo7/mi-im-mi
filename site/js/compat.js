@@ -63,9 +63,9 @@ export function pairLevel(idx, partyA, partyB, topicId) {
 // `seats` (optional Map id -> seats) overrides pollAvg, e.g. with election results; `lists` maps id -> its results list.
 /**
  * @param {{ parties: Party[], topics: Topic[], positions: Position[], rankBySeats?: boolean,
- *   seats?: Map<string, number> | null, lists?: Map<string, ResultsList> | null, mode?: string }} opts
+ *   seats?: Map<string, number> | null, lists?: Map<string, ResultsList> | null, mode?: string, house?: number }} opts
  */
-export function makeContext({ parties, topics, positions, rankBySeats = true, seats = null, lists = null, mode = 'polls' }) {
+export function makeContext({ parties, topics, positions, rankBySeats = true, seats = null, lists = null, mode = 'polls', house = 120 }) {
   const order = new Map(parties.map((p, i) => [p.id, i]));
   const byId = new Map(parties.map((p) => [p.id, p]));
   return {
@@ -87,6 +87,8 @@ export function makeContext({ parties, topics, positions, rankBySeats = true, se
     linkedOf: (id) => (mode === 'results' ? null : byId.get(id)?.linkedWith ?? null),
     rankBySeats,
     mode,
+    // Seats in the house, for the investiture vote. Always the Knesset's 120 on the site, smaller in test fixtures.
+    house,
   };
 }
 
@@ -329,6 +331,15 @@ export function breakdown(statuses) {
   return n;
 }
 
+// The summary rows to show: rows come from S.results.breakdown in count order (agree, minor, major, clash, no data),
+// each `[text, class, always]`. A row with a zero count is hidden unless it is always shown. Filtered on the
+// count, never on the translated text (#46).
+/** @template {[string, string, boolean]} R @param {ReturnType<typeof breakdown>} counts @param {R[]} rows @returns {R[]} */
+export function shownBreakdown(counts, rows) {
+  const n = [counts.agree, counts.minor, counts.major, counts.clash, counts.nodata];
+  return rows.filter(([, , always], i) => always || n[i] > 0);
+}
+
 // What changes when a party leaves: head-on clash topics if they differ, else substantial-gap topics, else null.
 /** @param {{ status: string }[]} statusesBefore @param {{ status: string }[]} statusesAfter */
 export function withoutDelta(statusesBefore, statusesAfter) {
@@ -397,16 +408,16 @@ export const coalitionGroups = ({ members, supporters = [], abstainers = [] }) =
   outside: [...supporters.map((partyId) => ({ partyId, role: 'supporter' })), ...abstainers.map((partyId) => ({ partyId, role: 'abstainer' }))],
 });
 
-// Investiture vote: for = members + supporters, abstain = abstainers, against = everyone else (all seats minus both).
+// Investiture vote: for = members + supporters, abstain = abstainers, against = everyone else (the house minus both).
 // Approved when for > against (a majority of those voting). Members alone reaching 61 is reported separately.
-// All seats = 120 with results; with polls it is the sum of the poll averages.
+// The house is the Knesset's 120 seats in both modes (#46): poll averages can add up to more than 120 (123 in October
+// 2026), and counting that sum as the house would let 61 members lose the vote.
 /** @param {Context} ctx @param {State} state */
 export function investiture(ctx, { members, supporters = [], abstainers = [] }) {
-  const all = Math.round(sumSeats(ctx, ctx.parties.map((p) => p.id)));
   const membersSeats = Math.round(sumSeats(ctx, members));
   const forSeats = Math.round(sumSeats(ctx, [...members, ...supporters]));
   const abstain = Math.round(sumSeats(ctx, abstainers));
-  const against = all - forSeats - abstain;
+  const against = Math.max(0, ctx.house - forSeats - abstain);
   const borderline = Math.round(sumSeats(ctx, [...members, ...supporters].filter((id) => ctx.byId.get(id)?.threshold === 'borderline')));
   return {
     for: forSeats,
@@ -739,6 +750,7 @@ export function parseLocation({ search, hash }, validIds, pairIds = validIds) {
 
 // The first step on load, before any request: moves a legacy query's state params verbatim into the fragment
 // (unless the fragment already has state, which wins) and returns the new `search + hash`, or null if there is none.
+// The fragment's other params (l=, p=) are kept after the moved state (#46).
 /** @param {{ search: string, hash: string }} location */
 export function moveLegacyState({ search, hash }) {
   if (!stateKeysIn(search)) return null;
@@ -747,7 +759,8 @@ export function moveLegacyState({ search, hash }) {
   const h = hash.replace(/^#/, '');
   const i = h.indexOf('?');
   const route = i < 0 ? h : h.slice(0, i);
-  const fragment = i >= 0 && stateKeysIn(h.slice(i + 1)) ? h.slice(i + 1) : pairs.filter(stateKeysIn).join('&');
+  const own = i >= 0 ? h.slice(i + 1) : '';
+  const fragment = stateKeysIn(own) ? own : [...pairs.filter(stateKeysIn), ...own.split('&').filter(Boolean)].join('&');
   return `${rest ? `?${rest}` : ''}#${route}?${fragment}`;
 }
 

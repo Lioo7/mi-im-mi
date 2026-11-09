@@ -1372,6 +1372,16 @@ try {
     if (pasted.hash !== `#results${qsOf(['together', 'democrats'])}` || !pasted.same || !pastedNames.every((n) => pasted.line.includes(n)) || pasted.line.includes(ctx.byId.get('likud').name)) {
       errors.push(`[interaction] a pasted fragment should replace the coalition without a reload (${JSON.stringify(pasted)})`);
     }
+    // Display order is party order, not the link's (#46, L2-3): a link naming the members in either order shows the same
+    // coalition line and is rewritten to the same fragment, so the sharer and the person opening the link see one order.
+    const lineFor = async (ids) => {
+      await go(`${baseUrl}#results?m=${ids.join(',')}`);
+      await waitFor(() => evaluate("document.body.dataset.view === 'results' && document.querySelector('#results-coalition')?.innerText.length > 0"));
+      return evaluate("JSON.stringify([location.hash, document.querySelector('#results-coalition').innerText])");
+    };
+    const orderIds = ['likud', 'yashar', 'together'];
+    const [inOrder, reversedOrder] = [await lineFor(orderIds), await lineFor([...orderIds].reverse())];
+    if (inOrder !== reversedOrder) errors.push(`[fragment] members named in another order should show the same line and fragment: ${inOrder} vs ${reversedOrder}`);
     // The method page's deep links (#38 batch D). Each group's own id (the group headings are the page's table of contents)
     // and a section inside a group (#power in results mode, else #privacy), on first load and on hashchange from #method
     // with every group closed (no reload): only the target's group opens, the target is on screen, and focus lands on it

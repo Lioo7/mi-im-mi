@@ -842,7 +842,7 @@ function overallBar(r, { statuses = true } = {}) {
       <span class="sr-only">${esc(t.name)}: ${esc(S.levels[lv].label)}</span></li>`;
   }).join('');
   const b = C.breakdown(r.statuses);
-  const parts = S.results.breakdown(b.agree, b.minor, b.major, b.clash, b.nodata).filter(([text, , always]) => always || !text.startsWith('0 '));
+  const parts = C.shownBreakdown(b, S.results.breakdown(b.agree, b.minor, b.major, b.clash, b.nodata));
   const outside = C.coalitionGroups(state).outside.length > 0;
   return `<section class="card overall">
     <h2 class="card-title">${esc(S.results.summaryTitleScoped(state.members.length))}</h2>
