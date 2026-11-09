@@ -5,9 +5,19 @@
       "Bash(netlify deploy --prod *)",
       "Bash(netlify deploy * --prod *)",
       "Bash(netlify deploy * --prod)",
+      "Bash(netlify deploy -p)",
+      "Bash(netlify deploy -p *)",
+      "Bash(netlify deploy * -p *)",
+      "Bash(netlify deploy * -p)",
+      "Bash(netlify deploy --prod-if-unlocked *)",
+      "Bash(netlify deploy * --prod-if-unlocked *)",
+      "Bash(netlify deploy * --prod-if-unlocked)",
       "Bash(netlify api restoreSiteDeploy *)",
+      "Bash(npx *netlify*)",
       "Bash(git push *)",
-      "Bash(git push)"
+      "Bash(git push)",
+      "Bash(git * push *)",
+      "Bash(git * push)"
     ]
   },
   "hooks": {
@@ -15,7 +25,10 @@
       {
         "matcher": "Edit|Write|MultiEdit",
         "hooks": [
-          { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/guard-positions.mjs" }
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/guard-positions.mjs"
+          }
         ]
       }
     ]
