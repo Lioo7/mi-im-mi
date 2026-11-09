@@ -8,7 +8,9 @@ const src = process.argv[2] ?? MERGED;
 const out = process.argv[3] ?? REVIEW_CSV;
 const { parties, topics } = loadData();
 const records = readJson(src);
+/** @type {Map<string, any>} */
 const party = new Map(parties.map((p) => [p.id, p]));
+/** @type {Map<string, any>} */
 const topic = new Map(topics.map((t) => [t.id, t]));
 
 const COLUMNS = [

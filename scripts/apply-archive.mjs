@@ -6,6 +6,7 @@ import { join } from 'node:path';
 import { ROOT, MERGED, readJson, writeJson } from './lib.mjs';
 
 // Merge the result files of all archiver workers (a snapshot beats an error).
+/** @type {Record<string, any>} */
 const map = {};
 for (const f of ['archive-map.json', 'archive-map-b.json']) {
   const path = join(ROOT, 'research', f);

@@ -22,7 +22,7 @@ Issue format: a one-sentence goal, short bullets, a "Done when" line. Labels: en
 - Gitignored: `research/` (`merged.json` is the research source of truth), `review/` (the reviewer's CSV), `smoke/` (`<mode>/smoke.log`, screenshots).
 
 ## Commands
-- **Test:** `node --test` · **Validate:** `node scripts/validate.mjs` · **Local:** `python3 -m http.server -d site 8080` · **OG image:** `node scripts/make-og.mjs`
+- **Test:** `node --test` (includes the tsc type-check, `test/typecheck.test.mjs`, #20: pinned via npx, skipped with a reason when npx can't provide it) · **Validate:** `node scripts/validate.mjs` · **Local:** `python3 -m http.server -d site 8080` · **OG image:** `node scripts/make-og.mjs`
 - **Smoke:** `node scripts/smoke.mjs [baseUrl] [--mode=results|polls|hidden|all] [--only=<sections> | --light] [--shots]`
   - During a fix: only the sections the change touches, in its mode (`--only=pair,fit`; the default mode is `meta.mode`, a bad name lists the sections). A failure prints its rerun command.
   - Before the draft deploy: the full suite once, `--mode=all` (the three modes in parallel, about 2 min). Against a deploy: `--light`.

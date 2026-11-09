@@ -219,9 +219,9 @@ function cardErrors(lng, state, got) {
   }
   const out = [];
   for (const [k, v] of Object.entries(want)) {
-    let g = got[k];
+    let g = /** @type {any} */ (got[k]);
     // The red-line line is muted when none is crossed; only its own class matters here.
-    if (k === 'after') g = g.map((x) => (x.includes('redlines-line') ? 'small redlines-line' : x)).slice(0, v.length);
+    if (k === 'after') g = g.map((x) => (x.includes('redlines-line') ? 'small redlines-line' : x)).slice(0, /** @type {string[]} */ (v).length);
     if (JSON.stringify(g) !== JSON.stringify(v)) out.push(`results card ${k}: expected ${JSON.stringify(v)}, got ${JSON.stringify(g)}`);
   }
   return out;
@@ -250,7 +250,7 @@ const cases = [
   ['results-opposition-arab', at('results', serializeState(ctx, { base: null, ...pr['opposition-arab'] })), 'results'],
   ['results-pair', '#results?m=together,democrats', 'results'],
   ['results-single', '#results?m=likud', 'results'],
-  ['results-base-likud', at('results', serializeState(ctx, { base: 'likud', members: pr.coalition.members, outside: [] })), 'results'],
+  ['results-base-likud', at('results', serializeState(ctx, { base: 'likud', members: pr.coalition.members })), 'results'],
   ['results-low-coverage', '#results?m=shas,utj,zehut,likud', 'results'],
   // Roles: an old link with o= (outside support, now "תומכת", still in the query), and supporters plus abstainers.
   ['results-old-outside', '?m=yashar,together,democrats,yisrael-beiteinu&o=raam', 'results'],
@@ -302,7 +302,7 @@ function cleanup() {
   killChrome();
 }
 process.on('exit', cleanup);
-for (const [sig, code] of [['SIGINT', 130], ['SIGTERM', 143], ['SIGHUP', 129]]) {
+for (const [sig, code] of /** @type {[NodeJS.Signals, number][]} */ ([['SIGINT', 130], ['SIGTERM', 143], ['SIGHUP', 129]])) {
   process.on(sig, () => { logErr(`✗ smoke interrupted (${sig}) during: ${current || '(start)'}`); cleanup(); process.exit(code); });
 }
 const watchdog = setTimeout(() => {
@@ -711,7 +711,7 @@ try {
   if (base && sec('files')) {
     step('files');
     const dir = join(ROOT, 'site');
-    const files = readdirSync(dir, { recursive: true }).filter((f) => !f.split(/[\\/]/).some((x) => x.startsWith('.')) && statSync(join(dir, f)).isFile());
+    const files = readdirSync(dir, { recursive: true, encoding: 'utf8' }).filter((f) => !f.split(/[\\/]/).some((x) => x.startsWith('.')) && statSync(join(dir, f)).isFile());
     // Netlify adds a hosting comment to HTML at its edge (seen 8.11.2026; not a script, so the CSP is unaffected). That
     // exact comment is left out of the comparison and reported; anything else that differs fails.
     const NETLIFY_COMMENT = /<!-- This site is hosted on Netlify\.[^]*?-->\n?/;
@@ -857,7 +857,7 @@ try {
     const ONE_STOP = `[...document.querySelectorAll('[role="radiogroup"]')].every((g) => { const z = [...g.querySelectorAll('[role="radio"]')].filter((r) => r.tabIndex === 0); return z.length === 1 && z[0].getAttribute('aria-checked') === 'true'; })`;
     if (!(await evaluate(ONE_STOP))) errors.push('[interaction] each role group should have one Tab stop, its checked radio');
     await evaluate("document.querySelector('[data-key=\"role-shas-member\"]').focus()");
-    for (const [k, role, q] of [['ArrowLeft', 'supporter', /o=shas/], ['End', 'abstainer', /a=shas/], ['Home', 'member', /m=[^&]*shas/], ['ArrowRight', 'abstainer', /a=shas/]]) {
+    for (const [k, role, q] of /** @type {[string, string, RegExp][]} */ ([['ArrowLeft', 'supporter', /o=shas/], ['End', 'abstainer', /a=shas/], ['Home', 'member', /m=[^&]*shas/], ['ArrowRight', 'abstainer', /a=shas/]])) {
       await press(k);
       const [f, focus] = [await frag(), await evaluate('document.activeElement?.dataset.key')];
       if (!q.test(f) || focus !== `role-shas-${role}`) errors.push(`[interaction] ${k} in shas's role group should choose ${role} and keep focus on it (${f}, focus ${focus})`);
@@ -1212,7 +1212,7 @@ try {
     await shoot(z, 'interaction-cell-quote-m.png', false);
     // Null rows show what was found: the "no stated position" label, the quote with its attribution, and the source; a dated
     // note from an older platform links its source as the additional source.
-    for (const [lng, T, by] of [['he', S, 'משה פייגלין, ערוץ 7, 02.07.2026'], ['en', EN, 'Moshe Feiglin, Arutz Sheva (Israel National News), 2 Jul 2026']]) {
+    for (const [lng, T, by] of /** @type {[string, typeof S, string][]} */ ([['he', S, 'משה פייגלין, ערוץ 7, 02.07.2026'], ['en', EN, 'Moshe Feiglin, Arutz Sheva (Israel National News), 2 Jul 2026']])) {
       const l = lng === 'he' ? '' : '&l=en';
       await go(`${baseUrl}#results?m=likud,zehut${l}`);
       await waitFor(() => evaluate("document.body.dataset.view === 'results' && document.querySelectorAll('.cell').length > 0"));
@@ -1970,7 +1970,8 @@ try {
         await evaluate("document.querySelector('#sheet').close()");
         await metrics(800);
         // Cell sheet: the why row.
-        const cell = matrixCell(posCtx[l], 'yashar', 'draft', ['likud', 'yashar', 'together', 'otzma-yehudit', 'shas', 'utj'], null);
+        // No base: always the full cell (level, d, red, ref).
+        const cell = /** @type {any} */ (matrixCell(posCtx[l], 'yashar', 'draft', ['likud', 'yashar', 'together', 'otzma-yehudit', 'shas', 'utj'], null));
         await evaluate("document.querySelector('.cell[data-party=\"yashar\"][data-topic=\"draft\"]').click()");
         await settle(250);
         const why = await evaluate(WHY_JS('#sheet'));
@@ -2112,11 +2113,11 @@ try {
         for (const pct of [100, 125]) {
           step(`nobreak-${l}@${w}-${pct}%`);
           nbRuns++;
-          for (const [url, sels, ready] of [
+          for (const [url, sels, ready] of /** @type {[string, string[], string][]} */ ([
             [`#results?m=yashar,together,democrats,yisrael-beiteinu,utj,shas${L}`, ['#results .redlines-line', '#results .pivotal'], "document.querySelector('#results .pivotal li') !== null"],
             [`#results?m=yashar,together,democrats,yisrael-beiteinu${L}`, ['#results .completions'], "document.querySelector('#results .completions li') !== null"],
             [`#build${l === 'en' ? '?l=en' : ''}`, ['#presets .scen-src'], "document.querySelector('#presets .scen-src') !== null"],
-          ]) {
+          ])) {
             await go(`${baseUrl}${url}`);
             await waitFor(() => evaluate(ready));
             await evaluate("(() => { const d = document.querySelector('#presets details'); if (d) d.open = true; return true; })()");
@@ -2249,7 +2250,7 @@ try {
   toLog(`  settle: ${settles.n} waits, ${settles.capped} reached their cap`);
   c.close();
 } catch (e) {
-  errors.push(`smoke failed: ${e.message}`);
+  errors.push(`smoke failed: ${/** @type {Error} */ (e).message}`);
 } finally {
   cleanup();
 }

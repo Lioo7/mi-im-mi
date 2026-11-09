@@ -1,0 +1,8 @@
+{
+  "//": "The browser-driving scripts (#20): strict, except two flags. Untyped callback parameters may stay implicit any, and null checks are off: the smoke harness looks up known party ids everywhere (byId.get(id).name), and a missing one already fails the run. Everything else is as in jsconfig.json.",
+  "extends": "./jsconfig.json",
+  "compilerOptions": { "noImplicitAny": false, "strictNullChecks": false },
+  "include": [],
+  "exclude": [],
+  "files": ["scripts/smoke.mjs", "scripts/readme-media.mjs", "scripts/browser.mjs"]
+}

@@ -22,6 +22,7 @@ export function within(promise, ms, label, where = none) {
 // Each attempt races the time left, so one attempt that never returns cannot block past the deadline.
 export async function waitFor(fn, ms = 10000, where = none) {
   const end = Date.now() + ms;
+  /** @type {any} */
   let last = null;
   while (Date.now() < end) {
     try { const v = await within(Promise.resolve().then(fn), end - Date.now(), 'waitFor attempt', where); if (v) return v; } catch (e) { last = e; }
@@ -56,8 +57,8 @@ export async function serve(metaOverride = null) {
     const body = file === metaFile && metaOverride ? JSON.stringify({ ...JSON.parse(readFileSync(file, 'utf8')), ...metaOverride }) : readFileSync(file);
     res.end(body);
   });
-  await new Promise((r) => server.listen(0, '127.0.0.1', r));
-  return { url: `http://127.0.0.1:${server.address().port}/`, stop: () => server.close() };
+  await new Promise((r) => server.listen(0, '127.0.0.1', () => r(null)));
+  return { url: `http://127.0.0.1:${/** @type {import('node:net').AddressInfo} */ (server.address()).port}/`, stop: () => server.close() };
 }
 
 export function cdp(wsUrl, { stepMs = 15000, where = none } = {}) {
@@ -108,7 +109,7 @@ export function removeDir(dir) {
 // running a test of this). Its own process group (detached), so killing the group takes its helper processes too. Port 0:
 // Chrome picks a free port and writes it to DevToolsActivePort in the profile. kill() is synchronous (for 'exit' handlers).
 export function launchChrome() {
-  const alive = (pid) => { try { process.kill(pid, 0); return true; } catch (e) { return e.code === 'EPERM'; } };
+  const alive = (pid) => { try { process.kill(pid, 0); return true; } catch (e) { return /** @type {NodeJS.ErrnoException} */ (e).code === 'EPERM'; } };
   const stale = (name) => { const owner = Number(/^smoke-chrome-(\d+)-/.exec(name)?.[1] ?? 0); return !owner || !alive(owner); };
   const home = CHROME.includes('.app/') ? CHROME.slice(0, CHROME.indexOf('.app/') + 5) : CHROME;
   try {

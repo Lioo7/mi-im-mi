@@ -1,3 +1,4 @@
+// @ts-nocheck: UI text, not type-checked (#20). Its shape is checked by test/strings.test.mjs.
 // All user-visible UI strings in English, with the same shape as strings.js (test/strings.test.mjs checks the parity).
 // The Hebrew text is authoritative; this is a translation of it. Glossary: CLAUDE.md.
 export const plural = (n, one, many) => (n === 1 ? one : `${n} ${many}`);

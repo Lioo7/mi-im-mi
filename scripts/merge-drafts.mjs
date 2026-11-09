@@ -9,6 +9,7 @@ const { parties, topics } = loadData();
 const dir = join(ROOT, 'research', 'drafts');
 const files = exists(dir) ? readdirSync(dir).filter((f) => f.endsWith('.json')) : [];
 
+/** @type {import('./lib.mjs').Rec[]} */
 const records = [];
 const problems = [];
 for (const t of topics) {
@@ -35,9 +36,10 @@ const errors = validatePositions(records, parties, topicSubset);
 
 // ---- neutrality audit ----
 const blocOf = new Map(parties.map((p) => [p.id, p.bloc ?? 'none']));
+/** @type {Record<string, { rows: number, nulls: number, red: number, extremes: number }>} */
 const audit = {};
 for (const r of records) {
-  const b = blocOf.get(r.partyId);
+  const b = String(blocOf.get(r.partyId));
   audit[b] ??= { rows: 0, nulls: 0, red: 0, extremes: 0 };
   audit[b].rows++;
   if (r.position === null) audit[b].nulls++;

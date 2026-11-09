@@ -6,6 +6,7 @@ import { join } from 'node:path';
 import { ROOT, MERGED, readJson, writeJson, exists, key } from './lib.mjs';
 
 const dir = join(ROOT, 'research', 'verify');
+/** @type {import('./lib.mjs').Rec[]} */
 const records = readJson(MERGED);
 const byKey = new Map(records.map((r) => [key(r), r]));
 for (const r of records) { r.flagged = false; r.flagReason = null; }

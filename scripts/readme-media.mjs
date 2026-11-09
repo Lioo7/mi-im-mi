@@ -236,7 +236,7 @@ try {
   }
   c.close();
 } catch (e) {
-  errors.push(`[${current}] ${e.message}`);
+  errors.push(`[${current}] ${/** @type {Error} */ (e).message}`);
 }
 cleanup();
 

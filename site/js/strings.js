@@ -1,3 +1,4 @@
+// @ts-nocheck: UI text, not type-checked (#20). Its shape is checked by test/strings.test.mjs.
 // All user-visible UI strings. Functions take the dynamic parts.
 // Count + noun with the singular spelled out: plural(1, 'נושא אחד', 'נושאים') → "נושא אחד"; plural(3, …) → "3 נושאים".
 export const plural = (n, one, many) => (n === 1 ? one : `${n} ${many}`);

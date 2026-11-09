@@ -1,0 +1,17 @@
+{
+  "//": "Type-check (#20): tsc --noEmit over JSDoc-annotated plain ES modules, no build step. Run by test/typecheck.test.mjs. The three browser-driving scripts are in jsconfig.browser.json.",
+  "compilerOptions": {
+    "target": "es2022",
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "lib": ["es2023", "dom", "dom.iterable"],
+    "types": ["node"],
+    "allowJs": true,
+    "checkJs": true,
+    "noEmit": true,
+    "strict": true,
+    "skipLibCheck": true
+  },
+  "include": ["site/js/compat.js", "site/js/links.js", "site/js/stats.js", "scripts/*.mjs"],
+  "exclude": ["scripts/smoke.mjs", "scripts/readme-media.mjs", "scripts/browser.mjs"]
+}

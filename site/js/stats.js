@@ -9,10 +9,12 @@ export const PROD_HOST = 'mi-im-mi-2026.netlify.app';
 
 // Allow-list: only the production site over https is counted. Everything else (file:// previews, which would send
 // a local file path, localhost, Netlify drafts and previews) sends nothing.
+/** @param {{ protocol: string, hostname: string }} location */
 export function shouldCount({ protocol, hostname }) {
   return protocol === 'https:' && hostname === PROD_HOST;
 }
 
+/** @param {{ pathname?: string, title?: string, referrer?: string, width?: number }} page */
 export function beaconUrl({ pathname, title, referrer, width }) {
   let origin = '';
   try { origin = referrer ? new URL(referrer).origin : ''; } catch { /* ignore a malformed referrer */ }
@@ -22,6 +24,7 @@ export function beaconUrl({ pathname, title, referrer, width }) {
   return `${ENDPOINT}?${q}`;
 }
 
+/** @param {Window & typeof globalThis} [win] */
 export function countPageview(win = window) {
   try {
     if (!shouldCount(win.location)) return;

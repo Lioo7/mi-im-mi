@@ -15,9 +15,12 @@ const dryRun = args.includes('--dry-run');
 const { parties, topics, meta } = loadData();
 const rows = parseCsv(readFileSync(file, 'utf8'));
 
+/** @param {unknown} v */
 const bool = (v) => /^(true|1|yes|כן)$/i.test(String(v).trim());
+/** @param {unknown} v */
 const textOrNull = (v) => (String(v ?? '').trim() === '' ? null : String(v).trim());
 const errors = [];
+/** @type {(string | number)[]} */
 const flaggedRows = [];
 
 const records = rows.map((r) => {
@@ -64,6 +67,7 @@ if (errors.length) {
 
 // Diff against the live data, which is what this import replaces (#8). The research file can be ahead of it or behind it.
 const LIVE = join(DATA, 'positions.json');
+/** @type {import('./lib.mjs').Rec[]} */
 const before = exists(LIVE) ? readJson(LIVE) : [];
 const prev = new Map(before.map((p) => [key(p), publicRecord(p)]));
 const out = records.map(publicRecord);
@@ -73,6 +77,7 @@ for (const r of out) {
   if (!old) { changes.push(`+ ${key(r)}`); continue; }
   for (const f of ['position', 'redLine', 'componentsDisagree', 'summary', 'summaryEn', 'quote', 'quoteBy', 'quoteTranslation', 'quoteTranslationEn', 'quoteTranslatedBy', 'quoteChannel', 'sourceUrl', 'extraSourceUrl', 'sourceType', 'sourceDate', 'archiveUrl']) {
     if (JSON.stringify(old[f]) !== JSON.stringify(r[f])) {
+      /** @param {unknown} v */
       const show = (v) => (typeof v === 'string' && v.length > 60 ? v.slice(0, 57) + '…' : JSON.stringify(v));
       changes.push(`~ ${key(r)} ${f}: ${show(old[f])} → ${show(r[f])}`);
     }
@@ -86,9 +91,11 @@ if (dryRun) {
 }
 
 // Keep a stable order: topic, then party, as in the data files.
+/** @type {Map<string, number>} */
 const po = new Map(parties.map((p, i) => [p.id, i]));
+/** @type {Map<string, number>} */
 const to = new Map(topics.map((t, i) => [t.id, i]));
-out.sort((a, b) => to.get(a.topicId) - to.get(b.topicId) || po.get(a.partyId) - po.get(b.partyId));
+out.sort((a, b) => (to.get(a.topicId) ?? 0) - (to.get(b.topicId) ?? 0) || (po.get(a.partyId) ?? 0) - (po.get(b.partyId) ?? 0));
 writeJson(join(DATA, 'positions.json'), out);
 if (meta.stub) writeJson(join(DATA, 'meta.json'), { ...meta, stub: false });
 console.log(`✓ wrote ${out.length} positions to site/data/positions.json${meta.stub ? ' (stub mode turned off)' : ''}`);

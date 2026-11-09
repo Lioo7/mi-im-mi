@@ -14,15 +14,18 @@ const { parties } = loadData();
 const byParty = readJson(join(ROOT, 'research', 'platform-urls.json'));
 const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130 Safari/537.36';
 
+/** @param {string} url */
 const slug = (url) => {
   const u = new URL(url);
   let name = decodeURIComponent(u.pathname).replace(/\/+$/, '').split('/').pop() || u.hostname.replace(/^www\./, '');
   name = name.replace(/\.(pdf|html?)$/i, '').replace(/[^\p{L}\p{N}._-]+/gu, '-').replace(/^-+|-+$/g, '').slice(0, 60);
   return name || 'page';
 };
+/** @param {string} cmd @param {string[]} args @param {number} [timeout] */
 const run = (cmd, args, timeout = 90000) => spawnSync(cmd, args, { encoding: 'utf8', timeout });
 
-const results = []; // { party, file, url, status, note }
+/** @type {{ party: string, files: string[], url: string, note: string, [key: string]: any }[]} */
+const results = [];
 for (const [pid, urls] of Object.entries(byParty)) {
   const out = join(DIR, pid);
   mkdirSync(out, { recursive: true });
@@ -54,7 +57,9 @@ for (const [pid, urls] of Object.entries(byParty)) {
 }
 
 // ---- INDEX.md ----
+/** @type {Map<string, any>} */
 const party = new Map(parties.map((p) => [p.id, p]));
+/** @param {string} p @param {string} f */
 const sizeOf = (p, f) => { try { return `${Math.round(statSync(join(DIR, p, f)).size / 1024)} KB`; } catch { return ''; } };
 const rows = results.flatMap((r) => (r.files.length ? r.files : ['(none)']).map((f) => `| ${party.get(r.party).name} | ${f === '(none)' ? '—' : `${r.party}/${f}`} | ${f === '(none)' ? '' : sizeOf(r.party, f)} | ${r.url} | ${today} | ${r.note} |`));
 const local = [

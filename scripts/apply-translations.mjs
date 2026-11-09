@@ -29,9 +29,10 @@ for (const t of topics) {
 // Axis keys stay in scale order (-2 … 2); JSON.stringify would put the integer-like keys "0", "1", "2" first.
 const POLES = ['-2', '-1', '0', '1', '2'];
 const text = JSON.stringify(topics, null, 2).replace(/^( +)"axis": \{\n([\s\S]*?)\n\1\}/gm, (m, indent, body) => {
-  const lines = body.split('\n').map((l) => l.replace(/,$/, ''));
+  const lines = body.split('\n').map((/** @type {string} */ l) => l.replace(/,$/, ''));
+  /** @param {string} l */
   const at = (l) => POLES.indexOf(Object.keys(JSON.parse(`{${l}}`))[0]);
-  return `${indent}"axis": {\n${lines.sort((a, b) => at(a) - at(b)).join(',\n')}\n${indent}}`;
+  return `${indent}"axis": {\n${lines.sort((/** @type {string} */ a, /** @type {string} */ b) => at(a) - at(b)).join(',\n')}\n${indent}}`;
 });
 writeFileSync(join(DATA, 'topics.json'), text + '\n');
 console.log(`✓ English for ${rows.length} positions and ${topics.length} topics; ${flagged} position(s) flagged with an open dispute`);
