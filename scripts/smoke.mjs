@@ -2138,7 +2138,51 @@ try {
       }
     }
     await setSize(SIZES[0]);
+    // Mixed direction and one date format (#42), over every party's sheet (each topic's summary, quote attribution and
+    // source line) and every party's pair view: in Hebrew, no Latin run outside a <bdi> in the attributions, summaries
+    // and pair sentences (an outlet like "ynet" would otherwise flip the attribution's order). In both languages, no
+    // zero-padded date (04.11.2026) next to the hand-written ones (4.11.2026).
+    const LATIN_OUT = (sel) => `[...document.querySelectorAll(${JSON.stringify(sel)})].flatMap((el) => { const w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT), out = [];
+      while (w.nextNode()) { const n = w.currentNode; if (/[A-Za-z]/.test(n.data) && !n.parentElement.closest('bdi')) out.push(n.data.trim().slice(0, 50)); } return out; })`;
+    const PADDED = (sel) => `(document.querySelector(${JSON.stringify(sel)})?.innerText.match(/(^|[^\\d.])(0\\d\\.\\d{1,2}|\\d{1,2}\\.0\\d)\\.20\\d\\d/g) ?? []).map((s) => s.trim())`;
+    const allIds = posCtx.he.parties.map((p) => p.id);
+    const passedIds = allIds.filter((id) => posCtx.he.passed(id));
+    let sheetsScanned = 0;
+    for (const l of ['he', 'en']) {
+      step(`bidi-dates-${l}`);
+      const sfx = l === 'en' ? '&l=en' : '';
+      await go(`${baseUrl}#results?m=${passedIds.join(',')}${sfx}`);
+      await waitFor(() => evaluate("document.querySelector('.party-btn') !== null && document.querySelector('#footer')?.children.length > 0"));
+      const footerPadded = await evaluate(PADDED('#footer'));
+      if (footerPadded.length) errors.push(`[${current}] the footer has zero-padded dates: ${footerPadded.join(' | ')}`);
+      for (const id of allIds) {
+        // A list under the threshold has its sheet button on the build view only (the below-threshold list).
+        const btn = `document.querySelector('[data-act="party"][data-id="${id}"]')`;
+        if (!(await evaluate(`${btn} !== null`))) {
+          await go(`${baseUrl}#build${l === 'en' ? '?l=en' : ''}`);
+          await waitFor(() => evaluate(`${btn} !== null`));
+        }
+        await evaluate(`${btn}.click()`);
+        await waitFor(() => evaluate("document.querySelector('#sheet').open && document.querySelector('#sheet .profile') !== null"));
+        const [latin, padded] = [l === 'he' ? await evaluate(LATIN_OUT('#sheet .q-by, #sheet .pos > p, #sheet .pair-sum')) : [], await evaluate(PADDED('#sheet'))];
+        if (latin.length) errors.push(`[${current}] ${id}'s sheet: Latin outside <bdi>: ${latin.join(' | ')}`);
+        if (padded.length) errors.push(`[${current}] ${id}'s sheet: zero-padded dates: ${padded.join(' | ')}`);
+        await evaluate("document.querySelector('#sheet .sheet-close').click()");
+        await waitFor(() => evaluate("!document.querySelector('#sheet').open"));
+        sheetsScanned++;
+      }
+    }
+    step('bidi-pair');
+    for (const id of allIds) {
+      const other = allIds.find((x) => x !== id);
+      await go(`${baseUrl}#pair?p=${id},${other}`);
+      await waitFor(() => evaluate("document.querySelectorAll('#pair-view .pair-row').length === 8"));
+      await evaluate("document.querySelectorAll('#pair-view .pair-row').forEach((r) => { r.open = true; }), true");
+      const latin = await evaluate(LATIN_OUT('#pair-view .pair-sum, #pair-view .q-by, #pair-view .pos > p'));
+      if (latin.length) errors.push(`[${current}] the pair view ${id}+${other}: Latin outside <bdi>: ${latin.join(' | ')}`);
+    }
     log(`  ✓ party sheet: ${sheetRuns} runs (360/375/390 × he/en): close inside the visible viewport at rest, scrolled, grown and shrunk; why rows; votes line; compare-with focus`);
+    log(`  ✓ bidi and dates (#42): ${sheetsScanned} party sheets (he/en) and ${allIds.length} pair views: no Latin outside <bdi> in Hebrew, no zero-padded date`);
   }
 
   // Fit (#35): at phone widths, with normal and enlarged text (root and body at 125%, standing in for a wider device

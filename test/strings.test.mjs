@@ -2,6 +2,14 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { S, plural } from '../site/js/strings.js';
 
+test('Hebrew dates have no leading zeros, like the hand-written ones (#42)', () => {
+  assert.equal(S.fmtDate('2026-11-04'), '4.11.2026');
+  assert.equal(S.fmtDate('2026-10-30'), '30.10.2026');
+  assert.equal(S.fmtDate('2026-08-31'), '31.8.2026');
+  assert.equal(S.fmtDate('2006'), '2006');
+  assert.equal(S.fmtDate(null), '');
+});
+
 test('plural helper spells out the singular', () => {
   assert.equal(plural(1, 'נושא אחד', 'נושאים'), 'נושא אחד');
   assert.equal(plural(0, 'נושא אחד', 'נושאים'), '0 נושאים');

@@ -614,14 +614,14 @@ function positionBlock(pid, tid, { heading = true } = {}) {
   if (!p || p.position == null) {
     return `<div class="pos">
       ${heading ? `<p class="pos-label none">${esc(T.noPositionLabel)}</p>` : ''}
-      <p>${esc(p?.summary ?? T.noPosition)}</p>
+      <p>${bidi(p?.summary ?? T.noPosition)}</p>
       ${p ? evidenceHtml(p, pid) : ''}
     </div>`;
   }
   return `<div class="pos">
     ${heading ? `<p class="pos-label">${esc(axisLabel(tid, p.position))}</p>` : ''}
     ${p.redLine || p.componentsDisagree ? `<p>${p.redLine ? `<span class="tag tag-red"><span aria-hidden="true">🚩</span> ${esc(S.redLine)}</span> ` : ''}${p.componentsDisagree ? `<span class="tag tag-split"><span aria-hidden="true">${S.componentsIcon}</span> ${esc(S.componentsDisagree)}</span>` : ''}</p>` : ''}
-    <p>${esc(p.summary)}</p>
+    <p>${bidi(p.summary)}</p>
     ${evidenceHtml(p, pid)}
   </div>`;
 }
@@ -630,7 +630,7 @@ function positionBlock(pid, tid, { heading = true } = {}) {
 // was found even though it is not placed on the axis (a null row has no source type, so no type tag).
 function evidenceHtml(p, pid) {
   const T = S.sheet;
-  return `${p.quote ? `<blockquote>${quoteHtml(p)}<footer class="q-by">${esc(quoteAttribution(p, name(pid), S))}</footer></blockquote>` : ''}
+  return `${p.quote ? `<blockquote>${quoteHtml(p)}<footer class="q-by">${bidi(quoteAttribution(p, name(pid), S))}</footer></blockquote>` : ''}
     ${p.sourceUrl ? `<p class="source">
       ${p.sourceType ? `<span class="tag tag-src">${esc(T.sourceTypes[p.sourceType] ?? '')}</span>` : ''}
       ${p.sourceDate ? `<span class="muted">${esc(T.date(fmtDate(p.sourceDate)))}</span>` : ''}
@@ -665,7 +665,7 @@ function pairSentence(pid, tid) {
   const p = posOf(pid, tid);
   if (!p || p.position == null || !p.summary) return '';
   const m = p.summary.match(/^.+?[.!?](?=\s|$)/);
-  return `<span class="pair-sum">${esc(m ? m[0] : p.summary)}</span>`;
+  return `<span class="pair-sum">${bidi(m ? m[0] : p.summary)}</span>`;
 }
 
 // A placed position the party declared a coalition condition.

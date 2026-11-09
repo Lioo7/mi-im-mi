@@ -127,9 +127,9 @@ test('null rows shown with their source: the speaker, outlet and date in both la
   const pos = (k) => data.positions.find((p) => `${p.partyId}|${p.topicId}` === k);
   const zehut = pos('zehut|inquiry');
   assert.equal(zehut.position, null);
-  assert.equal(quoteAttribution(zehut, 'זהות'), 'משה פייגלין, ערוץ 7, 02.07.2026');
+  assert.equal(quoteAttribution(zehut, 'זהות'), 'משה פייגלין, ערוץ 7, 2.7.2026');
   assert.equal(quoteAttribution(zehut, 'Zehut', EN), 'Moshe Feiglin, Arutz Sheva (Israel National News), 2 Jul 2026');
-  assert.equal(quoteAttribution(pos('raam|draft'), 'רע״ם'), 'מנסור עבאס, ynet, 27.07.2026');
+  assert.equal(quoteAttribution(pos('raam|draft'), 'רע״ם'), 'מנסור עבאס, ynet, 27.7.2026');
   // Undated party pages: no date in the line (25.10 was the check date).
   assert.equal(quoteAttribution(pos('otzma-yehudit|religion'), 'עוצמה יהודית'), 'עוצמה יהודית, אתר המפלגה');
   assert.equal(quoteAttribution(pos('amcha-yisrael|religion'), 'Amcha Yisrael', EN), 'Amcha Yisrael, Party website');
@@ -140,5 +140,5 @@ test('a year-only source date reads as a year in both languages', () => {
   assert.equal(EN.sheet.date(EN.fmtDate('1999')), 'from 1999');
   assert.equal(EN.sheet.date(EN.fmtDate('2026-07-02')), 'dated 2 Jul 2026');
   assert.equal(HE.sheet.date(HE.fmtDate('2006')), 'משנת 2006');
-  assert.equal(HE.sheet.date(HE.fmtDate('2026-07-02')), 'מתאריך 02.07.2026');
+  assert.equal(HE.sheet.date(HE.fmtDate('2026-07-02')), 'מתאריך 2.7.2026');
 });

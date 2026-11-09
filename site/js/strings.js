@@ -12,8 +12,8 @@ export const S = {
   dir: 'rtl',
   // Collation for the alphabetical lists (presets, scenarios).
   locale: 'he',
-  // 2026-10-30 -> 30.10.2026
-  fmtDate: (iso) => (iso ? iso.split('-').reverse().join('.') : ''),
+  // 2026-10-30 -> 30.10.2026, 2026-11-04 -> 4.11.2026: no leading zeros, like the hand-written dates (#42)
+  fmtDate: (iso) => (iso ? iso.split('-').reverse().map((x) => String(Number(x))).join('.') : ''),
   appName: 'מי עם מי',
   pageTitle: 'מי עם מי · בנו קואליציה וגלו איפה המפלגות מסכימות ואיפה הן מתנגשות',
   updated: (d) => `עודכן ${d}`,

@@ -26,7 +26,7 @@ test('quote attribution: speaker or party, channel, date', () => {
     'נפתלי בנט, X, 21.10.2026');
   assert.equal(
     quoteAttribution({ quoteBy: null, sourceUrl: 'https://be-yahad.org.il/plans/', sourceType: 'platform', sourceDate: '2026-06-23' }, 'ביחד'),
-    'ביחד, מצע המפלגה, 23.06.2026');
+    'ביחד, מצע המפלגה, 23.6.2026');
   assert.equal(quoteAttribution({ sourceUrl: 'https://beytenu.org.il/x', sourceType: 'platform', sourceDate: null }, 'ישראל ביתנו'), 'ישראל ביתנו, מצע המפלגה');
   assert.equal(quoteChannel({ sourceUrl: 'https://main.knesset.gov.il/a', sourceType: 'record' }), 'הצעת חוק בכנסת');
 });
@@ -34,11 +34,11 @@ test('quote attribution: speaker or party, channel, date', () => {
 test('a translated quote names the translator and the original channel', () => {
   assert.equal(
     quoteAttribution({ quoteBy: 'מנסור עבאס', quoteChannel: 'פייסבוק', quoteTranslatedBy: 'כיפה', sourceUrl: 'https://www.kipa.co.il/x', sourceType: 'statement', sourceDate: '2026-08-26' }, 'רע״ם'),
-    'מנסור עבאס, פייסבוק, 26.08.2026 (תרגום: כיפה)');
+    'מנסור עבאס, פייסבוק, 26.8.2026 (תרגום: כיפה)');
 });
 
 test('a free translation by the site is marked on the translation line, not added to the attribution', () => {
   assert.equal(
     quoteAttribution({ quoteBy: 'מנסור עבאס', quoteTranslatedBy: 'האתר', sourceUrl: 'https://www.arab48.com/x', sourceType: 'statement', sourceDate: '2026-08-22' }, 'רע״ם'),
-    'מנסור עבאס, Arab48, 22.08.2026');
+    'מנסור עבאס, Arab48, 22.8.2026');
 });
