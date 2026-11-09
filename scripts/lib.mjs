@@ -282,9 +282,16 @@ export function validateTopics(topics) {
     if (!t.short || !t.name) errors.push(`topic ${t.id}: missing name/short`);
     for (const f of ['name', 'short', 'axisNote']) if (!isEnglish(t.en?.[f])) errors.push(`topic ${t.id}: missing or non-English en.${f}`);
     for (const k of ['-2', '-1', '0', '1', '2']) if (!isEnglish(t.en?.axis?.[k])) errors.push(`topic ${t.id}: missing or non-English en.axis ${k}`);
+    // Axis numbers are never shown: a note names an axis point by its label, never as −2…2 (signed or bare).
+    for (const [l, note] of [['he', t.axisNote], ['en', t.en?.axisNote]]) {
+      const m = String(note ?? '').match(AXIS_NUMBER);
+      if (m) errors.push(`topic ${t.id}: axisNote (${l}) shows the axis number "${m[0]}"; name the axis label instead`);
+    }
   }
   return errors;
 }
+// −2, -1, +2, 0, 1, 2…, but not a digit inside a longer number (7 באוקטובר, 1967).
+export const AXIS_NUMBER = /(?<![\d.,])[+\-−–]?[012](?![\d.,]?\d)/;
 
 // The English version (#3): every Hebrew text field in parties, meta, results and scenarios has an `en` twin, and
 // an English text carries no Hebrew except a ballot letter in parentheses.
