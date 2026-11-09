@@ -1372,28 +1372,46 @@ try {
     if (pasted.hash !== `#results${qsOf(['together', 'democrats'])}` || !pasted.same || !pastedNames.every((n) => pasted.line.includes(n)) || pasted.line.includes(ctx.byId.get('likud').name)) {
       errors.push(`[interaction] a pasted fragment should replace the coalition without a reload (${JSON.stringify(pasted)})`);
     }
-    // The method page's deep links on hashchange (no reload): from #method with every group closed, a section inside a
-    // group (#power in results mode, else #privacy) opens only its group and scrolls to it. A table-of-contents link opens
-    // its group and moves focus to its summary, also when the address bar already holds that fragment (no hashchange).
+    // The method page's deep links (#38 batch D). Each group's own id (the group headings are the page's table of contents)
+    // and a section inside a group (#power in results mode, else #privacy), on first load and on hashchange from #method
+    // with every group closed (no reload): only the target's group opens, the target is on screen, and focus lands on it
+    // (a group: its summary, which holds the h2; a section: the section). A link to the fragment already in the address bar
+    // (no hashchange: the footer's #privacy, followed again after its group was closed) does the same.
+    const inner = RESULTS ? 'power' : 'privacy';
+    const focusJs = (id) => `document.activeElement === document.querySelector(${JSON.stringify(METHOD_GROUPS.includes(id) ? `#${id} > summary` : `#${id}`)})`;
+    const methodReady = () => waitFor(() => evaluate("document.querySelector('#method h1') !== null && document.querySelector('#footer')?.children.length > 0"));
+    for (const id of [...METHOD_GROUPS, inner]) {
+      await go(`${baseUrl}#${id}`);
+      await methodReady();
+      await settle(250);
+      const first = await evaluate(methodLinkErrors(id, z.height));
+      if (first || !(await evaluate(focusJs(id)))) errors.push(`[fragment] #${id} on first load: ${first || 'focus should move to the target'}`);
+    }
     await go(`${baseUrl}#method`);
-    await waitFor(() => evaluate("document.querySelector('#method h1') !== null && document.querySelector('#footer')?.children.length > 0"));
+    await methodReady();
     await settle(250);
     const closed = await evaluate(methodLinkErrors(null, z.height));
     if (closed) errors.push(`[fragment] #method: ${closed}`);
-    const inner = RESULTS ? 'power' : 'privacy';
-    await evaluate(`window.smokeNoReload = true; location.hash = '#${inner}'`);
-    await settle(400);
-    const deep = await evaluate(methodLinkErrors(inner, z.height));
-    if (deep || !(await evaluate('window.smokeNoReload === true'))) errors.push(`[fragment] #${inner} on hashchange: ${deep || 'the page reloaded'}`);
-    for (const pass of ['link', 'same fragment']) {
+    await evaluate('window.smokeNoReload = true');
+    for (const id of [...METHOD_GROUPS, inner]) {
+      await evaluate("location.hash = '#method'");
+      await settle(200);
       await evaluate("document.querySelectorAll('#method details.mgroup').forEach((d) => { d.open = false; }), window.scrollTo(0, 0), true");
-      await evaluate(`document.querySelector('#method .mtoc a[href="#privacy-a11y"]').click()`);
+      await evaluate(`location.hash = '#${id}'`);
       await settle(400);
-      const toc = await evaluate(methodLinkErrors('privacy-a11y', z.height));
-      const focus = await evaluate("document.activeElement === document.querySelector('#privacy-a11y > summary')");
-      if (toc || !focus) errors.push(`[fragment] the table of contents (${pass}): ${toc || 'focus should move to the group summary'}`);
+      const deep = await evaluate(methodLinkErrors(id, z.height));
+      const reloaded = !(await evaluate('window.smokeNoReload === true'));
+      if (deep || reloaded || !(await evaluate(focusJs(id)))) errors.push(`[fragment] #${id} on hashchange: ${deep || (reloaded ? 'the page reloaded' : 'focus should move to the target')}`);
     }
-    log('  ✓ fragment state: nav links, history, a pasted link; method deep links on hashchange and from the table of contents');
+    await evaluate("location.hash = '#privacy'");
+    await settle(400);
+    await evaluate("document.querySelectorAll('#method details.mgroup').forEach((d) => { d.open = false; }), window.scrollTo(0, 0), true");
+    await evaluate(`document.querySelector('#footer a[href="#privacy"]').click()`);
+    await settle(400);
+    const same = await evaluate(methodLinkErrors('privacy', z.height));
+    if (same || !(await evaluate(focusJs('privacy')))) errors.push(`[fragment] a link to the current fragment (#privacy): ${same || 'focus should move to the section'}`);
+    if (await evaluate("document.querySelector('#method nav, #method .mtoc') !== null")) errors.push('[fragment] the method page should have no separate table of contents (the group headings are it)');
+    log(`  ✓ fragment state: nav links, history, a pasted link; method deep links (${METHOD_GROUPS.length + 1} targets) on first load and hashchange, and to the current fragment`);
   }
 
   // The /en/ entry page (#21): link previews can't see the fragment, so English share links go to /en/#…. Its head is

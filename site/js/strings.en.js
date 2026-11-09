@@ -418,7 +418,6 @@ export const S = {
 
   method: {
     title: 'Methodology, sources and clarifications',
-    toc: 'On this page',
     groups: { calc: "How it's calculated", rules: 'Sources and rules', data: 'The data', privacy: 'Privacy and accessibility' },
     translationTitle: 'About this translation',
     translation: 'This English version was translated from the Hebrew, which is authoritative. The summaries, the translations of quotes and the topic and scale labels were translated by the site, then checked by an independent reviewer: first a blind back-translation into Hebrew, then a comparison with the original. Quotes stay in their original language. Party and leader names follow the Government Press Office\'s English list or the party\'s own English, and are otherwise transliterated.',

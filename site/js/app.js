@@ -242,12 +242,12 @@ function renderMethod() {
   const A = S.a11y;
   const G = M.groups;
   // Progressive disclosure: why, the three steps and the color legend stay visible; the rest is in five native <details>
-  // groups, all closed on load. A deep link (#power, #privacy…) opens its group (openMethodAnchor). The text is unchanged.
+  // groups, all closed on load (their headings are the page's table of contents). A deep link (#power, #privacy, a group's
+  // own id…) opens its group (openMethodAnchor). The text is unchanged.
   const group = (id, title, body) => `<details class="mgroup anchor" id="${id}">
       <summary><h2 class="mgroup-title">${esc(title)}</h2></summary>
       <div class="mgroup-body">${body}</div>
     </details>`;
-  const toc = [['calc', G.calc], ['rules', G.rules], ['data', G.data], ['changes', M.changes.title], ['privacy-a11y', G.privacy]];
   // The groups the reader opened stay open when the page is rebuilt (the language switch).
   const wasOpen = [...document.querySelectorAll('#method details[open][id]')].map((d) => d.id);
   $('#method').innerHTML = `
@@ -264,11 +264,6 @@ function renderMethod() {
     <h3>${esc(M.levelsTitle)}</h3>
     <ul class="level-rules">${M.levelRules.map(([lv, txt]) => `<li>${levelBadge(lv)} ${esc(txt)}</li>`).join('')}</ul>
     <p>${esc(M.colorRule)}</p>
-
-    <nav class="mtoc" aria-labelledby="mtoc-title">
-      <p class="mtoc-title" id="mtoc-title"><strong>${esc(M.toc)}</strong></p>
-      <ul>${toc.map(([id, t]) => `<li><a href="#${id}">${esc(t)}</a></li>`).join('')}</ul>
-    </nav>
 
     ${group('calc', G.calc, `
     <h3>${esc(M.rolesTitle)}</h3>
@@ -357,16 +352,15 @@ function renderMethod() {
   for (const id of wasOpen) { const d = document.getElementById(id); if (d) /** @type {HTMLDetailsElement} */ (d).open = true; }
 }
 
-// A method anchor (#power, #privacy, a group from the TOC…): open the group that holds it (and the group itself), then
-// scroll to it. Coming from a link, focus moves there too, so Tab continues from the target: the group's summary, or the
-// section (tabindex=-1).
-function openMethodAnchor(id, focus) {
+// A method anchor (#power, #privacy, a group's id…): open the group that holds it (or the group itself), scroll to it, and
+// move focus there (on first load too), so Tab continues from the target: the group's summary, or the section
+// (tabindex=-1).
+function openMethodAnchor(id) {
   const el = document.getElementById(id);
   if (!el) return;
   const g = /** @type {HTMLDetailsElement | null} */ (el.closest('details.mgroup'));
   if (g) g.open = true;
   el.scrollIntoView();
-  if (!focus) return;
   const target = el.matches('details.mgroup') ? el.querySelector('summary') : el;
   /** @type {HTMLElement | null} */ (target)?.focus({ preventScroll: true });
 }
@@ -1435,7 +1429,7 @@ function route(initial = false) {
   document.body.dataset.view = view;
   render();
   if (view === 'method') loadChangelog();
-  if (anchor) openMethodAnchor(anchor, !initial);
+  if (anchor) openMethodAnchor(anchor);
   else if (changed || initial) window.scrollTo(0, 0);
   // Coming from the entry link, focus would stay on a hidden element: move it to the view's heading.
   if (view === 'pair' && changed && !initial) $('#pair-title')?.focus({ preventScroll: true });
@@ -1629,7 +1623,7 @@ function bind() {
   document.addEventListener('click', (e) => {
     const a = /** @type {Element} */ (e.target).closest?.('a[href^="#"]');
     const id = a?.getAttribute('href')?.slice(1) ?? '';
-    if (a && C.METHOD_ANCHORS.includes(id) && location.hash === `#${id}` && view === 'method') { e.preventDefault(); openMethodAnchor(id, true); }
+    if (a && C.METHOD_ANCHORS.includes(id) && location.hash === `#${id}` && view === 'method') { e.preventDefault(); openMethodAnchor(id); }
   });
   window.addEventListener('resize', () => { if (view === 'results') syncResbarHeight(); });
   for (const ev of ['resize', 'scroll']) window.visualViewport?.addEventListener(ev, () => { if ($('#sheet').open) fitSheet(); });

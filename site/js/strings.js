@@ -429,8 +429,7 @@ export const S = {
 
   method: {
     title: 'מתודולוגיה, מקורות והבהרות',
-    // Progressive disclosure: the table of contents and the five groups (the fourth is titled by changes.title).
-    toc: 'בעמוד הזה',
+    // Progressive disclosure: the five groups (the fourth is titled by changes.title).
     groups: { calc: 'איך מחושב', rules: 'מקורות וכללים', data: 'הנתונים', privacy: 'פרטיות ונגישות' },
     // On a translation only: what was translated and how it was checked (the Hebrew is the original).
     translationTitle: '',
