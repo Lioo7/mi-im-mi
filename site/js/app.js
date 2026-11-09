@@ -339,6 +339,7 @@ function renderMethod() {
       <ul>${A.done.map((l) => `<li>${bidi(l)}</li>`).join('')}</ul>
       <p>${esc(A.limitsTitle)}</p>
       <ul>${A.limits.map((l) => `<li>${bidi(l)}</li>`).join('')}</ul>
+      <p>${esc(A.contactName)}</p>
       <p>${esc(A.contact)} <a href="mailto:lioz.akirav@gmail.com"><bdi>lioz.akirav@gmail.com</bdi></a></p>
       <p class="muted">${esc(A.date)}</p>
     </section>`)}

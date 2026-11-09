@@ -671,7 +671,7 @@ try {
         }
       }
       if (expectView === 'method') {
-        const secs = await evaluate("(() => { const p = document.querySelector('#privacy'), a = document.querySelector('#accessibility'); const f = [...document.querySelectorAll('#footer a')].map((x) => x.getAttribute('href')); return [p?.innerText.includes('GoatCounter') && p.innerText.includes('lioz.akirav@gmail.com'), a?.innerText.includes('5568') && a.innerText.includes('1.11.2026'), f.includes('#privacy'), f.includes('#accessibility')].join(','); })()");
+        const secs = await evaluate("(() => { const p = document.querySelector('#privacy'), a = document.querySelector('#accessibility'); const f = [...document.querySelectorAll('#footer a')].map((x) => x.getAttribute('href')); return [p?.innerText.includes('GoatCounter') && p.innerText.includes('lioz.akirav@gmail.com'), a?.innerText.includes('5568') && a.innerText.includes('9.11.2026') && a.innerText.includes('ליעוז עקירב'), f.includes('#privacy'), f.includes('#accessibility')].join(','); })()");
         if (secs !== 'true,true,true,true') errors.push(`[${current}] privacy/accessibility sections or footer links missing (${secs})`);
         for (const e of downloadErrors('he', await evaluate(DOWNLOAD_JS))) errors.push(`[${current}] download: ${e}`);
         for (const e of powerErrors('he', await evaluate(POWER_JS))) errors.push(`[${current}] power: ${e}`);
@@ -2529,7 +2529,8 @@ try {
       // A blocked request fails with an empty errorText (or ERR_BLOCKED_BY_CLIENT), and the app logs its failed fetch.
       errors.push(...own.filter((e) => !/request failed: (net::ERR_BLOCKED_BY_CLIENT)?$|ERR_BLOCKED_BY_CLIENT|Failed to fetch/.test(e)));
     };
-    for (const [l, T] of [['he', S], ['en', EN]]) {
+    for (const l of ['he', 'en']) {
+      const T = l === 'he' ? S : EN;
       step(`load-error-${l}`);
       await blocked(['*/data/meta.json'], async () => {
         await go(`${baseUrl}#results?m=likud,yashar${l === 'en' ? '&l=en' : ''}`);

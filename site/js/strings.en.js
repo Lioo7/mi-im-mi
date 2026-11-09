@@ -571,17 +571,17 @@ export const S = {
       'Color is always accompanied by a symbol or text, never on its own.',
       'Color contrast at level AA.',
       'Right-to-left Hebrew and left-to-right English, with a design made for phones first.',
+      'A skip link to each view\'s main heading.',
+      'On phones, the source links, the cells of the map of positions and the share button are at least 44 pixels tall.',
     ],
     limitsTitle: 'Known limitations:',
     limits: [
-      'On phones, the topic names at the top of the map of positions are in small type.',
-      'In "Color by" and in a party\'s role, you move between the options with the Tab key, not the arrow keys.',
-      'After a choice in "Compare with…", the focus does not stay on the list.',
-      'After a party is removed, the screen-reader message is worded as if it were still in the coalition.',
-      'The picking and results views have no main heading (h1).',
+      'On phones, the topic headers at the top of the map of positions are narrow (about 30 pixels), so that all eight topics fit the screen width.',
+      'The sources we link to (news sites, platforms and social media) are not under our control, and their accessibility depends on them.',
     ],
+    contactName: 'Accessibility contact: Lioz Akirav.',
     contact: 'Ran into an accessibility problem? Write to us and we will handle it soon:',
-    date: 'This statement was updated on 1 Nov 2026.',
+    date: 'This statement was updated on 9 Nov 2026.',
   },
 
   why: {
