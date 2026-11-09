@@ -9,7 +9,18 @@ const $ = (sel, root = document) => root.querySelector(sel);
 // letters, names) in English.
 // Latin runs in Hebrew text are isolated whole, across spaces and hyphens ("Shapley-Shubik" must not flip to "Shubik-Shapley").
 const OTHER_SCRIPT = { he: /[A-Za-z][A-Za-z0-9.]*(?:[ -][A-Za-z0-9.]+)*/g, en: /[\u0590-\u05FF](?:[\u0590-\u05FF׳״"' -]*[\u0590-\u05FF׳״])?/g };
-const bidi = (v) => esc(v).replace(OTHER_SCRIPT[lang], (m) => (lang === 'he' ? `<bdi>${m}</bdi>` : `<bdi lang="he">${m}</bdi>`));
+// The runs are found in the raw text and each piece is escaped on its own: matching after escaping would take the "quot"
+// of &quot; for a Latin run and break the entity.
+const bidi = (v) => {
+  const s = String(v ?? '');
+  let out = '';
+  let i = 0;
+  for (const m of s.matchAll(OTHER_SCRIPT[lang])) {
+    out += esc(s.slice(i, m.index)) + (lang === 'he' ? `<bdi>${esc(m[0])}</bdi>` : `<bdi lang="he">${esc(m[0])}</bdi>`);
+    i = m.index + m[0].length;
+  }
+  return out + esc(s.slice(i));
+};
 const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 
 // The reader's language (fragment `l=`, Hebrew by default) and its strings; see setLanguage().

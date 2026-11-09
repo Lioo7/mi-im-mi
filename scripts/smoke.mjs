@@ -149,6 +149,10 @@ const POWER_JS = `(() => { const s = document.querySelector('#power'); if (!s) r
   return { label: s.querySelector('.power-label')?.innerText.trim(), refs: [...s.querySelectorAll('a[href^="https://doi.org/"]')].map((a) => a.getAttribute('href')),
     srcFirst: Boolean(src && table && (src.compareDocumentPosition(table) & Node.DOCUMENT_POSITION_FOLLOWING)),
     rows: [...(table?.querySelectorAll('tbody tr') ?? [])].map((tr) => [...tr.children].map((c) => c.innerText.trim())) }; })()`;
+// Text escaped twice shows its entities (&quot; in the joint-lists rule, broken by bidi(), 9.11.2026). textContent, so
+// text inside closed <details> is checked too.
+const ENTITY_JS = `(() => { const m = document.body.textContent.match(/&(?:quot|amp|lt|gt|#39|#x?[0-9a-f]+);/i); if (!m) return '';
+  const t = document.body.textContent; return t.slice(Math.max(0, m.index - 30), m.index + 20).replace(/\\s+/g, ' '); })()`;
 function powerErrors(lng, got) {
   if (!RESULTS) return got ? ['the power section must not appear in polls mode'] : [];
   if (!got) return ['the power section is missing'];
@@ -495,6 +499,8 @@ try {
       }
       const overflow = await evaluate('document.documentElement.scrollWidth > window.innerWidth + 1');
       if (overflow) errors.push(`[${current}] horizontal page overflow`);
+      const entity = await evaluate(ENTITY_JS);
+      if (entity) errors.push(`[${current}] an HTML entity shown as text (escaped twice?): ${entity}`);
       // Results mode: a grey "positions as of election eve" line right after the source line in every seats box.
       if (RESULTS && (expectView === 'build' || (expectView === 'results' && members_in_url(suffix) && name !== 'results-single'))) {
         const asOf = await evaluate(`(() => { const box = document.querySelector('${expectView === 'build' ? '#builder .seats-box' : '#results .overall'}'); const src = box?.querySelector('.seat-src');
@@ -1422,6 +1428,8 @@ try {
       if (page.url !== wantUrl) errors.push(`[${current}] URL should settle on "${wantUrl}", got "${page.url}"`);
       const hebrew = await evaluate(HEBREW_OUTSIDE);
       if (hebrew) errors.push(`[${current}] Hebrew text outside lang="he" (untranslated?): ${hebrew}`);
+      const entity = await evaluate(ENTITY_JS);
+      if (entity) errors.push(`[${current}] an HTML entity shown as text (escaped twice?): ${entity}`);
       const sw = await evaluate(SWITCH_CHECK('en'));
       if (sw !== 'ok') errors.push(`[${current}] language switch: ${sw}`);
       if (expectView === 'method') {
