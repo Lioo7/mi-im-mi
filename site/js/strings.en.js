@@ -154,6 +154,19 @@ export const S = {
     infoGuidance: 'Election guidance (gov.il) on republishing polls (Hebrew)',
   },
 
+  power: {
+    title: 'Mathematical voting power',
+    label: 'Mathematical power from seats alone, ignoring positions, red lines and who will actually sit together.',
+    how: 'Computed exactly, over every combination of the factions in the Knesset, with a majority of 61 of 120.',
+    banzhaf: "The Banzhaf index is a faction's share of all the cases in which one faction leaving a coalition of 61 or more drops it below 61",
+    banzhafRef: 'Dubey and Shapley, 1979',
+    shapley: 'The Shapley-Shubik index lines the factions up in every possible order, joining one after another, and is the share of the orders in which this faction is the one that brings the coalition to 61',
+    shapleyRef: 'Shapley and Shubik, 1954',
+    cols: ['Faction', 'Seats', 'Banzhaf', 'Shapley-Shubik'],
+    pct: (x) => `${(x * 100).toFixed(1)}%`,
+    rounding: 'Percentages are rounded to one decimal, so a column may not add up to exactly 100%.',
+  },
+
   elected: {
     positionsAsOf: 'Positions: as of election eve (27 Oct)',
     sourceLink: 'Results on the Central Elections Committee website (Hebrew)',

@@ -771,3 +771,69 @@ export function enEntryHash(hash) {
   const rest = (i < 0 ? '' : h.slice(i + 1)).split('&').filter((p) => p && !/^l(=|$)/.test(p));
   return `#${route}?${[...rest, 'l=en'].join('&')}`;
 }
+
+// ---------- a-priori voting power (#17, the method page, results mode) ----------
+// Power from seats alone: no positions, red lines or preferences, only which sets of factions reach the quota. Exact,
+// by dynamic programming over seat totals (no sampling). Weights are whole seat counts.
+
+// Subsets of the other factions (every faction but `skip`) by size and seat total: count[k][w].
+/** @param {number[]} weights @param {number} skip @returns {number[][]} */
+function subsetCounts(weights, skip) {
+  const total = weights.reduce((n, w) => n + w, 0);
+  const count = Array.from({ length: weights.length + 1 }, () => new Array(total + 1).fill(0));
+  count[0][0] = 1;
+  let size = 0;
+  weights.forEach((w, j) => {
+    if (j === skip) return;
+    size++;
+    for (let k = size; k >= 1; k--) for (let s = total; s >= w; s--) count[k][s] += count[k - 1][s - w];
+  });
+  return count;
+}
+
+/** @param {number[]} weights @param {number} quota */
+function checkGame(weights, quota) {
+  if (!weights.every((w) => Number.isInteger(w) && w >= 0)) throw new Error('power indices: weights must be whole seat counts');
+  if (!Number.isInteger(quota) || quota < 1) throw new Error('power indices: the quota must be a positive whole number');
+}
+
+// Faction i is a swing for a set S of the others when S is short of the quota and S with i reaches it.
+/** @param {number[]} weights @param {number} quota @param {number} i @param {number[][]} count */
+function swingSets(weights, quota, i, count) {
+  /** @type {{ k: number, n: number }[]} */
+  const out = [];
+  for (let k = 0; k < weights.length; k++) {
+    for (let s = Math.max(0, quota - weights[i]); s < quota && s < count[k].length; s++) if (count[k][s]) out.push({ k, n: count[k][s] });
+  }
+  return out;
+}
+
+// Normalized Banzhaf index: each faction's share of all swings (Dubey and Shapley, 1979). All zeros when no set wins.
+/** @param {number[]} weights @param {number} quota @returns {number[]} */
+export function banzhaf(weights, quota) {
+  checkGame(weights, quota);
+  const swings = weights.map((_, i) => swingSets(weights, quota, i, subsetCounts(weights, i)).reduce((n, x) => n + x.n, 0));
+  const all = swings.reduce((n, x) => n + x, 0);
+  return swings.map((x) => (all ? x / all : 0));
+}
+
+// Shapley-Shubik index: the share of the orders of joining in which the faction is the one that reaches the quota
+// (Shapley and Shubik, 1954). A set S of k others before it, in any order, is k!(n-1-k)!/n! = 1 / (n · C(n-1, k)).
+/** @param {number[]} weights @param {number} quota @returns {number[]} */
+export function shapleyShubik(weights, quota) {
+  checkGame(weights, quota);
+  const n = weights.length;
+  /** @param {number} m @param {number} k */
+  const choose = (m, k) => { let c = 1; for (let j = 1; j <= k; j++) c = (c * (m - k + j)) / j; return c; };
+  return weights.map((_, i) => swingSets(weights, quota, i, subsetCounts(weights, i)).reduce((sum, { k, n: c }) => sum + c / (n * choose(n - 1, k)), 0));
+}
+
+// The method page's table: every faction in the Knesset, in party order (never by index), with both indices.
+/** @param {Context} ctx @param {number} [quota] */
+export function powerIndices(ctx, quota = 61) {
+  const ids = ctx.parties.filter((p) => ctx.passed(p.id) && ctx.seatsOf(p.id) > 0).map((p) => p.id);
+  const seats = ids.map((id) => ctx.seatsOf(id));
+  const b = banzhaf(seats, quota);
+  const s = shapleyShubik(seats, quota);
+  return ids.map((partyId, i) => ({ partyId, seats: seats[i], banzhaf: b[i], shapleyShubik: s[i] }));
+}

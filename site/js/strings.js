@@ -155,6 +155,20 @@ export const S = {
     infoGuidance: 'הנחיית הבחירות (gov.il) על פרסום חוזר של סקרים',
   },
 
+  // A-priori voting power on the method page (#17, results mode only). The label is the only wording about what it means.
+  power: {
+    title: 'כוח הצבעה מתמטי',
+    label: 'כוח מתמטי לפי המנדטים בלבד, בלי להתחשב בעמדות, בקווים אדומים ובשאלה מי באמת תשב עם מי.',
+    how: 'החישוב מדויק, על כל הצירופים של הסיעות בכנסת, עם רוב של 61 מתוך 120.',
+    banzhaf: 'מדד Banzhaf הוא החלק של הסיעה מכל המקרים שבהם יציאה של סיעה אחת מקואליציה של 61 ומעלה מורידה אותה מתחת ל-61',
+    banzhafRef: 'Dubey ו-Shapley, 1979',
+    shapley: 'מדד Shapley-Shubik מצרף את הסיעות אחת אחרי השנייה בכל הסדרים האפשריים, והוא החלק של הסדרים שבהם דווקא הסיעה הזאת מביאה את הקואליציה ל-61',
+    shapleyRef: 'Shapley ו-Shubik, 1954',
+    cols: ['סיעה', 'מנדטים', 'Banzhaf', 'Shapley-Shubik'],
+    pct: (x) => `${(x * 100).toFixed(1)}%`,
+    rounding: 'האחוזים מעוגלים לספרה אחת אחרי הנקודה, ולכן סכום של עמודה יכול לצאת מעט שונה מ-100%.',
+  },
+
   // Results mode (meta.mode = 'results').
   elected: {
     positionsAsOf: 'העמדות: לפי ערב הבחירות (27.10)',

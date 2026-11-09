@@ -16,7 +16,7 @@ import { mkdirSync, writeFileSync, rmSync, readFileSync, existsSync, statSync, w
 import { join } from 'node:path';
 import { ROOT, loadData, PRESIDENT_HE, PRESIDENT_EN } from './lib.mjs';
 import { sleep, waitFor as waitFor_, serve as serve_, siteHeaders, launchChrome, pageClient, SETTLE_JS } from './browser.mjs';
-import { recommendationRows, sourceReply, groupRedLines, contextFor, presets, serializeState, parseState, ballotOrder, completions, parseLocation, stateKeysIn, selected, locationFor, closestTo, redLinesCrossed, pivotal, investiture, coalitionGroups, analyze, peripheryClashes, pairSummary, matrixCell, addImpact, seatsByPosition } from '../site/js/compat.js';
+import { recommendationRows, sourceReply, groupRedLines, contextFor, presets, serializeState, parseState, ballotOrder, completions, parseLocation, stateKeysIn, selected, locationFor, closestTo, redLinesCrossed, pivotal, investiture, coalitionGroups, analyze, peripheryClashes, pairSummary, matrixCell, addImpact, seatsByPosition, powerIndices } from '../site/js/compat.js';
 import { PROD_HOST } from '../site/js/stats.js';
 import { S } from '../site/js/strings.js';
 import { S as EN } from '../site/js/strings.en.js';
@@ -141,6 +141,27 @@ const DOWNLOAD_JS = `(async () => { const s = document.querySelector('#download'
   const files = await Promise.all(links.map(async (a) => { const r = await fetch(a.href); return { f: a.dataset.download, href: a.getAttribute('href'), download: a.hasAttribute('download'),
     status: r.status, type: r.headers.get('content-type'), size: (await r.arrayBuffer()).byteLength }; }));
   return { files, license: s.querySelector('a[rel~="license"]')?.href ?? null, text: s.innerText.replace(/\\s+/g, ' ').trim() }; })()`;
+// #17: the method page's a-priori power section. Results mode: the label, both references (DOI links), the results
+// source line before the table, every faction in the site's party order with its seats and both indices to one decimal.
+// Polls mode, with seats shown or hidden: no section at all.
+const POWER_JS = `(() => { const s = document.querySelector('#power'); if (!s) return null; const table = s.querySelector('table');
+  const src = s.querySelector('.seat-src');
+  return { label: s.querySelector('.power-label')?.innerText.trim(), refs: [...s.querySelectorAll('a[href^="https://doi.org/"]')].map((a) => a.getAttribute('href')),
+    srcFirst: Boolean(src && table && (src.compareDocumentPosition(table) & Node.DOCUMENT_POSITION_FOLLOWING)),
+    rows: [...(table?.querySelectorAll('tbody tr') ?? [])].map((tr) => [...tr.children].map((c) => c.innerText.trim())) }; })()`;
+function powerErrors(lng, got) {
+  if (!RESULTS) return got ? ['the power section must not appear in polls mode'] : [];
+  if (!got) return ['the power section is missing'];
+  const T = lng === 'he' ? S : EN;
+  const errs = [];
+  if (got.label !== T.power.label) errs.push(`label "${got.label}"`);
+  if (got.refs.join(' ') !== 'https://doi.org/10.1287/moor.4.2.99 https://doi.org/10.2307/1951053') errs.push(`references ${got.refs}`);
+  if (!got.srcFirst) errs.push('the results source line must come before the table');
+  const want = powerIndices(posCtx[lng]).map((r) => [posCtx[lng].byId.get(r.partyId).name, String(r.seats), T.power.pct(r.banzhaf), T.power.pct(r.shapleyShubik)]);
+  if (JSON.stringify(got.rows) !== JSON.stringify(want)) errs.push(`rows ${JSON.stringify(got.rows)}, expected ${JSON.stringify(want)}`);
+  return errs;
+}
+
 function downloadErrors(lng, got) {
   const D = (lng === 'he' ? S : EN).method.download;
   if (!got) return ['the download section is missing'];
@@ -612,6 +633,7 @@ try {
         const secs = await evaluate("(() => { const p = document.querySelector('#privacy'), a = document.querySelector('#accessibility'); const f = [...document.querySelectorAll('#footer a')].map((x) => x.getAttribute('href')); return [p?.innerText.includes('GoatCounter') && p.innerText.includes('lioz.akirav@gmail.com'), a?.innerText.includes('5568') && a.innerText.includes('1.11.2026'), f.includes('#privacy'), f.includes('#accessibility')].join(','); })()");
         if (secs !== 'true,true,true,true') errors.push(`[${current}] privacy/accessibility sections or footer links missing (${secs})`);
         for (const e of downloadErrors('he', await evaluate(DOWNLOAD_JS))) errors.push(`[${current}] download: ${e}`);
+        for (const e of powerErrors('he', await evaluate(POWER_JS))) errors.push(`[${current}] power: ${e}`);
         await waitFor(() => evaluate("document.querySelectorAll('#changes-list li').length > 0")).catch(() => {});
         for (const e of changesErrors('he', await evaluate(CHANGES_JS))) errors.push(`[${current}] changes: ${e}`);
         if (name !== 'method') {
@@ -1404,6 +1426,7 @@ try {
       if (sw !== 'ok') errors.push(`[${current}] language switch: ${sw}`);
       if (expectView === 'method') {
         for (const e of downloadErrors('en', await evaluate(DOWNLOAD_JS))) errors.push(`[${current}] download: ${e}`);
+        for (const e of powerErrors('en', await evaluate(POWER_JS))) errors.push(`[${current}] power: ${e}`);
         await waitFor(() => evaluate("document.querySelectorAll('#changes-list li').length > 0")).catch(() => {});
         for (const e of changesErrors('en', await evaluate(CHANGES_JS))) errors.push(`[${current}] changes: ${e}`);
         // The list loads after the first check for Hebrew, so check again now that it is there.

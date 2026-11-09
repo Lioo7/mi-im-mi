@@ -7,7 +7,8 @@ import { correctionMailto, quoteAttribution, SITE_TRANSLATOR } from './links.js'
 const $ = (sel, root = document) => root.querySelector(sel);
 // Escaped text with runs of the other script isolated in <bdi>: Latin (names, standards) in Hebrew, Hebrew (ballot
 // letters, names) in English.
-const OTHER_SCRIPT = { he: /[A-Za-z][A-Za-z0-9.]*(?: [A-Za-z0-9.]+)*/g, en: /[\u0590-\u05FF](?:[\u0590-\u05FF׳״"' -]*[\u0590-\u05FF׳״])?/g };
+// Latin runs in Hebrew text are isolated whole, across spaces and hyphens ("Shapley-Shubik" must not flip to "Shubik-Shapley").
+const OTHER_SCRIPT = { he: /[A-Za-z][A-Za-z0-9.]*(?:[ -][A-Za-z0-9.]+)*/g, en: /[\u0590-\u05FF](?:[\u0590-\u05FF׳״"' -]*[\u0590-\u05FF׳״])?/g };
 const bidi = (v) => esc(v).replace(OTHER_SCRIPT[lang], (m) => (lang === 'he' ? `<bdi>${m}</bdi>` : `<bdi lang="he">${m}</bdi>`));
 const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 
@@ -295,6 +296,7 @@ function renderMethod() {
     ${examples ? `<h3>${esc(M.examplesTitle)}</h3><ul>${examples}</ul>` : ''}
 
     ${isResults() ? `<h3>${esc(S.elected.resultsTitle)}</h3><p>${esc(S.elected.resultsText)}</p>${seatSourceLine()}${pollsVsResults()}` : ''}
+    ${powerSection()}
     ${showSeats() && !isResults() ? `<h3>${esc(M.pollsTitle)}</h3><p>${esc(M.pollsText)}</p><p><strong>${pollLegalText()}</strong></p>
     <p>${esc(M.pollsGuidance)} <a href="${esc(meta.pollGuidanceUrl)}" rel="noopener">${esc(M.pollsGuidanceLink)}</a></p>` : ''}
     <h3>${esc(M.researchDocs)}</h3>
@@ -366,6 +368,28 @@ function downloadSection() {
 }
 
 // Method page, results mode: the pre-election poll average next to the CEC seats, numbers only.
+// A-priori voting power (#17): results mode only (official seats), factions in party order, never sorted by the index.
+// The references are the standard papers, linked by DOI.
+const POWER_REFS = { banzhaf: 'https://doi.org/10.1287/moor.4.2.99', shapley: 'https://doi.org/10.2307/1951053' };
+function powerSection() {
+  if (!isResults()) return '';
+  const Pw = S.power;
+  const ref = (k) => `<p>${bidi(Pw[k])} (<a href="${POWER_REFS[k]}" rel="noopener" target="_blank">${bidi(Pw[`${k}Ref`])}</a>).</p>`;
+  const rows = C.powerIndices(ctx).map((r) => `<tr><th scope="row">${esc(name(r.partyId))}</th><td>${r.seats}</td><td>${Pw.pct(r.banzhaf)}</td><td>${Pw.pct(r.shapleyShubik)}</td></tr>`).join('');
+  return `<section id="power" class="anchor" tabindex="-1">
+    <h3>${esc(Pw.title)}</h3>
+    <p class="power-label"><strong>${esc(Pw.label)}</strong></p>
+    <p>${esc(Pw.how)}</p>
+    ${ref('banzhaf')}${ref('shapley')}
+    ${seatSourceLine()}
+    <div class="table-wrap"><table class="coverage power-table">
+      <thead><tr>${Pw.cols.map((c) => `<th scope="col">${bidi(c)}</th>`).join('')}</tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>
+    <p class="muted small">${esc(Pw.rounding)}</p>
+  </section>`;
+}
+
 function pollsVsResults() {
   const E = S.elected;
   // Our split of a joint list's poll average (seatNote) is marked, since it is not a poll figure itself.
@@ -1335,7 +1359,7 @@ let view = 'build';
 let routeToken = 'build';
 
 // In-page sections of the method view that the footer links to.
-const METHOD_ANCHORS = ['why', 'privacy', 'accessibility', 'closest-rule'];
+const METHOD_ANCHORS = ['why', 'privacy', 'accessibility', 'closest-rule', 'power'];
 
 function route(initial = false) {
   const loc = C.parseLocation(location, passedIds(), ctx.parties.map((p) => p.id));
