@@ -43,6 +43,9 @@ paths:
 - **הציונות הדתית / זהות:** soft-linked (one unit) in polls mode only; with results they are chosen and counted independently.
 - **Roles:** member / supporter (`o=`) / abstainer (`a=`); unselected = opponent. Clash analysis is members only; supporters' and abstainers' gaps have their own card. Investiture: for = members + supporters, against = all others except abstainers, approved when for > against. Old `o=` links mean supporters.
 
+## Ordering (#52)
+- A list may be sorted by an outcome (red lines crossed, clashes, friction points) only when the sort is mechanical, the same rule for every party, and its full rule is stated on the method page in both languages. The wording stays plain and readable ("הקואליציות הקרובות לעמדות של X" is fine). Still no "best", no recommendation, no default coalition. Filtering by outcome (hiding coalitions) is not covered and needs its own decision. Entry points such as the home task cards carry no ranking word at all.
+
 ## Scenarios (results mode, `scenarios.json`; to add one, the user runs `/add-scenario`)
 - At most 4, replacing the bloc presets. Named by composition only (generated from the roles, never hand-labeled), sorted alphabetically.
 - Each source is opened and checked against the members and roles before it is added; a role the source doesn't clearly support is raised with the user, never guessed. When a source names a party that ran on a joint list, the whole list is included (e.g. "Smotrich" = the ט list, so זהות too).

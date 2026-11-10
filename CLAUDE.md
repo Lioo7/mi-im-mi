@@ -35,6 +35,7 @@ Issue format: a one-sentence goal, short bullets, a "Done when" line. Labels: a 
 ## Neutrality (a product requirement)
 - One neutral color for all parties; severity colors encode distance only. Parties are ordered by poll average (by ballot letters when `showSeats` is `false`; by seats, then votes, in results mode), presets alphabetically.
 - No default coalition and no example clashes in UI copy. Axis numbers are never shown. Each pole is worded the way its supporters would put it.
+- A list sorted by an outcome (closest coalitions, the friction card) is allowed when the sort is mechanical and its rule is stated on the method page. Its wording stays plain. Never "best" or a recommendation (#52, `.claude/rules/data.md`).
 - Party names come only from `parties.json` (`name` / `officialName`, from the CEC list), never from bakalpi, and never include ballot letters. Ballot letters appear only as the separate `ballotLetters` tag.
 
 ## Seat numbers and roles
