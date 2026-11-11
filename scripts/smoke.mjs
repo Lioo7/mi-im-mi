@@ -89,8 +89,9 @@ const rel = (p) => p.slice(ROOT.length + 1);
 // --mode=all: one child run per mode, at the same time. Each prints its own errors and rerun command; this prints a line
 // per mode and passes those on.
 if (MODE === 'all') {
-  // Everything from earlier runs, except the output of the checks that run before this one (axe.mjs, lighthouse.mjs).
-  const KEEP = new Set(['axe', 'lighthouse']);
+  // Everything from earlier runs, except the output of the checks that run before this one (axe.mjs, lighthouse.mjs) and
+  // the step timings (timings.mjs).
+  const KEEP = new Set(['axe', 'lighthouse', 'timings.log']);
   for (const f of existsSync(SMOKE) ? readdirSync(SMOKE) : []) if (!KEEP.has(f)) rmSync(join(SMOKE, f), { recursive: true, force: true });
   const rest = args.filter((a) => !a.startsWith('--mode='));
   const kids = [];
@@ -658,8 +659,8 @@ const t0 = Date.now();
 try {
   rmSync(OUT, { recursive: true, force: true });
   mkdirSync(OUT, { recursive: true });
-  // Files from before the per-mode folders (smoke/*.png, progress.log).
-  for (const f of readdirSync(SMOKE)) try { if (!statSync(join(SMOKE, f)).isDirectory()) rmSync(join(SMOKE, f), { force: true }); } catch { /* another run removed it */ }
+  // Files from before the per-mode folders (smoke/*.png, progress.log), but not the step timings (timings.mjs).
+  for (const f of readdirSync(SMOKE)) try { if (f !== 'timings.log' && !statSync(join(SMOKE, f)).isDirectory()) rmSync(join(SMOKE, f), { force: true }); } catch { /* another run removed it */ }
   step('start');
   const c = await pageClient(profile, { stepMs: STEP_MS, where });
   c.on((m) => {
