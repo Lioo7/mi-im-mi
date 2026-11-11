@@ -199,7 +199,8 @@ export const S = {
     belowTitle: 'Did not pass the electoral threshold',
     belowHint: 'You can see their positions, but you cannot pick them for a coalition.',
     belowPct: (pct) => `${pct}% of the vote`,
-    viewPositions: (n) => `Positions of ${n}`,
+    // Read after the row's own text (#44, #63): the name starts with what is shown.
+    viewPositions: 'View positions',
     // Segments: each one stays whole on screen, and lines break only between them (joined by " · ").
     partySeats: (seats, joint) => `${seatsN(seats)}${joint ? ' (part of the joint list)' : ''}`,
     partyBelow: 'Did not pass the electoral threshold',

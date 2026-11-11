@@ -208,7 +208,8 @@ export const S = {
     belowTitle: 'לא עברו את אחוז החסימה',
     belowHint: 'אפשר לראות את העמדות שלהן, אבל לא לבחור אותן לקואליציה.',
     belowPct: (pct) => `${pct}% מהקולות`,
-    viewPositions: (n) => `העמדות של ${n}`,
+    // Read after the row's own text (#44, #63): the name starts with what is shown.
+    viewPositions: 'צפייה בעמדות',
     // Segments: each one stays whole on screen, and lines break only between them (joined by " · ").
     // The party sheet (#H3): the main line's seats (or the threshold), and the muted line's vote share and votes.
     partySeats: (seats, joint) => `${seats} מנדטים${joint ? ' (חלק מהרשימה המשותפת)' : ''}`,

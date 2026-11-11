@@ -608,8 +608,8 @@ function belowThreshold() {
   return `<details class="below">
     <summary>${esc(E.belowTitle)} (${below.length})</summary>
     <p class="muted small">${esc(E.belowHint)}</p>
-    <ul class="below-list">${below.map((p) => `<li><button type="button" class="row-btn below-btn" data-act="party" data-id="${p.id}" data-key="below-${p.id}" aria-label="${esc(E.viewPositions(p.name))}">
-      <span class="slip-tag"${lang === 'he' ? '' : ' lang="he"'}>${esc(p.ballotLetters)}</span><span class="prow-name">${esc(p.name)}</span><span class="muted small">${esc(E.belowPct(ctx.listOf(p.id).pct.toFixed(2)))}</span></button></li>`).join('')}</ul>
+    <ul class="below-list">${below.map((p) => `<li><button type="button" class="row-btn below-btn" data-act="party" data-id="${p.id}" data-key="below-${p.id}">
+      <span class="slip-tag"${lang === 'he' ? '' : ' lang="he"'}>${esc(p.ballotLetters)}</span><span class="prow-name">${esc(p.name)}</span><span class="muted small">${esc(E.belowPct(ctx.listOf(p.id).pct.toFixed(2)))}</span><span class="sr-only">. ${esc(E.viewPositions)}</span></button></li>`).join('')}</ul>
   </details>`;
 }
 
