@@ -984,16 +984,17 @@ function coverageFootnote() {
 
 // The members as "★ base", "member", …: the results header and the share text.
 const memberTags = () => state.members.map((id) => `${id === state.base ? '★ ' : ''}${name(id)}`);
-// The header's version (#H2): the base party says what its star means.
-const headerTags = () => state.members.map((id) => (id === state.base ? S.results.baseTag(name(id)) : name(id)));
+// The header's version (#H2), as HTML: the base party says what its star means. Each name, and the base's whole tag,
+// never breaks inside (#30); the line breaks only between them.
+const headerTags = () => state.members.map((id) => (id === state.base ? `<span class="nw base-tag">${esc(S.results.baseTag(name(id)))}</span>` : `<span class="nw">${esc(name(id))}</span>`));
 
 // The results header: one line when every party is a member; otherwise the members, then the parties outside the
 // coalition, each with its role in text.
 function coalitionHeader() {
   const R = S.results;
   const { outside } = C.coalitionGroups(state);
-  if (!outside.length) return `<p class="coalition-line"><span class="muted small">${esc(R.coalitionLabel)}:</span> ${esc(headerTags().join(' · '))}</p>`;
-  return `<p class="coalition-line"><span class="muted small">${esc(R.membersLabel(state.members.length))}:</span> ${esc(headerTags().join(' · '))}</p>
+  if (!outside.length) return `<p class="coalition-line"><span class="muted small">${esc(R.coalitionLabel)}:</span> ${headerTags().join(' · ')}</p>`;
+  return `<p class="coalition-line"><span class="muted small">${esc(R.membersLabel(state.members.length))}:</span> ${headerTags().join(' · ')}</p>
     <div class="coalition-line coalition-outside"><span class="muted small">${esc(R.outsideLabel)}:</span>
       <ul class="outside-list" role="list">${outside.map((o) => `<li>${outsideChip(outsideParty(o.partyId))}</li>`).join('')}</ul></div>`;
 }

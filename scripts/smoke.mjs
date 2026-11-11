@@ -2669,14 +2669,15 @@ try {
   let nbSeen = 0;
   if (RESULTS && sec('nobreak')) {
     const { scenarios } = loadData();
-    for (const w of [360, 375]) {
+    for (const w of [360, 375, 390]) {
       await c.send('Emulation.setDeviceMetricsOverride', { width: w, height: 800, deviceScaleFactor: 2, mobile: true });
       for (const l of ['he', 'en']) {
         const loc = (x) => (l === 'en' ? { ...x, ...x.en } : x);
         const T = l === 'en' ? EN : S;
         // A party's reply prefix stays whole up to its colon ("תגובת יהדות התורה:").
         const replyPrefix = (x) => { const r = sourceReply(x); return r && T.presets.replyBy[r.kind](posCtx[l].byId.get(r.party).name).trim(); };
-        const names = [...posCtx[l].parties.map((p) => p.name), ...scenarios.scenarios.flatMap((sc) => sc.sources.map(loc)).flatMap((x) => [x.outlet, x.by, replyPrefix(x)]).filter(Boolean)];
+        // #H2: the header's base tag ("★ ביחד (הבסיס במפה)") stays whole too.
+        const names = [...posCtx[l].parties.map((p) => p.name), ...posCtx[l].parties.map((p) => T.results.baseTag(p.name)), ...scenarios.scenarios.flatMap((sc) => sc.sources.map(loc)).flatMap((x) => [x.outlet, x.by, replyPrefix(x)]).filter(Boolean)];
         const L = l === 'en' ? '&l=en' : '';
         for (const pct of [100, 125]) {
           step(`nobreak-${l}@${w}-${pct}%`);
@@ -2684,6 +2685,9 @@ try {
           for (const [url, sels, ready] of /** @type {[string, string[], string][]} */ ([
             [`#results?m=yashar,together,democrats,yisrael-beiteinu,utj,shas${L}`, ['#results .redlines-line', '#results .seats-card .dep-list', '#results-coalition .seats-compact'], "document.querySelector('#results .seats-card .dep-list li') !== null"],
             [`#results?m=yashar,together,democrats,yisrael-beiteinu${L}`, ['#results .completions'], "document.querySelector('#results .completions li') !== null"],
+            // The base tag in the coalition header: the reported case (390px) and a long name.
+            [`#results?b=together&m=likud,yashar,otzma-yehudit${L}`, ['#results-coalition .coalition-line'], "document.querySelector('#results-coalition .coalition-line')?.textContent.includes('★') === true"],
+            [`#results?b=religious-zionism&m=likud,religious-zionism,otzma-yehudit,shas,utj${L}`, ['#results-coalition .coalition-line'], "document.querySelector('#results-coalition .coalition-line')?.textContent.includes('★') === true"],
             [`#build${l === 'en' ? '?l=en' : ''}`, ['#presets .scen-src'], "document.querySelector('#presets .scen-src') !== null"],
           ])) {
             await go(`${baseUrl}${url}`);
@@ -2703,7 +2707,7 @@ try {
     }
     if (!nbSeen) errors.push('[nobreak] the check found no names or number pairs to check');
     await setSize(SIZES[0]);
-    log(`  ✓ never broken inside: ${nbRuns} runs (360/375 × he/en × 100%/125%), ${nbSeen} names and number pairs checked`);
+    log(`  ✓ never broken inside: ${nbRuns} runs (360/375/390 × he/en × 100%/125%), ${nbSeen} names and number pairs checked`);
   }
   // The factions' recommendations to the President (#4). Results mode: in the build section's seats box, the line comes
   // right after the CEC results line and its positions-as-of line (before any number) and opens the sheet. The sheet: the source line first, then the mandate sentence,
