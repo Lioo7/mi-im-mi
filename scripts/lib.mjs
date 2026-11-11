@@ -132,6 +132,15 @@ export function validateParties(parties) {
     if (p.pollAvg != null && typeof p.pollAvg !== 'number') errors.push(`${at}: pollAvg not a number`);
     if (p.components && (!Array.isArray(p.components) || p.components.length < 2)) errors.push(`${at}: components must list 2+ names`);
   }
+  // Polls mode lists parties in file order (#51): non-increasing pollAvg, ties by Hebrew name, a party with no poll
+  // average last. Results mode and the ballot order sort on their own and never use the file order.
+  for (let i = 1; i < parties.length; i++) {
+    const a = parties[i - 1], b = parties[i];
+    const x = a.pollAvg ?? -Infinity, y = b.pollAvg ?? -Infinity;
+    if (x < y || (x === y && String(a.name).localeCompare(String(b.name), 'he') > 0)) {
+      errors.push(`party ${b.id}: out of order (parties.json is sorted by pollAvg, high to low, ties by name, no average last)`);
+    }
+  }
   // Soft-linked parties (ran together, announced a split) must point at each other.
   const byId = new Map(parties.map((p) => [p.id, p]));
   for (const p of parties) {

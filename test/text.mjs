@@ -7,6 +7,21 @@ const GERSHAYIM = new RegExp(`(?<=[${HEB}])״(?=[${HEB}]{1,3}(?![${HEB}]))`, 'g'
 const QUOTED = /[״"“][^״"”]*[״"”]|(^|[\s(])'[^']+'(?=[\s,.;:)]|$)/g;
 export const unquoted = (s) => s.replace(GERSHAYIM, '\u0001').replace(QUOTED, ' ');
 
+// An ASCII " used as gershayim (צה"ל, where ״ belongs, #51): between Hebrew letters, before the last 1–3 letters of a
+// word. The same shape also opens a quote right after a prefix letter (ב"שוק חופשי…", ו"בלי נתונים"), so a mark whose
+// next " closes a quote (not followed by a letter) is an opening mark and is not reported. Returns the words found.
+const ASCII_GERSHAYIM = new RegExp(`[${HEB}]*(?<=[${HEB}])"(?=[${HEB}]{1,3}(?![${HEB}]))[${HEB}]+`, 'g');
+export function asciiGershayim(s) {
+  const out = [];
+  for (const m of s.matchAll(ASCII_GERSHAYIM)) {
+    const at = /** @type {number} */ (m.index) + m[0].indexOf('"');
+    const next = s.indexOf('"', at + 1);
+    const opens = next > 0 && !new RegExp(`[${HEB}]`).test(s[next + 1] ?? '');
+    if (!opens) out.push(m[0]);
+  }
+  return out;
+}
+
 // The literal text of every string literal in a JS source ('…', "…" and template literals, with each ${…} part
 // replaced by "${…}" and the literals inside it read too). Comments are skipped. Returns [{ text, line }].
 export function stringLiterals(src) {

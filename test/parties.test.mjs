@@ -46,3 +46,13 @@ test('parties are ordered by poll average, ties alphabetical', () => {
     assert.ok(avg(a) > avg(b) || (avg(a) === avg(b) && a.name.localeCompare(b.name, 'he') <= 0), `${a.id} before ${b.id}`);
   }
 });
+
+test('validate refuses parties out of poll order (#51)', () => {
+  const swapped = structuredClone(parties);
+  const i = swapped.findIndex((p) => p.id === 'shas');
+  [swapped[i - 1], swapped[i]] = [swapped[i], swapped[i - 1]]; // ש״ס before עוצמה יהודית: the same 7.8, out of name order
+  assert.match(validateParties(swapped).join('\n'), /party otzma-yehudit: out of order/);
+  const last = structuredClone(parties);
+  last.unshift(last.pop()); // the party with no poll average first
+  assert.match(validateParties(last).join('\n'), /out of order/);
+});

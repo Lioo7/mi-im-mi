@@ -6,7 +6,7 @@ import { loadData } from '../scripts/lib.mjs';
 import { S as HE } from '../site/js/strings.js';
 import { S as EN } from '../site/js/strings.en.js';
 
-const { parties, topics, meta, positions, results, changelog } = loadData();
+const { parties, topics, meta, positions, results, changelog, scenarios, recommendations } = loadData();
 
 import { unquoted } from './text.mjs';
 
@@ -44,6 +44,9 @@ function strings(v, out = []) {
 
 const topicTexts = (t) => [t.name, t.short, t.axisNote, ...Object.values(t.axis)];
 const partyTexts = (p) => [p.name, p.officialName, p.leader, p.seatNote, ...(p.components ?? [])].filter(Boolean);
+// Scenario source lines (#51): the outlet and the person, in each language (`en` holds the English twins).
+const sourceTexts = (pick) => (scenarios?.scenarios ?? []).flatMap((sc) => sc.sources.flatMap((x) => [pick(x).outlet, pick(x).by]
+  .filter(Boolean).map((t) => [`scenario ${sc.id} source`, t])));
 const TEXTS = {
   he: [
     ...strings(HE).map((s) => ['strings.js', s]),
@@ -53,6 +56,7 @@ const TEXTS = {
     ['meta', meta.resultsStatus],
     ...(results?.lists ?? []).filter((l) => l.splitNote).map((l) => ['results', l.splitNote]),
     ...(changelog?.entries ?? []).filter((e) => e.he).map((e) => [`changelog ${e.date}`, e.he]),
+    ...sourceTexts((x) => x),
   ],
   en: [
     ...strings(EN).map((s) => ['strings.en.js', s]),
@@ -62,6 +66,7 @@ const TEXTS = {
     ['meta en', meta.en.resultsStatus],
     ...(results?.lists ?? []).filter((l) => l.en?.splitNote).map((l) => ['results en', l.en.splitNote]),
     ...(changelog?.entries ?? []).filter((e) => e.en).map((e) => [`changelog ${e.date} en`, e.en]),
+    ...sourceTexts((x) => x.en ?? {}),
   ],
 };
 
@@ -71,6 +76,18 @@ for (const lang of ['he', 'en']) {
     assert.deepEqual(bad, []);
   });
 }
+
+// recommendations.json (#51) carries only the President's Office announcement, verbatim in both languages, so the
+// glossary has nothing of ours to check there. If a text field of our own is ever added, it must join TEXTS above.
+test('recommendations.json has no text of ours besides the verbatim announcement', () => {
+  const free = [];
+  const walk = (v, path) => {
+    if (typeof v === 'string') { if (/[A-Za-zא-ת]{2}/.test(v) && !/^https:/.test(v) && !/\.(quote|kind|partyId|recommended|date|from|to)$/.test(path)) free.push(path); return; }
+    if (v && typeof v === 'object') for (const [k, x] of Object.entries(v)) walk(x, `${path}.${k}`);
+  };
+  walk(recommendations, 'recommendations');
+  assert.deepEqual(free, []);
+});
 
 test('the glossary rules catch what they should, and leave quotes alone', () => {
   // The two Hebrew topic labels fixed on 2.11 would fail.
