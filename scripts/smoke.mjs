@@ -423,6 +423,8 @@ const REDLINE_ORDER_JS = (scope) => `(() => { const e = [...document.querySelect
   if (!flag || kids.indexOf(flag) > i) return 'the 🚩 tag must come before the red-line block';
   if (!summary || !src) return 'the summary or the source line is missing';
   return [summary, q, src].filter(Boolean).every((x) => kids.indexOf(x) < i) && i === kids.length - 1 ? 'ok' : 'the red-line block must come after the summary, the quote and the source'; })()`;
+// The sheet slides in (translateY(24px) → 0, app.css): measure it at rest, after its own animation has finished.
+const SHEET_STILL_JS = "Promise.all((document.querySelector('#sheet')?.getAnimations() ?? []).map((a) => a.finished)).then(() => true)";
 const server = base ? null : await serve();
 const baseUrl = (base ?? server.url).replace(/\/?$/, '/');
 const onProd = new URL(baseUrl).hostname === PROD_HOST;
@@ -985,12 +987,15 @@ try {
     }
     // #H3: in every party sheet the positions start within the first screen (390×844), in both languages. Lists in the
     // Knesset open from the matrix, lists under the threshold from their section on the build view.
+    let worstTop = [0, ''];
     for (const l of ['he', 'en']) {
       step(`interaction-sheet-first-screen-${l}`);
       const sheetTop = async (pid) => {
         await settle(250);
+        await evaluate(SHEET_STILL_JS);
         const got = await evaluate("(() => { const c = document.querySelector('#sheet .profile .card'); const vh = window.visualViewport?.height ?? innerHeight; return c ? [Math.round(c.getBoundingClientRect().top), Math.round(vh)] : null; })()");
-        if (!got || got[0] > got[1] - 48) errors.push(`[${current}] ${pid}: the positions start at ${got?.[0]}px, below the first screen (${got?.[1]}px)`);
+        if (got && got[0] > worstTop[0]) worstTop = [got[0], `${pid} (${l})`];
+        if (!got || got[0] > got[1] - 48) { errors.push(`[${current}] ${pid}: the positions start at ${got?.[0]}px, below the first screen (${got?.[1]}px)`); await shoot(z, `sheet-first-screen-fail-${pid}-${l}.png`, false, true); }
         await evaluate("(() => { const d = document.querySelector('#sheet'); if (d.open) d.close(); return true; })()");
       };
       await go(`${baseUrl}#results?m=${passedIds.join(',')}${l === 'en' ? '&l=en' : ''}`);
@@ -1006,6 +1011,7 @@ try {
         await sheetTop(pid);
       }
     }
+    log(`  ✓ party sheets: the positions start within the first screen at 390×844 (lowest: ${worstTop[0]}px, ${worstTop[1]})`);
     step('interaction@390');
     await go(baseUrl);
     await ready();
@@ -2353,6 +2359,7 @@ try {
         await waitFor(() => evaluate("document.querySelector('.party-btn[data-id=\"likud\"]') !== null"));
         await evaluate("document.querySelector('.party-btn[data-id=\"likud\"]').click()");
         await settle(300);
+        await evaluate(SHEET_STILL_JS);
         const sheetCheck = async (what) => { const r = await evaluate(SHEET_X); if (r !== 'ok') errors.push(`[${current}] ${what}: ${r}`); };
         await sheetCheck('at rest');
         await evaluate("(() => { const d = document.querySelector('#sheet'); d.scrollTop = 120; return true; })()");
