@@ -10,7 +10,7 @@ Backlog: GitHub Issues. Run `gh issue list` before starting new work. Reference 
 Issue format: a one-sentence goal, short bullets, a "Done when" line. Labels: a priority, p1 (fix soon), p2 (should do) or p3 (nice to have), and an area: ux, accessibility, perf, correctness, security, data, documentation, tech-debt, enhancement, research. Milestones: "E: site fixes", "F: data and neutrality", "G: code quality".
 
 ### Working in a session (#37)
-- During a fix: `node --test` and the targeted smoke sections. The full suite once, before the draft.
+- During a fix: `node --test` and targeted `--only` smoke runs while iterating. The full `--mode=all` suite runs once, before the draft and only after `node scripts/axe.mjs` passes, never before it.
 - Research (sources, docs, broad code searches) goes to a subagent that returns only its conclusion. `smoke.mjs` and `app.js` are about 2,000 lines each: find the part with `grep -n` and read that range, not the whole file.
 - Read `smoke/<mode>/smoke.log` only when a run fails, and screenshots only for a visual change.
 - Step timing: milestone work and `/deploy` log each step's start and end to `smoke/timings.log` (a milestone starts it with `node scripts/timings.mjs --reset`, then `echo "$(date +%s) start <step>" >> smoke/timings.log` and the same with `end`). The final report includes the table `node scripts/timings.mjs` prints.
@@ -27,12 +27,13 @@ Issue format: a one-sentence goal, short bullets, a "Done when" line. Labels: a 
 - **Test:** `node --test` (includes the tsc type-check, `test/typecheck.test.mjs`, #20: pinned via npx, skipped with a reason when npx can't provide it) · **Validate:** `node scripts/validate.mjs` · **Local:** `python3 -m http.server -d site 8080` · **OG image:** `node scripts/make-og.mjs`
 - **Smoke:** `node scripts/smoke.mjs [baseUrl] [--mode=results|polls|hidden|all] [--only=<sections> | --light] [--shots]`
   - During a fix: only the sections the change touches, in its mode (`--only=pair,fit`; the default mode is `meta.mode`, a bad name lists the sections). A failure prints its rerun command.
-  - Before the draft deploy: the full suite once, `--mode=all` (the three modes in parallel, about 3 min). Against a deploy: `--light`.
+  - Before the draft deploy: `node scripts/axe.mjs` and `node scripts/lighthouse.mjs` first, then, once axe passes, the full suite once, `--mode=all` (the three modes in parallel, about 3 min). Against a deploy: `--light`.
   - Output: a line per section and the first 10 errors, everything in `smoke/<mode>/smoke.log` (`smoke/remote/` for a URL). Screenshots only with `--shots` (`*-en.png` for English).
   - **Never drop or loosen an assertion to make a run pass.** What each section enforces is commented in `scripts/smoke.mjs`: both languages, beacons, CSP and headers, no coalition state in any request, first-screen fit (#26), fit at 360–412 and 125% text (#35), the party sheet's ✕ (#30). Bounded (#27): `SMOKE_STEP_MS`, `SMOKE_WATCHDOG_MS`.
+- **Accessibility and performance:** `node scripts/axe.mjs [baseUrl] [--mode=…]` (axe-core, every view and sheet, he/en, 390/1280, the three modes) · `node scripts/lighthouse.mjs [baseUrl]` (the shared results link: CLS, and the performance score against a URL). Both through pinned npx, skipped with a reason when npx can't provide them.
 - **Data, translations, archive:** the commands are in `.claude/rules/data.md` and `.claude/rules/i18n.md`.
 - **Data-change checklist:** a change a visitor would notice (results, a placement, a name, a scenario, the recommendations) gets an entry in `site/data/changelog.json`, the method page's public list (#19). Validate fails after any data change until `node scripts/changelog.mjs --ack` records the review (a typo fix needs no entry, only the ack). Validate also fails when a README figure in either language (parties, topics, positions, the counts by source type, no stated position, red lines, scenarios) differs from the data: update both sections. Format and neutrality rules: `.claude/rules/data.md`.
-- **Deploy:** `/deploy`. Full local suite → draft (`netlify deploy --dir=site --json`) → `--light` against the draft → the user's phone check → **only after the user's OK**, publish that same deploy (`netlify api restoreSiteDeploy`) → `--light` against production.
+- **Deploy:** `/deploy`. axe and Lighthouse → full local suite → draft (`netlify deploy --dir=site --json`) → `--light` against the draft → the user's phone check → **only after the user's OK**, publish that same deploy (`netlify api restoreSiteDeploy`) → `--light` against production.
 
 ## Neutrality (a product requirement)
 - One neutral color for all parties; severity colors encode distance only. Parties are ordered by poll average (by ballot letters when `showSeats` is `false`; by seats, then votes, in results mode), presets alphabetically.
