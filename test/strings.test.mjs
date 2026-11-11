@@ -34,8 +34,14 @@ test('friction preview: never "0 במקום 0", hides when nothing changes', () 
   assert.equal(S.results.withoutPreview(null), '');
   assert.equal(S.results.withoutPreview({ kind: 'major', before: 3, after: 1 }), 'בלעדיה: נושא אחד בפער מהותי במקום 3');
   assert.equal(S.results.withoutPreview({ kind: 'clash', before: 2, after: 0 }), 'בלעדיה: אין נושא בסתירה חזיתית במקום 2');
-  assert.equal(S.results.pairsTag('פער מהותי', 3), 'פער מהותי · 3 זוגות מפלגות');
-  assert.equal(S.results.pairsTag('סתירה חזיתית', 1), 'סתירה חזיתית · זוג מפלגות אחד');
+  // #H2: the count first, then the level by its own name.
+  assert.equal(S.results.pairsTag('CLASH', 4), '4 זוגות בסתירה חזיתית');
+  assert.equal(S.results.pairsTag('MAJOR', 1), 'זוג אחד בפער מהותי');
+  assert.equal(S.results.pairsTag('MINOR', 3), '3 זוגות בפער קל');
+  assert.equal(EN.results.pairsTag('CLASH', 4), '4 pairs in a head-on clash');
+  assert.equal(EN.results.pairsTag('MAJOR', 1), '1 pair with a substantial gap');
+  assert.equal(S.results.baseTag('ביחד'), '★ ביחד (הבסיס במפה)');
+  assert.equal(EN.results.baseTag('Beyachad'), "★ Beyachad (the map's base)");
 });
 
 import { readFileSync } from 'node:fs';

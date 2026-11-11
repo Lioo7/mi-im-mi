@@ -265,7 +265,8 @@ export const S = {
     addPartner: 'הוסיפו שותפה כדי לראות התנגשויות',
     crisesTitle: (n) => n === 1 ? 'המשבר שמחכה לקואליציה הזו' : `${n} המשברים שמחכים לקואליציה הזו`,
     gapsTitle: 'הנושאים עם הפערים הגדולים ביותר',
-    pairsTag: (label, n) => `${label} · ${plural(n, 'זוג מפלגות אחד', 'זוגות מפלגות')}`,
+    // The gap tag (#H2): "4 זוגות בסתירה חזיתית", "זוג אחד בפער מהותי" (the level's own name, after the count).
+    pairsTag: (level, n) => `${plural(n, 'זוג אחד', 'זוגות')} ${S.results.levelIn[level]}`,
     expand: 'הצגת כל זוגות המפלגות בנושא',
     collapse: 'הסתרת זוגות המפלגות',
     pairsInTopic: (n, levelIn) => `${plural(n, 'זוג מפלגות אחד', 'זוגות מפלגות')} ${levelIn}`,
@@ -278,6 +279,8 @@ export const S = {
     minorOnly: (names) => `פער קל בלבד: ${names}`,
     // The results header: one line when every party is a member, two labelled groups otherwise.
     coalitionLabel: 'הקואליציה שנבדקת',
+    // The base party in the header (#H2), only with b=: what the star means, next to it.
+    baseTag: (name) => `★ ${name} (הבסיס במפה)`,
     membersLabel: (n) => `בקואליציה (${n})`,
     outsideLabel: 'מחוץ לקואליציה',
     outsideParty: (name, role) => `${name} · ${role}`,

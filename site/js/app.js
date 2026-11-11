@@ -916,7 +916,7 @@ function crisesCard(r) {
     const w = c.worst;
     const open = expandedTopics.has(c.topicId);
     const pairs = r.statuses.find((x) => x.topicId === c.topicId).pairs;
-    const tag = R.pairsTag(S.levels[w.level].label, c.morePairs + 1);
+    const tag = R.pairsTag(w.level, c.morePairs + 1);
     const head = R.pairsInTopic(c.morePairs + 1, R.levelIn[w.level]);
     const list = open ? `<p class="pair-list-head">${esc(head)}</p><ul class="pair-list" id="pairs-${c.topicId}" aria-label="${esc(head)}">${pairs.map((p) => `
       <li><button type="button" class="pair-btn" data-act="pair-sheet" data-a="${p.a}" data-b="${p.b}" data-key="pair-${c.topicId}-${p.a}-${p.b}">
@@ -983,14 +983,16 @@ function coverageFootnote() {
 
 // The members as "★ base", "member", …: the results header and the share text.
 const memberTags = () => state.members.map((id) => `${id === state.base ? '★ ' : ''}${name(id)}`);
+// The header's version (#H2): the base party says what its star means.
+const headerTags = () => state.members.map((id) => (id === state.base ? S.results.baseTag(name(id)) : name(id)));
 
 // The results header: one line when every party is a member; otherwise the members, then the parties outside the
 // coalition, each with its role in text.
 function coalitionHeader() {
   const R = S.results;
   const { outside } = C.coalitionGroups(state);
-  if (!outside.length) return `<p class="coalition-line"><span class="muted small">${esc(R.coalitionLabel)}:</span> ${esc(memberTags().join(' · '))}</p>`;
-  return `<p class="coalition-line"><span class="muted small">${esc(R.membersLabel(state.members.length))}:</span> ${esc(memberTags().join(' · '))}</p>
+  if (!outside.length) return `<p class="coalition-line"><span class="muted small">${esc(R.coalitionLabel)}:</span> ${esc(headerTags().join(' · '))}</p>`;
+  return `<p class="coalition-line"><span class="muted small">${esc(R.membersLabel(state.members.length))}:</span> ${esc(headerTags().join(' · '))}</p>
     <div class="coalition-line coalition-outside"><span class="muted small">${esc(R.outsideLabel)}:</span>
       <ul class="outside-list" role="list">${outside.map((o) => `<li>${outsideChip(outsideParty(o.partyId))}</li>`).join('')}</ul></div>`;
 }

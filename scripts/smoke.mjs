@@ -246,7 +246,8 @@ function cardErrors(lng, state, got) {
   const st = { ...state, members: sortP(c, state.members), supporters: sortP(c, state.supporters), abstainers: sortP(c, state.abstainers) };
   const { outside } = coalitionGroups(st);
   const side = outside.length > 0;
-  const members = st.members.map((id) => `${id === st.base ? '★ ' : ''}${nm(id)}`).join(' · ');
+  // #H2: the base party carries what its star means; the others plain.
+  const members = st.members.map((id) => (id === st.base ? R.baseTag(nm(id)) : nm(id))).join(' · ');
   const chips = outside.map((o) => R.outsideParty(nm(o.partyId), R.roleName[o.role]));
   const want = {
     lines: side ? [`${R.membersLabel(st.members.length)}: ${members}`, `${R.outsideLabel}:`] : [`${R.coalitionLabel}: ${members}`],
@@ -383,6 +384,14 @@ const SEATS_JS = `(() => { const t = (e) => e ? e.textContent.replace(/\\s+/g, '
     // Card A (the snapshot) is positions only: no seat figure, no seat source line.
     snapshotSeats: [...document.querySelectorAll('#results .overall')].map((o) => o.querySelectorAll('.seat-fig, .seat-src, .poll-legal, .seats-line').length + (/מנדט|בעד \\d|נגד \\d|\\b61\\b|\\bseats?\\b|For \\d|Against \\d/i.test(o.innerText) ? 1 : 0)).reduce((a, x) => a + x, 0),
   }; })()`;
+// #H2: the gap tags, exactly ("4 זוגות בסתירה חזיתית"), with the level's icon, in the order of the crises.
+const GAPTAGS_JS = "[...document.querySelectorAll('#results .gap-head .lv')].map((e) => e.textContent.replace(/\\s+/g, ' ').trim())";
+function gapTagErrors(lng, state, got) {
+  if (state.members.length < 3) return [];
+  const T = lng === 'he' ? S : EN;
+  const want = analyze(posCtx[lng], state).crises.map((x) => `${T.levels[x.worst.level].icon} ${T.results.pairsTag(x.worst.level, x.morePairs + 1)}`);
+  return JSON.stringify(got) === JSON.stringify(want) ? [] : [`gap tags: expected ${JSON.stringify(want)}, got ${JSON.stringify(got)}`];
+}
 // Errors for the compact line and the seats card, in one language. Hidden mode: neither exists.
 function seatsErrors(lng, state, got) {
   const out = [];
@@ -737,6 +746,7 @@ try {
         const wantShare = `${baseUrl}#results${serializeState(ctx, parseLocation(splitSuffix(suffix), passedIds).state)}`;
         if (wa && !new URL(wa).searchParams.get('text').endsWith(`\n${wantShare}`)) errors.push(`[${current}] WhatsApp link should end with ${wantShare} (${new URL(wa).searchParams.get('text')})`);
         if (exp.state.members.length) for (const e of cardErrors('he', exp.state, await evaluate(CARD_JS))) errors.push(`[${current}] ${e}`);
+        for (const e of gapTagErrors('he', exp.state, await evaluate(GAPTAGS_JS))) errors.push(`[${current}] ${e}`);
         // #14: one red-line line in the snapshot (also when none is crossed), the same list as the completions card.
         if (exp.state.members.length >= 2) {
           const got = await evaluate(REDLINES_JS);
@@ -949,6 +959,21 @@ try {
   const z = SIZES[0];
   if (sec('interaction')) {
     await setSize(z);
+    // #H2: the base party's star says what it means in the header, and goes away with it ("צבע לפי: הכל").
+    for (const l of ['he', 'en']) {
+      step(`interaction-base-tag-${l}`);
+      const T = l === 'he' ? S : EN;
+      await go(`${baseUrl}#results?b=together&m=likud,yashar,otzma-yehudit${l === 'en' ? '&l=en' : ''}`);
+      await waitFor(() => evaluate("document.querySelector('#results-coalition .coalition-line') !== null && document.querySelector('[data-act=\"colorby\"]') !== null"));
+      const header = () => evaluate("document.querySelector('#results-coalition .coalition-line').textContent.replace(/\\s+/g, ' ').trim()");
+      const tag = T.results.baseTag(posCtx[l].byId.get('together').name);
+      const before = await header();
+      if (!before.includes(tag)) errors.push(`[${current}] the header should name the base as "${tag}" (${before})`);
+      await evaluate("document.querySelector('[data-act=\"colorby\"][data-id=\"\"]').click()");
+      await settle(250);
+      const after = await header();
+      if (after.includes('★') || after.includes(tag.slice(2))) errors.push(`[${current}] with no base, the header should have no star or base tag (${after})`);
+    }
     step('interaction@390');
     await go(baseUrl);
     await ready();
@@ -1130,7 +1155,7 @@ try {
       const open = await evaluate("document.querySelector('.gap-head').getAttribute('aria-expanded') === 'true' && document.querySelectorAll('.pair-list .pair-btn').length > 0");
       if (!open) errors.push('[interaction] gap card did not expand to list its pairs');
       if (!(await evaluate("document.getElementById(document.querySelector('.gap-head').getAttribute('aria-controls'))?.matches('.pair-list') === true"))) errors.push('[interaction] an open gap card should point aria-controls at its list');
-      const tagOk = await evaluate("/· (זוג מפלגות אחד|\\d+ זוגות מפלגות)/.test(document.querySelector('.gap-head .lv').textContent) && !document.body.innerText.includes('ועוד')");
+      const tagOk = await evaluate("/(זוג אחד|\\d+ זוגות) ב(סתירה חזיתית|פער מהותי|פער קל|הסכמה)$/.test(document.querySelector('.gap-head .lv').textContent.trim()) && !document.body.innerText.includes('ועוד')");
       if (!tagOk) errors.push('[interaction] gap card tag must carry the pair count and no "ועוד N זוגות" line');
       await evaluate('window.scrollTo(0, document.querySelector(".gap").getBoundingClientRect().top + scrollY - 120)');
       await settle(200);
@@ -1753,6 +1778,7 @@ try {
           if (RESULTS && name === 'results-61' && got.compact?.[0] !== '61 seats · exactly a majority (source: Central Elections Committee)') errors.push(`[${current}] expected exactly a majority, got ${got.compact?.[0]}`);
         }
         if (exp.state.members.length) for (const e of cardErrors('en', exp.state, await evaluate(CARD_JS))) errors.push(`[${current}] English: ${e}`);
+        for (const e of gapTagErrors('en', exp.state, await evaluate(GAPTAGS_JS))) errors.push(`[${current}] English: ${e}`);
         if (exp.state.members.length >= 2) {
           const got = await evaluate(REDLINES_JS);
           const want = redLinesText('en', exp.state.members);

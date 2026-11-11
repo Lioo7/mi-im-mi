@@ -256,7 +256,7 @@ export const S = {
     addPartner: 'Add a partner to see clashes',
     crisesTitle: (n) => (n === 1 ? 'The crisis waiting for this coalition' : `The ${n} crises waiting for this coalition`),
     gapsTitle: 'The topics with the largest gaps',
-    pairsTag: (label, n) => `${label} · ${plural(n, '1 pair of parties', 'pairs of parties')}`,
+    pairsTag: (level, n) => `${plural(n, '1 pair', 'pairs')} ${S.results.levelIn[level]}`,
     expand: 'Show all pairs of parties on this topic',
     collapse: 'Hide the pairs of parties',
     pairsInTopic: (n, levelIn) => `${plural(n, '1 pair of parties', 'pairs of parties')} ${levelIn}`,
@@ -269,6 +269,7 @@ export const S = {
     minorOnly: (names) => `Small gap only: ${names}`,
     // The results header: one line when every party is a member, two labelled groups otherwise.
     coalitionLabel: 'The coalition being checked',
+    baseTag: (name) => `★ ${name} (the map's base)`,
     membersLabel: (n) => `In the coalition (${n})`,
     outsideLabel: 'Outside the coalition',
     outsideParty: (name, role) => `${name} · ${role}`,
