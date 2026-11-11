@@ -1619,6 +1619,8 @@ try {
       // #H3: the position first, the condition second, in the cell sheet, the party sheet and the pair view.
       const order = async (where, scope) => { const r = await evaluate(REDLINE_ORDER_JS(scope)); if (r !== 'ok') errors.push(`[cells red-line ${lng}] ש״ס × גיוס, ${where}: ${r}`); };
       await order('cell sheet', '#sheet');
+      // One contentinfo landmark (the page footer): a quote's attribution is a <p>, never a <footer> (axe, #H3).
+      if (await evaluate("document.querySelectorAll('#sheet footer, #pair-view footer, #results footer').length > 0")) errors.push(`[cells red-line ${lng}] a <footer> inside a sheet or view: a second contentinfo landmark`);
       await evaluate("document.querySelector('#sheet').close()");
       await evaluate("document.querySelector('.party-btn[data-id=\"shas\"]').click()");
       await settle(300);

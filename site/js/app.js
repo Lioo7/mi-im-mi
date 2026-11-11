@@ -637,7 +637,7 @@ function positionBlock(pid, tid, { heading = true } = {}) {
 // was found even though it is not placed on the axis (a null row has no source type, so no type tag).
 function evidenceHtml(p, pid) {
   const T = S.sheet;
-  return `${p.quote ? `<blockquote>${quoteHtml(p)}<footer class="q-by">${bidi(quoteAttribution(p, name(pid), S))}</footer></blockquote>` : ''}
+  return `${p.quote ? `<blockquote>${quoteHtml(p)}<p class="q-by">${bidi(quoteAttribution(p, name(pid), S))}</p></blockquote>` : ''}
     ${p.sourceUrl ? `<p class="source">
       ${p.sourceType ? `<span class="tag tag-src">${esc(T.sourceTypes[p.sourceType] ?? '')}</span>` : ''}
       ${p.sourceDate ? `<span class="muted">${esc(T.date(fmtDate(p.sourceDate)))}</span>` : ''}
@@ -657,7 +657,7 @@ function redLineHtml(p, pid) {
     quoteBy: p.redLineBy, quoteChannel: p.redLineChannel, sourceUrl: p.redLineUrl, sourceType: 'statement', sourceDate: p.redLineDate };
   return `<div class="redline-ev">
       <p class="redline-label">${esc(S.sheet.redLineEvidence)}</p>
-      <blockquote>${quoteHtml(q)}<footer class="q-by">${bidi(quoteAttribution(q, name(pid), S))}</footer></blockquote>
+      <blockquote>${quoteHtml(q)}<p class="q-by">${bidi(quoteAttribution(q, name(pid), S))}</p></blockquote>
       <p class="source"><a href="${esc(p.redLineUrl)}" rel="noopener" target="_blank">${esc(S.sheet.source)}</a></p>
     </div>`;
 }
@@ -851,7 +851,7 @@ function recsSheet() {
     <h2>${esc(R.title)}</h2>
     <p class="recs-src">${esc(R.source)} ${extLink(m.sourceUrl, R.office)}, ${esc(day)}</p>
     <p class="recs-mandate">${esc(R.mandate[m.kind](day, recLeader(m.partyId)))}</p>
-    <blockquote class="recs-tally"><p class="q-text">${q}</p><footer class="q-by">${esc(R.tallyBy(day))}</footer></blockquote>
+    <blockquote class="recs-tally"><p class="q-text">${q}</p><p class="q-by">${esc(R.tallyBy(day))}</p></blockquote>
     <div class="table-wrap"><table class="coverage recs-table">
       <thead><tr>${R.cols.map((c) => `<th scope="col">${esc(c)}</th>`).join('')}</tr></thead>
       <tbody>${rows}</tbody>
