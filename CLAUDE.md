@@ -14,13 +14,14 @@ Issue format: a one-sentence goal, short bullets, a "Done when" line. Labels: a 
 - Research (sources, docs, broad code searches) goes to a subagent that returns only its conclusion. `smoke.mjs` and `app.js` are about 2,000 lines each: find the part with `grep -n` and read that range, not the whole file.
 - Read `smoke/<mode>/smoke.log` only when a run fails, and screenshots only for a visual change.
 - Step timing: milestone work and `/deploy` log each step's start and end to `smoke/timings.log` (a milestone starts it with `node scripts/timings.mjs --reset`, then `echo "$(date +%s) start <step>" >> smoke/timings.log` and the same with `end`). The final report includes the table `node scripts/timings.mjs` prints.
+- Handoff files (`docs/plans/`, gitignored): in plan mode, also write the final plan to `docs/plans/<milestone>.md`. After each milestone's `/deploy`, write the final report (what changed, the checks and their results, the timing table, the draft URL, open questions) to `docs/plans/<milestone>-report.md`.
 - Between tasks, `/clear`. When compacting, keep the issue number and its agreed decisions, the commits made, any draft `deploy_id` and URL, and what still waits for the user's OK.
 
 ## Layout
 - `site/` is everything deployed. `js/app.js`: DOM, routing, rendering. `js/compat.js`: pure logic and URL state, unit-tested. `js/strings.js` / `js/strings.en.js`: all UI strings (the English file also has `NAMES`). `js/links.js`: correction mailto and quote attribution. `js/stats.js`: cookieless GoatCounter beacon, sent only from the production host, never with the query. `js/en-entry.js`: the `/en/` entry page's redirect to `/#…&l=en` (#21). `data/*.json`.
 - `scripts/`: Node built-ins only, shared code in `lib.mjs`. `test/*.test.mjs`: unit tests.
 - `docs/research/` is public and generated, except the hand-written `decisions.md` and `review-notes.md` (a historical record).
-- Gitignored: `research/` (`merged.json` is the research source of truth), `review/` (the reviewer's CSV), `smoke/` (`<mode>/smoke.log`, screenshots, `axe/`, `lighthouse/`, `timings.log`).
+- Gitignored: `research/` (`merged.json` is the research source of truth), `review/` (the reviewer's CSV), `smoke/` (`<mode>/smoke.log`, screenshots, `axe/`, `lighthouse/`, `timings.log`), `docs/plans/` (plans and milestone reports).
 
 ## Commands
 - **Test:** `node --test` (includes the tsc type-check, `test/typecheck.test.mjs`, #20: pinned via npx, skipped with a reason when npx can't provide it) · **Validate:** `node scripts/validate.mjs` · **Local:** `python3 -m http.server -d site 8080` · **OG image:** `node scripts/make-og.mjs`

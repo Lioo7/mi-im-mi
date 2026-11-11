@@ -33,4 +33,4 @@ Stop at the first failure, report it with the rerun command smoke prints, and ne
    If it fails, fall back to `netlify deploy --prod --dir=site` (it prompts too) and tell the user that the fallback was used.
 8. **Light check on production.** `node scripts/smoke.mjs https://mi-im-mi-2026.netlify.app --light` (it also inspects every production beacon, without sending them).
 
-Report at the end: the timing table from `node scripts/timings.mjs` (every step logged since the milestone began), the `deploy_id` that is live, whether the fallback was used, and the production check's result (including how many beacons were inspected).
+Report at the end: the timing table from `node scripts/timings.mjs` (every step logged since the milestone began), the `deploy_id` that is live, whether the fallback was used, and the production check's result (including how many beacons were inspected). Write the milestone's final report to `docs/plans/<milestone>-report.md` too (CLAUDE.md, handoff files).
