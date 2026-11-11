@@ -16,7 +16,7 @@ import { mkdirSync, writeFileSync, rmSync, readFileSync, existsSync, statSync, w
 import { join } from 'node:path';
 import { ROOT, loadData, PRESIDENT_HE, PRESIDENT_EN } from './lib.mjs';
 import { sleep, waitFor as waitFor_, serve as serve_, siteHeaders, launchChrome, pageClient, SETTLE_JS } from './browser.mjs';
-import { recommendationRows, sourceReply, groupRedLines, contextFor, presets, serializeState, parseState, ballotOrder, completions, parseLocation, stateKeysIn, selected, locationFor, closestTo, redLinesCrossed, pivotal, investiture, coalitionGroups, analyze, peripheryClashes, pairSummary, matrixCell, addImpact, seatsByPosition, powerIndices, METHOD_ANCHORS } from '../site/js/compat.js';
+import { recommendationRows, sourceReply, groupRedLines, contextFor, presets, serializeState, parseState, ballotOrder, completions, parseLocation, stateKeysIn, selected, locationFor, closestTo, redLinesCrossed, dependence, neededCount, majorityMargin, investiture, coalitionGroups, analyze, peripheryClashes, pairSummary, matrixCell, addImpact, seatsByPosition, powerIndices, METHOD_ANCHORS } from '../site/js/compat.js';
 import { PROD_HOST } from '../site/js/stats.js';
 import { S } from '../site/js/strings.js';
 import { S as EN } from '../site/js/strings.en.js';
@@ -133,7 +133,7 @@ function redLinesText(lng, members) {
 // The results card, scoped: the header (one line when all are members; else the members, then the parties outside the
 // coalition, each in the neutral marker with its role in text), the snapshot (members-only title, the counts label only
 // with outside parties, the red-line line right after the counts, then the separate outside block), and the same marker
-// in the supporters/abstainers card and the pivotal rows. Members never get the marker.
+// in the supporters/abstainers card and the seats card rows. Members never get the marker.
 // The method page's data download (#18): both links resolve from the page (same origin, under the CSP) to the files in
 // site/download/, byte for byte in size, with the position note and the CC BY 4.0 notice in the page's language.
 const DOWNLOAD_JS = `(async () => { const s = document.querySelector('#download'); if (!s) return null;
@@ -232,7 +232,8 @@ const CARD_JS = `(() => { const h = document.querySelector('#results-coalition')
     memberChips: lines[0]?.querySelectorAll('.outside').length ?? 0, chips: [...h.querySelectorAll('.outside')].map(t),
     chipsListed: h.querySelectorAll('.outside-list[role="list"] > li > .outside').length,
     perChips: [...document.querySelectorAll('#results .periphery .per-party .row-title .outside')].map(t),
-    pivotalChips: [...document.querySelectorAll('#results .pivotal li .outside')].map(t),
+    // textContent: the rows sit in the collapsed details.
+    depChips: [...document.querySelectorAll('#results .seats-card li .outside')].map((e) => e.textContent.trim()),
     title: o && bd ? t(o.querySelector('h2')) : null, scope: document.querySelectorAll('.overall-scope').length,
     label: t(o?.querySelector('.breakdown-label')), labelBefore: !o?.querySelector('.breakdown-label') || o.querySelector('.breakdown-label').nextElementSibling === bd,
     after, block: ob ? { heading: t(ob.querySelector('h3')), link: t(ob.querySelector('[data-act="to-periphery"]')) } : null }; })()`;
@@ -251,13 +252,14 @@ function cardErrors(lng, state, got) {
     lines: side ? [`${R.membersLabel(st.members.length)}: ${members}`, `${R.outsideLabel}:`] : [`${R.coalitionLabel}: ${members}`],
     memberChips: 0, chips, chipsListed: chips.length,
     perChips: st.members.length ? chips : [],
-    pivotalChips: SEATS_HIDDEN ? [] : pivotal(c, st).filter((p) => p.role !== 'member').map((p) => nm(p.partyId)),
+    depChips: SEATS_HIDDEN ? [] : dependence(c, st).filter((p) => p.role !== 'member').map((p) => nm(p.partyId)),
     scope: 0,
   };
   if (st.members.length >= 2) {
     Object.assign(want, {
       title: R.summaryTitleScoped(st.members.length), label: side ? R.breakdownLabel : null, labelBefore: true,
-      after: side ? ['small redlines-line', 'outside-block'] : ['small redlines-line'],
+      // #H1: in results mode the "positions as of election eve" line sits right under the counts.
+      after: RESULTS ? ['positions-asof', 'small redlines-line'] : side ? ['small redlines-line', 'outside-block'] : ['small redlines-line'],
       block: side ? { heading: R.outsideHeading, link: R.peripheryLink(peripheryClashes(c, st)) } : null,
     });
   }
@@ -303,6 +305,13 @@ const cases = [
   // Pivotal parties (#13): the media scenarios with an abstainer that matters (רע״ם) and with 3 of 5 members pivotal.
   ['results-scenario-arab', '#results?m=yashar,together,democrats,yisrael-beiteinu&o=joint-list&a=raam', 'results'],
   ['results-pivotal-partial', '#results?m=likud,yashar,together,religious-zionism,zehut', 'results'],
+  // The compact seats line (#H1): above 61, exactly 61, short of 61, and the reference link with a base party.
+  ...(RESULTS ? [
+    ['results-65', '#results?m=likud,yashar,together,religious-zionism', 'results'],
+    ['results-61', '#results?m=likud,yashar,together,zehut', 'results'],
+    ['results-48', '#results?m=yashar,together,democrats,yisrael-beiteinu', 'results'],
+    ['results-ref', '#results?b=together&m=likud,yashar,otzma-yehudit', 'results'],
+  ] : []),
   ['method', '#method', 'method'],
   ['privacy', '#privacy', 'method'],
   ['accessibility', '#accessibility', 'method'],
@@ -324,17 +333,78 @@ const legal = `ממוצע סקרים שפורסמו עד ${meta.pollsAsOf.split(
 // The line that must precede any seat number, and its element.
 const SRC_TEXT = RESULTS ? meta.resultsStatus : legal;
 const SRC_SEL = RESULTS ? '.seat-src' : '.poll-legal';
-// The pivotal rows (#13) as each language should render them: only when the vote passes, after the source line.
-function pivotalText(lng, state) {
+// #H1: the compact seats line under the coalition header, as each language should render it. Members only: the seats
+// against 61, no verdict. With supporters or abstainers: the vote line, the verdict, the members alone. Results mode:
+// the short source "(מקור: ועדת הבחירות)" at the end of the first line.
+function compactText(lng, state) {
   const c = posCtx[lng];
   const T = lng === 'he' ? S : EN;
   const n = (x) => T.seats.num(x, RESULTS);
-  const rows = pivotal(c, state).map((p) => T.seats.pivotalRow(c.byId.get(p.partyId).name, p.role, p.breaksMajority ? n(p.vote.membersSeats) : null, n(p.vote.for), n(p.vote.against)));
-  return [T.seats.pivotalIntro(investiture(c, state).membersMajority), ...(rows.length ? rows : [T.seats.pivotalNone])];
+  const mg = (x) => T.seats.margin(majorityMargin(x), RESULTS);
+  const v = investiture(c, state);
+  const src = RESULTS ? ` (${T.elected.srcLabel}: ${T.elected.srcName})` : '';
+  if (!coalitionGroups(state).outside.length) return [T.seats.compact(n(v.membersSeats), mg(v.membersSeats)).join(' · ') + src];
+  return [T.seats.vote(n(v.for), n(v.against), n(v.abstain)) + src, `${v.approved ? '✓' : '✕'} ${v.approved ? T.seats.approved : T.seats.rejected}`,
+    T.seats.membersLine(n(v.membersSeats), mg(v.membersSeats))];
 }
-const PIVOTAL_JS = `(() => { const o = document.querySelector('#results .overall'); const p = o?.querySelector('.pivotal'); if (!p) return null;
-  const src = o.querySelector('${SRC_SEL}'); if (!src || !(src.compareDocumentPosition(p) & Node.DOCUMENT_POSITION_FOLLOWING)) return ['source line must come before the pivotal rows'];
-  return [...p.querySelectorAll('p, li')].map((e) => e.innerText.replace(/\\s+/g, ' ').trim()); })()`;
+// #H1: the seats card after the friction card: the summary, and the rows (every selected party, by role then party order).
+function seatsCardText(lng, state) {
+  const c = posCtx[lng];
+  const T = lng === 'he' ? S : EN;
+  const K = T.seats.card;
+  const n = (x) => T.seats.num(x, RESULTS);
+  const mg = (x) => T.seats.margin(majorityMargin(x), RESULTS);
+  const rows = dependence(c, state);
+  const roles = coalitionGroups(state).outside.length > 0;
+  if (!rows.length) return { title: K.title, summary: [K.noMajority], intro: null, rows: null };
+  const cnt = neededCount(rows);
+  return {
+    title: K.title,
+    summary: [K.members(cnt.members.needed, cnt.members.total), ...(roles ? [K.outside(cnt.outside.needed, cnt.outside.total)] : [])],
+    intro: roles ? K.rolesIntro : null,
+    rows: rows.map((r) => {
+      const nm = c.byId.get(r.partyId).name;
+      return roles
+        ? K.roleRow(nm, r.role, n(r.vote.for), n(r.vote.against), K.outcome[r.vote.approved ? 'yes' : r.tie ? 'tie' : 'no'], r.breaksMajority ? K.membersAlone(n(r.vote.membersSeats), mg(r.vote.membersSeats)) : null)
+        : K.memberRow(nm, n(r.vote.membersSeats), mg(r.vote.membersSeats), r.tie ? n(r.vote.for) : null);
+    }),
+  };
+}
+const SEATS_JS = `(() => { const t = (e) => e ? e.textContent.replace(/\\s+/g, ' ').trim() : null;
+  const b = document.querySelector('#results-coalition .seats-compact'); const s = document.querySelector('#results .seats-card');
+  const d = s?.querySelector('details.dep'); const src = s?.querySelector('${SRC_SEL}');
+  return {
+    compact: b ? [...b.querySelectorAll(':scope > p:not(.poll-legal)')].map(t) : null,
+    compactHrefs: b ? [...b.querySelectorAll('a[href]')].map((a) => a.getAttribute('href')) : null,
+    compactLegalFirst: b ? b.firstElementChild?.classList.contains('poll-legal') : null,
+    card: s ? { title: t(s.querySelector('h3')), src: t(src), srcHref: src?.querySelector('a')?.getAttribute('href') ?? null, srcSecond: s.children[1] === src,
+      summary: [...s.querySelectorAll(':scope > .dep-summary')].map(t), open: d ? d.open : null,
+      intro: d?.querySelector(':scope > p') ? t(d.querySelector(':scope > p')) : null, rows: d ? [...d.querySelectorAll('.dep-list > li')].map(t) : null } : null,
+    // Card A (the snapshot) is positions only: no seat figure, no seat source line.
+    snapshotSeats: [...document.querySelectorAll('#results .overall')].map((o) => o.querySelectorAll('.seat-fig, .seat-src, .poll-legal, .seats-line').length + (/מנדט|בעד \\d|נגד \\d|\\b61\\b|\\bseats?\\b|For \\d|Against \\d/i.test(o.innerText) ? 1 : 0)).reduce((a, x) => a + x, 0),
+  }; })()`;
+// Errors for the compact line and the seats card, in one language. Hidden mode: neither exists.
+function seatsErrors(lng, state, got) {
+  const out = [];
+  if (got.snapshotSeats) out.push('the snapshot (card A) shows a seat figure or a seat source line');
+  if (SEATS_HIDDEN || !state.members.length) {
+    if (got.compact !== null || got.card !== null) out.push('no compact seats line and no seats card expected here');
+    return out;
+  }
+  const want = compactText(lng, state);
+  if (JSON.stringify(got.compact) !== JSON.stringify(want)) out.push(`compact seats line: expected ${JSON.stringify(want)}, got ${JSON.stringify(got.compact)}`);
+  if (RESULTS && JSON.stringify(got.compactHrefs) !== JSON.stringify([meta.resultsSourceUrl])) out.push(`compact seats line: expected one source link to ${meta.resultsSourceUrl}, got ${JSON.stringify(got.compactHrefs)}`);
+  if (!RESULTS && !got.compactLegalFirst) out.push('compact seats line: the legal sentence must come first');
+  const wc = seatsCardText(lng, state);
+  const g = got.card;
+  if (!g) { out.push('seats card missing'); return out; }
+  const srcText = lng === 'he' ? SRC_TEXT : (RESULTS ? meta.en.resultsStatus : legal);
+  if (g.title !== wc.title || !g.src?.includes(srcText) || !g.srcSecond || (RESULTS && g.srcHref !== meta.resultsSourceUrl)) out.push(`seats card: the title then the full source line (with its link) expected first (${JSON.stringify(g)})`);
+  if (JSON.stringify(g.summary) !== JSON.stringify(wc.summary)) out.push(`seats card summary: expected ${JSON.stringify(wc.summary)}, got ${JSON.stringify(g.summary)}`);
+  if (wc.rows ? g.open !== false : g.open !== null) out.push(`seats card details: ${wc.rows ? 'must be closed on load' : 'not expected without a majority'} (open: ${g.open})`);
+  if (JSON.stringify(g.rows) !== JSON.stringify(wc.rows) || g.intro !== wc.intro) out.push(`seats card rows: expected ${JSON.stringify([wc.intro, wc.rows])}, got ${JSON.stringify([g.intro, g.rows])}`);
+  return out;
+}
 const server = base ? null : await serve();
 const baseUrl = (base ?? server.url).replace(/\/?$/, '/');
 const onProd = new URL(baseUrl).hostname === PROD_HOST;
@@ -536,11 +606,12 @@ try {
       if (overflow) errors.push(`[${current}] horizontal page overflow`);
       const entity = await evaluate(ENTITY_JS);
       if (entity) errors.push(`[${current}] an HTML entity shown as text (escaped twice?): ${entity}`);
-      // Results mode: a grey "positions as of election eve" line right after the source line in every seats box.
+      // Results mode: a grey "positions as of election eve" line right after the source line in the builder's seats box,
+      // and right after the counts in the snapshot, which describes the positions (#H1).
       if (RESULTS && (expectView === 'build' || (expectView === 'results' && members_in_url(suffix) && name !== 'results-single'))) {
-        const asOf = await evaluate(`(() => { const box = document.querySelector('${expectView === 'build' ? '#builder .seats-box' : '#results .overall'}'); const src = box?.querySelector('.seat-src');
-          const l = src?.nextElementSibling; return l?.classList.contains('positions-asof') ? l.innerText.trim() : 'missing'; })()`);
-        if (asOf !== S.elected.positionsAsOf) errors.push(`[${current}] positions-as-of line missing after the source line (${asOf})`);
+        const asOf = await evaluate(`(() => { const prev = document.querySelector('${expectView === 'build' ? '#builder .seats-box .seat-src' : '#results .overall .breakdown'}');
+          const l = prev?.nextElementSibling; return l?.classList.contains('positions-asof') ? l.innerText.trim() : 'missing'; })()`);
+        if (asOf !== S.elected.positionsAsOf) errors.push(`[${current}] positions-as-of line missing after the ${expectView === 'build' ? 'source line' : 'counts'} (${asOf})`);
       }
       // Results mode: no poll disclaimer anywhere, and no poll figures outside the method page's comparison table.
       if (RESULTS && (expectView === 'method' ? /הסקרים אינם עדכניים/ : /הסקרים אינם עדכניים|ממוצע סקרים/).test(await evaluate('document.body.innerText'))) errors.push(`[${current}] poll disclaimer or poll figures shown in results mode`);
@@ -552,7 +623,7 @@ try {
       }
       if (SEATS_HIDDEN) {
         const seatText = await evaluate(`(document.body.innerText.match(${POLL_TEXT}) || [])[0] || ''`);
-        if (await evaluate("document.querySelector('.pivotal') !== null")) errors.push(`[${current}] showSeats is off but the pivotal rows are shown`);
+        if (await evaluate("document.querySelector('.pivotal, .seats-compact, .seats-card, .seat-fig') !== null")) errors.push(`[${current}] showSeats is off but a seats line or the seats card is shown`);
         if (seatText) errors.push(`[${current}] showSeats is off but poll-derived text is visible: "${seatText}"`);
         if (expectView === 'build') {
           const order = await evaluate("[...document.querySelectorAll('#builder [data-act=\"toggle\"]')].map((b) => b.dataset.id).join(',')");
@@ -600,31 +671,50 @@ try {
         }
       }
       if (expectView === 'results' && !SEATS_HIDDEN) {
-        const ok = await evaluate(`document.querySelectorAll('#results .seats-line').length === 0 || document.querySelector('#results').innerText.replace(/\\s+/g, ' ').includes(${JSON.stringify(SRC_TEXT)})`);
-        if (!ok) errors.push(`[${current}] results show seats without the full source line`);
+        // Any seat figure on the results view comes with the full source line in the seats card (#H1).
+        const ok = await evaluate(`document.querySelectorAll('#view-results .seat-fig').length === 0 || (document.querySelector('#results .seats-card')?.innerText.replace(/\\s+/g, ' ') ?? '').includes(${JSON.stringify(SRC_TEXT)})`);
+        if (!ok) errors.push(`[${current}] results show seats without the full source line in the seats card`);
         {
           const st = parseLocation(splitSuffix(suffix), passedIds).state;
-          const got = await evaluate(PIVOTAL_JS);
-          const want = st.members.length && investiture(posCtx.he, st).approved ? pivotalText('he', st) : null;
-          if (JSON.stringify(got) !== JSON.stringify(want)) errors.push(`[${current}] pivotal rows: expected ${JSON.stringify(want)}, got ${JSON.stringify(got)}`);
-          if (RESULTS && name === 'results-scenario-arab' && !(got?.length === 7 && got.includes('אם רע״ם תצביע נגד: 59 מול 61'))) errors.push(`[${current}] expected 6 pivotal rows with רע״ם voting against (59 מול 61)`);
-          if (RESULTS && name === 'results-pivotal-partial' && got?.slice(1).map((t) => t.split(':')[0]).join('|') !== 'בלי הליכוד|בלי ישר!|בלי ביחד') errors.push(`[${current}] expected הליכוד, ישר!, ביחד as pivotal, got ${JSON.stringify(got)}`);
-          if (RESULTS && name === 'results-coalition' && got !== null) errors.push(`[${current}] the vote fails, so no pivotal rows`);
+          const got = await evaluate(SEATS_JS);
+          for (const e of seatsErrors('he', st, got)) errors.push(`[${current}] ${e}`);
+          const rows = got.card?.rows ?? null;
+          const needed = (got.card?.summary ?? [])[0];
+          // Fixed cases, from the data: רע״ם's vote against still leaves no majority in the scenario; 3 of 5 members needed.
+          if (RESULTS && name === 'results-scenario-arab' && !(rows?.length === 6 && rows.includes('אם רע״ם תצביע נגד: 59 מול 61 · אין רוב'))) errors.push(`[${current}] expected 6 rows with "אם רע״ם תצביע נגד: 59 מול 61 · אין רוב", got ${JSON.stringify(rows)}`);
+          if (RESULTS && name === 'results-pivotal-partial' && (needed !== '3 מתוך 5 חברות נחוצות לרוב' || dependence(posCtx.he, st).filter((r) => r.needed).map((r) => r.partyId).join(',') !== 'likud,yashar,together')) errors.push(`[${current}] expected הליכוד, ישר!, ביחד needed (3 מתוך 5), got ${JSON.stringify(got.card?.summary)}`);
+          if (RESULTS && name === 'results-coalition' && (rows !== null || needed !== S.seats.card.noMajority)) errors.push(`[${current}] the vote fails: the no-majority line and no rows expected`);
+          if (RESULTS && name === 'results-ref' && (got.compact?.[0] !== '67 מנדטים · 6 מעל הרוב (מקור: ועדת הבחירות)' || !rows?.includes('בלי עוצמה יהודית: 60 מנדטים (חסר מנדט אחד לרוב, תיקו 60 מול 60)'))) errors.push(`[${current}] reference link: expected "67 מנדטים · 6 מעל הרוב" and the 60 מול 60 tie row (${JSON.stringify(got)})`);
+          if (RESULTS && name === 'results-61' && got.compact?.[0] !== '61 מנדטים · בדיוק רוב (מקור: ועדת הבחירות)') errors.push(`[${current}] expected exactly 61 (${got.compact?.[0]})`);
+          if (RESULTS && name === 'results-48' && got.compact?.[0] !== '48 מנדטים · חסרים 13 לרוב (מקור: ועדת הבחירות)') errors.push(`[${current}] expected 48, 13 short (${got.compact?.[0]})`);
+          if (RESULTS && name === 'results-65' && got.compact?.[0] !== '65 מנדטים · 4 מעל הרוב (מקור: ועדת הבחירות)') errors.push(`[${current}] expected 65, 4 above (${got.compact?.[0]})`);
+          // The details open and close from the keyboard (Enter, then Space) on the summary.
+          if (name === 'results-ref' || name === 'results-roles') {
+            const press = async (k, code, text) => { for (const type of ['keyDown', 'keyUp']) await c.send('Input.dispatchKeyEvent', { type, key: k, code: k === ' ' ? 'Space' : k, windowsVirtualKeyCode: code, ...(type === 'keyDown' && text ? { text } : {}) }); await settle(80); };
+            const isOpen = () => evaluate("document.querySelector('#results .seats-card details.dep')?.open ?? null");
+            await evaluate("document.querySelector('#results .seats-card details.dep > summary').focus()");
+            await press('Enter', 13, '\r');
+            const afterEnter = await isOpen();
+            await press(' ', 32, ' ');
+            const afterSpace = await isOpen();
+            if (afterEnter !== true || afterSpace !== false) errors.push(`[${current}] seats card details: Enter should open (${afterEnter}) and Space close (${afterSpace})`);
+          }
         }
         if (expectView === 'results' && members_in_url(suffix) && name !== 'results-single' && !(await evaluate("document.querySelector('#matrix .tap-hint')?.innerText.includes('לחצו על כל תא או נושא')"))) errors.push(`[${current}] matrix tap hint missing`);
         const line = await evaluate("document.querySelector('#results-coalition')?.innerText || ''");
         if (!line.trim()) errors.push(`[${current}] results are missing the coalition line`);
-        // Investiture: "בעד X · נגד Y · נמנעות Z", an icon+text verdict, and the members' own seats.
-        if (members_in_url(suffix) && name !== 'results-single') {
-          const vote = await evaluate(`(() => { const o = document.querySelector('#results .overall'); if (!o) return 'no summary'; const t = o.innerText.replace(/\\s+/g, ' ');
+        // Investiture with roles (#H1: the compact line's first line): "בעד X · נגד Y · נמנעות Z", summing to 120, and the
+        // icon+text verdict after it. Members only: no verdict (the margin says it); checked exactly in seatsErrors.
+        if (members_in_url(suffix) && !SEATS_HIDDEN && /[?&][oa]=/.test(suffix)) {
+          const vote = await evaluate(`(() => { const b = document.querySelector('#results-coalition .seats-compact'); if (!b) return 'no compact line'; const t = b.innerText.replace(/\\s+/g, ' ');
             const m = t.match(/בעד ≈?(\\d+) · נגד ≈?(\\d+) · נמנעות ≈?(\\d+)/); if (!m) return 'vote line missing';
-            const v = o.querySelector('.verdict'); if (!v || !/^[✓✕] הממשלה (הייתה|לא הייתה) זוכה באמון/.test(v.innerText.trim())) return 'verdict missing';
+            const v = b.querySelector('.verdict'); if (!v || !/^[✓✕] הממשלה (הייתה|לא הייתה) זוכה באמון/.test(v.innerText.trim())) return 'verdict missing';
             if (!/חברות הקואליציה לבדן: ≈?\\d+/.test(t)) return 'members line missing'; return m.slice(1).join(','); })()`);
           if (!/^\d+,\d+,\d+$/.test(vote)) errors.push(`[${current}] investiture: ${vote}`);
           else if (RESULTS && vote.split(',').reduce((a, b) => a + Number(b), 0) !== 120) errors.push(`[${current}] investiture numbers must sum to 120 (${vote})`);
           if (RESULTS && name === 'results-roles' && vote !== '59,46,15') errors.push(`[${current}] expected בעד 59 · נגד 46 · נמנעות 15, got ${vote}`);
           if (RESULTS && name === 'results-old-outside' && vote !== '56,64,0') errors.push(`[${current}] expected בעד 56 · נגד 64 · נמנעות 0, got ${vote}`);
-        }
+        } else if (members_in_url(suffix) && await evaluate("document.querySelector('#results-coalition .verdict') !== null")) errors.push(`[${current}] members only: no verdict line expected`);
         // Supporters and abstainers: own card, listed with their role; never inside the coalition cards.
         const q = stateParams(suffix);
         const side = [...(q.get('o') ?? '').split(','), ...(q.get('a') ?? '').split(',')].filter(Boolean);
@@ -702,12 +792,17 @@ try {
       const bar = [...document.querySelectorAll('.resbar')].find((e) => e.getClientRects().length);
       const top = bar ? Math.max(0, bar.getBoundingClientRect().bottom) : 0;
       const bad = [];
-      for (const box of document.querySelectorAll('.seats-box, .overall')) {
-        const n = box.querySelector('.seats-line:not(.muted)'); const l = box.querySelector('${SRC_SEL}');
-        if (!n || !n.getClientRects().length) continue;
-        if (!pts(n, [0.05, 0.5, 0.95], [0.25, 0.75]).some((p) => p[1] >= top && hit(n, p))) continue; // numbers not visible
-        const shown = l && pts(l, [0.05, 0.3, 0.5, 0.7, 0.95], [0.15, 0.5, 0.85]).every((p) => p[1] < top || hit(l, p));
-        if (!shown) bad.push(box.classList.contains('overall') ? 'results summary' : 'seats box');
+      // Every seat figure (.seat-fig) in every seats block, not just the first line (#H1). The source: polls mode, the full
+      // legal sentence; results mode, the full results line in the builder's box and the seats card, and the link to the
+      // CEC results in the compact line and the completions card (the authorized #H1 change).
+      for (const box of document.querySelectorAll('.seats-box, .seats-compact, .seats-card, .completions')) {
+        const l = ${RESULTS ? `box.matches('.seats-box, .seats-card') ? box.querySelector('.seat-src') : box.querySelector('a[href="${meta.resultsSourceUrl}"]')` : "box.querySelector('.poll-legal')"};
+        for (const n of box.querySelectorAll('.seat-fig')) {
+          if (!n.getClientRects().length) continue;
+          if (!pts(n, [0.05, 0.5, 0.95], [0.25, 0.75]).some((p) => p[1] >= top && hit(n, p))) continue; // numbers not visible
+          const shown = l && pts(l, [0.05, 0.3, 0.5, 0.7, 0.95], [0.15, 0.5, 0.85]).every((p) => p[1] < top || hit(l, p));
+          if (!shown) { bad.push(box.className.split(' ').find((x) => /seats-|completions/.test(x)) ?? box.className); break; }
+        }
       }
       return bad.join(', ');
     })()`;
@@ -721,6 +816,8 @@ try {
         await settle(400);
         const first = await evaluate(LEGAL_CHECK);
         if (first) { errors.push(`[${current}] first load: seat numbers visible without the full legal sentence (${first})`); await shoot(z, `legal-fail-${name}-${z.tag}.png`, false, true); }
+        // The seats card's rows are checked too while scrolling: open its details first.
+        await evaluate("document.querySelectorAll('details.dep').forEach((d) => { d.open = true; }); true");
         const scrolled = await evaluate(`(() => { const out = []; const max = document.documentElement.scrollHeight - innerHeight;
           for (let y = 0; y <= max; y += 40) { window.scrollTo(0, y); const r = ${LEGAL_CHECK}; if (r) out.push(y + ': ' + r); }
           window.scrollTo(0, 0); return out.slice(0, 3).join(' | '); })()`);
@@ -1636,9 +1733,8 @@ try {
           const l = b.querySelector('${SRC_SEL}'), sl = b.querySelector('.seats-line'); return l.compareDocumentPosition(sl) & Node.DOCUMENT_POSITION_FOLLOWING ? 'ok' : 'source line must come before the numbers'; })()`);
         if (box !== 'ok') errors.push(`[${current}] seats box: ${box}`);
       }
-      if (expectView === 'results' && !SEATS_HIDDEN && members_in_url(suffix) && name !== 'results-single') {
-        const vote = await evaluate(`(() => { const o = document.querySelector('#results .overall'); if (!o) return 'no summary'; const t = o.innerText.replace(/\\s+/g, ' ');
-          if (!t.includes(${JSON.stringify(EN_SRC)})) return 'source line missing';
+      if (expectView === 'results' && !SEATS_HIDDEN && members_in_url(suffix) && /[?&][oa]=/.test(suffix)) {
+        const vote = await evaluate(`(() => { const b = document.querySelector('#results-coalition .seats-compact'); if (!b) return 'no compact line'; const t = b.innerText.replace(/\\s+/g, ' ');
           const m = t.match(/For ≈?(\\d+) · Against ≈?(\\d+) · Abstaining ≈?(\\d+)/); return m ? m.slice(1).join(',') : 'vote line missing'; })()`);
         if (!/^\d+,\d+,\d+$/.test(vote)) errors.push(`[${current}] investiture: ${vote}`);
         if (RESULTS && name === 'results-roles' && vote !== '59,46,15') errors.push(`[${current}] expected For 59 · Against 46 · Abstaining 15, got ${vote}`);
@@ -1649,12 +1745,13 @@ try {
         const wantShare = `${baseUrl}en/` + locationFor(ctx, exp.state, 'results', '', 'en');
         const text = wa ? new URL(wa).searchParams.get('text') : '';
         if (wa && (!text.endsWith(`\n${wantShare}`) || !text.startsWith('The coalition I built: '))) errors.push(`[${current}] English WhatsApp text should start "The coalition I built:" and end with ${wantShare} (${text})`);
-        if (!SEATS_HIDDEN) {
-          const got = await evaluate(PIVOTAL_JS);
-          const want = exp.state.members.length && investiture(posCtx.en, exp.state).approved ? pivotalText('en', exp.state) : null;
-          if (JSON.stringify(got) !== JSON.stringify(want)) errors.push(`[${current}] English pivotal rows: expected ${JSON.stringify(want)}, got ${JSON.stringify(got)}`);
-          if (RESULTS && name === 'results-scenario-arab' && !got?.includes("If Ra'am votes against: 59 vs 61")) errors.push(`[${current}] expected "If Ra'am votes against: 59 vs 61"`);
-        } else if (await evaluate("document.querySelector('.pivotal') !== null")) errors.push(`[${current}] showSeats is off but the pivotal rows are shown`);
+        {
+          const got = await evaluate(SEATS_JS);
+          for (const e of seatsErrors('en', exp.state, got)) errors.push(`[${current}] English: ${e}`);
+          if (RESULTS && name === 'results-scenario-arab' && !got.card?.rows?.includes("If Ra'am votes against: 59 vs 61 · no majority")) errors.push(`[${current}] expected "If Ra'am votes against: 59 vs 61 · no majority"`);
+          if (RESULTS && name === 'results-ref' && got.compact?.[0] !== '67 seats · 6 above a majority (source: Central Elections Committee)') errors.push(`[${current}] expected "67 seats · 6 above a majority (source: Central Elections Committee)", got ${got.compact?.[0]}`);
+          if (RESULTS && name === 'results-61' && got.compact?.[0] !== '61 seats · exactly a majority (source: Central Elections Committee)') errors.push(`[${current}] expected exactly a majority, got ${got.compact?.[0]}`);
+        }
         if (exp.state.members.length) for (const e of cardErrors('en', exp.state, await evaluate(CARD_JS))) errors.push(`[${current}] English: ${e}`);
         if (exp.state.members.length >= 2) {
           const got = await evaluate(REDLINES_JS);
@@ -2403,7 +2500,7 @@ try {
     const cellGap = Math.min(...cs.slice(1).map((r, i) => r.left - cs[i].right));
     for (let i = 1; i < xs.length; i++) { const g = xs[i].left - xs[i - 1].right; if (g < Math.max(2, cellGap - 1)) bad.push('matrix header cards ' + g.toFixed(1) + 'px apart (cells: ' + cellGap.toFixed(1) + 'px)'); }
     // The confidence-vote line: each segment on one line (it wraps only between them).
-    document.querySelectorAll('#results .vote-line .nw').forEach((e) => { const r = document.createRange(); r.selectNodeContents(e); if (new Set([...r.getClientRects()].map((x) => Math.round(x.top))).size > 1) bad.push('vote segment "' + e.textContent + '" breaks across lines'); });
+    document.querySelectorAll('#results-coalition .seats-compact .nw').forEach((e) => { const r = document.createRange(); r.selectNodeContents(e); if (new Set([...r.getClientRects()].map((x) => Math.round(x.top))).size > 1) bad.push('vote segment "' + e.textContent + '" breaks across lines'); });
     return bad; })()`;
   const FIT_BUILD = `(() => { ${FIT_COMMON}
     document.querySelectorAll('.task').forEach((t, i) => { const c = t.getBoundingClientRect();
@@ -2446,8 +2543,22 @@ try {
         }
       }
     }
+    // #H1: what the reader came for comes first. On the members-only reference link, the gap cards' title starts within
+    // the first screen on a phone and on a desktop, in both languages.
+    for (const [w, h, mobile] of /** @type {[number, number, boolean][]} */ ([[390, 844, true], [1280, 800, false]])) {
+      await c.send('Emulation.setDeviceMetricsOverride', { width: w, height: h, deviceScaleFactor: mobile ? 2 : 1, mobile });
+      for (const l of ['he', 'en']) {
+        step(`fit-first-screen-${l}@${w}x${h}`);
+        fitRuns++;
+        await go(`${baseUrl}#results?b=together&m=likud,yashar,otzma-yehudit${l === 'en' ? '&l=en' : ''}`);
+        await waitFor(() => evaluate("document.querySelector('#results .overall + .card h3') !== null"));
+        await settle(250);
+        const top = await evaluate("(() => { window.scrollTo(0, 0); return Math.round(document.querySelector('#results .overall + .card h3').getBoundingClientRect().top); })()");
+        if (!(Number(top) < h - 24)) errors.push(`[${current}] the gap cards' title starts at ${top}px, below the first screen (${h}px)`);
+      }
+    }
     await setSize(SIZES[0]);
-    log(`  ✓ fit: ${fitRuns} runs (360/375/390/412 × he/en × text 100%/125%): matrix headers (one card per column), overview, header bar (one line at 100%, also with a wider font), task cards`);
+    log(`  ✓ fit: ${fitRuns} runs (360/375/390/412 × he/en × text 100%/125%): matrix headers (one card per column), overview, header bar (one line at 100%, also with a wider font), task cards; the gap cards within the first screen (390×844, 1280×800)`);
   }
 
   // Never broken inside (#30/#31/#34): a party name, an outlet or person's name, or a number pair ("53 מול 67", "53 מתוך
@@ -2455,7 +2566,7 @@ try {
   // sources, at 360/375 in both languages with normal and enlarged text. The pattern is built here and passed as JSON.
   const reEsc = (x) => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const NOBREAK_JS = (sels, names) => {
-    const src = [...[...new Set(names)].sort((a, b) => b.length - a.length).map(reEsc), '≈?\\d[\\d,.]*(?: (?:מול|מתוך|vs|of) ≈?\\d[\\d,.]*)'].join('|');
+    const src = [...[...new Set(names)].sort((a, b) => b.length - a.length).map(reEsc), '≈?\\d[\\d,.]*(?: (?:מול|מתוך|vs|of) ≈?\\d[\\d,.]*)', '≈?\\d+ (?:מנדטים|seats?)'].join('|');
     return `(() => { const bad = []; let seen = 0; const re = new RegExp(${JSON.stringify(src)}, 'g');
       for (const root of document.querySelectorAll(${JSON.stringify(sels.join(', '))})) {
         const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
@@ -2485,13 +2596,13 @@ try {
           step(`nobreak-${l}@${w}-${pct}%`);
           nbRuns++;
           for (const [url, sels, ready] of /** @type {[string, string[], string][]} */ ([
-            [`#results?m=yashar,together,democrats,yisrael-beiteinu,utj,shas${L}`, ['#results .redlines-line', '#results .pivotal'], "document.querySelector('#results .pivotal li') !== null"],
+            [`#results?m=yashar,together,democrats,yisrael-beiteinu,utj,shas${L}`, ['#results .redlines-line', '#results .seats-card .dep-list', '#results-coalition .seats-compact'], "document.querySelector('#results .seats-card .dep-list li') !== null"],
             [`#results?m=yashar,together,democrats,yisrael-beiteinu${L}`, ['#results .completions'], "document.querySelector('#results .completions li') !== null"],
             [`#build${l === 'en' ? '?l=en' : ''}`, ['#presets .scen-src'], "document.querySelector('#presets .scen-src') !== null"],
           ])) {
             await go(`${baseUrl}${url}`);
             await waitFor(() => evaluate(ready));
-            await evaluate("(() => { const d = document.querySelector('#presets details'); if (d) d.open = true; return true; })()");
+            await evaluate("(() => { document.querySelectorAll('#presets details, details.dep').forEach((d) => { d.open = true; }); return true; })()");
             await evaluate(ENLARGE(pct));
             await settle(250);
             const r = await evaluate(NOBREAK_JS(sels, names));

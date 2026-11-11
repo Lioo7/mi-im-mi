@@ -138,14 +138,35 @@ export const S = {
     vote: (f, a, z) => `For ${f} · Against ${a} · Abstaining ${z}`,
     approved: 'The government would win the confidence vote (for > against)',
     rejected: 'The government would not win the confidence vote',
-    membersLine: (n, missing) => (missing ? `Coalition members alone: ${n} of 61 · ${missing} short` : `Coalition members alone: ${n} · a majority of 61`),
+    margin: ({ kind, n }, exact) => {
+      if (kind === 'exact') return 'exactly a majority';
+      const x = `${exact ? '' : '≈'}${n}`;
+      return kind === 'over' ? `${x} above a majority` : `${x} short of a majority`;
+    },
+    compact: (seats, margin) => [seatsN(seats), margin],
+    membersLine: (n, margin) => `Coalition members alone: ${n} · ${margin}`,
     meterLabel: (n) => `Coalition members: ${n} of 61`,
-    // Parties a result depends on (#13). Numbers come formatted (≈ in polls mode); members is null unless the 61 breaks.
-    // A removed party votes against; an abstainer is shown as voting against.
-    pivotalIntro: (majority) => `Parties without which ${majority ? 'the members no longer have 61, or ' : ''}the confidence vote has no majority (for vs against):`,
-    pivotalRow: (name, role, members, f, a) => (role === 'abstainer' ? `If ${name} votes against: ${f} vs ${a}`
-      : `Without ${name}${role === 'supporter' ? ' (supports from outside)' : ''}: ${members != null ? `coalition members ${members} of 61 · ` : ''}${f} vs ${a}`),
-    pivotalNone: 'No single party does this.',
+    card: {
+      title: 'Seats and the confidence vote',
+      members: (k, n) => {
+        if (n === 1) return k ? 'The only coalition member is needed for a majority' : 'No member on its own is needed for a majority';
+        if (k === 0) return 'No member on its own is needed for a majority';
+        if (k === n) return n === 2 ? 'Both members are needed for a majority' : `All ${n} members are needed for a majority`;
+        return `${k} of the ${n} members ${k === 1 ? 'is' : 'are'} needed for a majority`;
+      },
+      outside: (k, n) => {
+        if (k === 0) return 'Outside the coalition: none is needed for a majority';
+        if (n === 1) return 'Outside the coalition: the only party is needed for a majority';
+        return `Outside the coalition: ${k} of ${n} ${k === 1 ? 'is' : 'are'} needed for a majority`;
+      },
+      noMajority: 'This coalition has no majority, so there is no breakdown by party',
+      details: 'Breakdown by party',
+      rolesIntro: 'For vs against, if the party votes against. An abstainer is checked as voting against.',
+      memberRow: (name, seats, margin, tie) => `Without ${name}: ${seatsN(seats)} (${margin}${tie ? `, a ${tie}–${tie} tie` : ''})`,
+      roleRow: (name, role, f, a, outcome, members) => `${role === 'abstainer' ? `If ${name} votes against` : `Without ${name}${role === 'supporter' ? ' (supports from outside)' : ''}`}: ${f} vs ${a} · ${outcome}${members ? ` · coalition members alone ${members}` : ''}`,
+      outcome: { yes: 'a majority', no: 'no majority', tie: 'a tie, no majority' },
+      membersAlone: (n, margin) => `${n} (${margin})`,
+    },
     short: (n) => `${n} short`,
     // A translation for the reader; the app shows the required Hebrew sentence verbatim before it.
     pollLegal: (d) => `Average of polls published up to ${d}. The polls are not current, and nothing should be inferred from them about voting patterns or public opinion today.`,
@@ -173,6 +194,8 @@ export const S = {
   elected: {
     positionsAsOf: 'Positions: as of election eve (27 Oct)',
     sourceLink: 'Results on the Central Elections Committee website (Hebrew)',
+    srcLabel: 'source',
+    srcName: 'Central Elections Committee',
     belowTitle: 'Did not pass the electoral threshold',
     belowHint: 'You can see their positions, but you cannot pick them for a coalition.',
     belowPct: (pct) => `${pct}% of the vote`,
@@ -265,14 +288,10 @@ export const S = {
     frictionTitle: 'The partner that creates the most friction',
     frictionTie: 'The partners that create the most friction',
     whatIfRemove: 'What if we drop it?',
-    withoutPreview: (delta, seats, exact) => {
-      const parts = [];
-      if (delta) {
-        const what = delta.kind === 'clash' ? 'in a head-on clash' : 'with a substantial gap';
-        parts.push(delta.after === 0 ? `no topic ${what} instead of ${delta.before}` : `${topicsN(delta.after)} ${what} instead of ${delta.before}`);
-      }
-      if (seats != null) parts.push(`${exact ? '' : 'about '}${seatsN(seats)}`);
-      return parts.length ? `Without it: ${parts.join(' · ')}` : '';
+    withoutPreview: (delta) => {
+      if (!delta) return '';
+      const what = delta.kind === 'clash' ? 'in a head-on clash' : 'with a substantial gap';
+      return `Without it: ${delta.after === 0 ? `no topic ${what} instead of ${delta.before}` : `${topicsN(delta.after)} ${what} instead of ${delta.before}`}`;
     },
     // The inline undo line at the top of the results view (#29): what changed, "Restore previous", and a close button.
     undoReplaced: 'The coalition was replaced',
@@ -508,7 +527,7 @@ export const S = {
       ...(seats ? [
         'The confidence vote: for = the seats of the coalition members and the supporters. Abstaining = the seats of the abstainers. Against = everyone else, assuming every party not marked votes against. The government wins the confidence vote when there are more votes for than against (a majority of those voting).',
         'Whether the coalition members alone have 61 seats is shown separately.',
-        'Under the vote, the parties the outcome depends on, each on its own: a member without which the coalition members no longer have 61, and a member or supporter without which the confidence vote has no majority (for not greater than against, a tie included). A party that leaves counts as opposed, like any party not picked. An abstainer is checked as if it voted against. Each party is shown with the numbers without it (for vs against, and the coalition members\' seats when they drop below 61). The parties are listed by role and then in party order, with no ranking. When the government would not win the confidence vote, the list is not shown.',
+        'The "Seats and the confidence vote" card shows how many of the coalition members are needed for a majority. A party is needed for a majority when without it the coalition members no longer have 61, or the confidence vote has no majority (for not greater than against, a tie included). A party that leaves counts as opposed, like any party not picked. An abstainer is checked as if it voted against. When there are supporters or abstainers, the card also shows how many of them are needed. The breakdown by party shows the numbers without each party: the coalition members\' seats when there are no supporters or abstainers, and for vs against when there are (plus the coalition members\' seats when they drop below 61). The parties are listed by role and then in party order, with no ranking. When the government would not win the confidence vote, the breakdown is not shown.',
         'Not computed: individual Knesset members moving between positions, absences, and Knesset members voting against their faction\'s position.',
         `What is missing for a majority of 61: the smallest combinations of parties that are not coalition members (including supporters and abstainers) that bring the coalition members alone to at least 61 seats. A combination counts as "smallest" when removing any one of its parties leaves the coalition below 61. ${linked ? 'Religious Zionism and Zehut, which ran on one list, count as one unit when neither is in the coalition. ' : ''}Order: combinations with the fewest lists first, then by the number of seats added, then by the party order. 6 are shown, and you can show all of them. For each combination we show the number of topics in a head-on clash in the resulting coalition and how many of them are new, and only the red lines that the combination crosses for the first time. Red lines that the current coalition already crosses are shown once above the list. This is information, not a recommendation.`,
       ] : []),

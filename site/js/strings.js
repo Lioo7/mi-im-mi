@@ -136,14 +136,43 @@ export const S = {
     vote: (f, a, z) => `בעד ${f} · נגד ${a} · נמנעות ${z}`,
     approved: 'הממשלה הייתה זוכה באמון (בעד > נגד)',
     rejected: 'הממשלה לא הייתה זוכה באמון',
-    membersLine: (n, missing) => (missing ? `חברות הקואליציה לבדן: ${n} מתוך 61 · חסרים ${missing}` : `חברות הקואליציה לבדן: ${n} · רוב של 61`),
+    // Seats against the 61 majority (C.majorityMargin): the compact line, the members-alone line and the seats card's rows.
+    // exact=true in results mode: a singular in words; polls averages keep their "≈".
+    margin: ({ kind, n }, exact) => {
+      if (kind === 'exact') return 'בדיוק רוב';
+      const one = exact && n === 1;
+      return kind === 'over' ? `${one ? 'מנדט אחד' : `${exact ? '' : '≈'}${n}`} מעל הרוב` : (one ? 'חסר מנדט אחד לרוב' : `חסרים ${exact ? '' : '≈'}${n} לרוב`);
+    },
+    // The compact line under the coalition header with members only: "67 מנדטים · 6 מעל הרוב" (segments, kept whole).
+    compact: (seats, margin) => [`${seats} מנדטים`, margin],
+    membersLine: (n, margin) => `חברות הקואליציה לבדן: ${n} · ${margin}`,
     meterLabel: (n) => `חברות הקואליציה: ${n} מתוך 61`,
-    // Parties a result depends on (#13). Numbers come formatted (≈ in polls mode); members is null unless the 61 breaks.
-    // A removed party votes against; an abstainer is shown as voting against.
-    pivotalIntro: (majority) => `מפלגות שבלעדיהן ${majority ? 'אין לחברות הקואליציה 61, או ש' : ''}אין רוב בהצבעת האמון (בעד מול נגד):`,
-    pivotalRow: (name, role, members, f, a) => (role === 'abstainer' ? `אם ${name} תצביע נגד: ${f} מול ${a}`
-      : `בלי ${name}${role === 'supporter' ? ' (תומכת מבחוץ)' : ''}: ${members != null ? `חברות הקואליציה ${members} מתוך 61 · ` : ''}${f} מול ${a}`),
-    pivotalNone: 'אין מפלגה אחת כזו.',
+    // The seats card (#H1): who the majority depends on (C.dependence, the #13 rule), after the friction card.
+    card: {
+      title: 'מנדטים והצבעת אמון',
+      // How many members are needed (k of n); with roles, also the parties outside the coalition.
+      members: (k, n) => {
+        if (n === 1) return k ? 'החברה היחידה בקואליציה נחוצה לרוב' : 'אין חברה שבלעדיה אין רוב';
+        if (k === 0) return 'אין חברה שבלעדיה אין רוב';
+        if (k === n) return n === 2 ? 'שתי החברות נחוצות לרוב' : `כל ${n} החברות נחוצות לרוב`;
+        return k === 1 ? `חברה אחת מתוך ${n} נחוצה לרוב` : `${k} מתוך ${n} חברות נחוצות לרוב`;
+      },
+      outside: (k, n) => {
+        if (k === 0) return 'מחוץ לקואליציה: אף אחת לא נחוצה לרוב';
+        if (n === 1) return 'מחוץ לקואליציה: המפלגה היחידה נחוצה לרוב';
+        return `מחוץ לקואליציה: ${k === 1 ? 'אחת' : k} מתוך ${n} ${k === 1 ? 'נחוצה' : 'נחוצות'} לרוב`;
+      },
+      noMajority: 'לקואליציה הזו אין רוב, ולכן אין פירוט לכל מפלגה',
+      details: 'פירוט לכל מפלגה',
+      rolesIntro: 'בעד מול נגד, כשהמפלגה מצביעה נגד. נמנעת נבדקת כאילו הצביעה נגד.',
+      // Members only: the members' seats without the party; a tie spelled out. Numbers come formatted.
+      memberRow: (name, seats, margin, tie) => `בלי ${name}: ${seats} מנדטים (${margin}${tie ? `, תיקו ${tie} מול ${tie}` : ''})`,
+      // With roles: for vs against without it (an abstainer as voting against), the outcome, and the members' seats
+      // when they lose their 61.
+      roleRow: (name, role, f, a, outcome, members) => `${role === 'abstainer' ? `אם ${name} תצביע נגד` : `בלי ${name}${role === 'supporter' ? ' (תומכת מבחוץ)' : ''}`}: ${f} מול ${a} · ${outcome}${members ? ` · חברות הקואליציה לבדן ${members}` : ''}`,
+      outcome: { yes: 'יש רוב', no: 'אין רוב', tie: 'תיקו, אין רוב' },
+      membersAlone: (n, margin) => `${n} (${margin})`,
+    },
     short: (n) => `חסרים ${n}`,
     // Required wording when earlier polls are republished during the restricted period (gov.il elections guide, section 16ה(ח)).
     pollLegal: (d) => `ממוצע סקרים שפורסמו עד ${d}. הסקרים אינם עדכניים, ואין ללמוד מהם על דפוסי הצבעה או עמדות הציבור כיום.`,
@@ -173,6 +202,9 @@ export const S = {
   elected: {
     positionsAsOf: 'העמדות: לפי ערב הבחירות (27.10)',
     sourceLink: 'התוצאות באתר ועדת הבחירות',
+    // The short source after a seat figure: "(מקור: ועדת הבחירות)", the link on the name.
+    srcLabel: 'מקור',
+    srcName: 'ועדת הבחירות',
     belowTitle: 'לא עברו את אחוז החסימה',
     belowHint: 'אפשר לראות את העמדות שלהן, אבל לא לבחור אותן לקואליציה.',
     belowPct: (pct) => `${pct}% מהקולות`,
@@ -266,14 +298,11 @@ export const S = {
     frictionTie: 'השותפות שמייצרות הכי הרבה חיכוך',
     whatIfRemove: 'מה אם נוריד אותה?',
     // delta: { kind: 'clash' | 'major', before, after } or null when nothing changes.
-    withoutPreview: (delta, seats, exact) => {
-      const parts = [];
-      if (delta) {
-        const what = delta.kind === 'clash' ? 'בסתירה חזיתית' : 'בפער מהותי';
-        parts.push(delta.after === 0 ? `אין נושא ${what} במקום ${delta.before}` : `${topicsN(delta.after)} ${what} במקום ${delta.before}`);
-      }
-      if (seats != null) parts.push(`${exact ? '' : 'כ-'}${seats} מנדטים`);
-      return parts.length ? `בלעדיה: ${parts.join(' · ')}` : '';
+    // Positions only (#H1): the seats without a party are in the seats card.
+    withoutPreview: (delta) => {
+      if (!delta) return '';
+      const what = delta.kind === 'clash' ? 'בסתירה חזיתית' : 'בפער מהותי';
+      return `בלעדיה: ${delta.after === 0 ? `אין נושא ${what} במקום ${delta.before}` : `${topicsN(delta.after)} ${what} במקום ${delta.before}`}`;
     },
     // The inline undo line at the top of the results view (#29): what changed, "החזירו את הקודמת", and a close button.
     undoReplaced: 'הקואליציה הוחלפה',
@@ -523,7 +552,7 @@ export const S = {
       ...(seats ? [
         'הצבעת האמון: בעד = המנדטים של חברות הקואליציה ושל התומכות. נמנעות = המנדטים של הנמנעות. נגד = כל השאר, בהנחה שכל מפלגה שלא סומנה מצביעה נגד. הממשלה זוכה באמון כשיש יותר קולות בעד מאשר נגד (רוב המצביעים).',
         'בנפרד מוצג אם לחברות הקואליציה לבדן יש 61 מנדטים.',
-        'מתחת להצבעה מופיעות המפלגות שהתוצאה תלויה בכל אחת מהן לבדה: חברה שבלעדיה לחברות הקואליציה כבר אין 61, וחברה או תומכת שבלעדיה אין רוב בהצבעת האמון (בעד לא גדול מנגד, כולל תיקו). מפלגה שיוצאת נספרת כמתנגדת, כמו כל מפלגה שלא נבחרה. נמנעת נבדקת כאילו הצביעה נגד. לכל מפלגה מוצגים המספרים בלעדיה (בעד מול נגד, ומספר המנדטים של חברות הקואליציה כשהם יורדים מתחת ל-61). המפלגות מוצגות לפי תפקיד ואז לפי סדר המפלגות, בלי דירוג. כשהממשלה לא זוכה באמון, הרשימה לא מוצגת.',
+        'בכרטיס "מנדטים והצבעת אמון" מופיע כמה מחברות הקואליציה נחוצות לרוב. מפלגה נחוצה לרוב כשבלעדיה לחברות הקואליציה כבר אין 61, או שאין רוב בהצבעת האמון (בעד לא גדול מנגד, כולל תיקו). מפלגה שיוצאת נספרת כמתנגדת, כמו כל מפלגה שלא נבחרה. נמנעת נבדקת כאילו הצביעה נגד. כשיש תומכות או נמנעות, מופיע גם כמה מהן נחוצות לרוב. בפירוט לכל מפלגה מוצגים המספרים בלעדיה: המנדטים של חברות הקואליציה כשאין תומכות ונמנעות, ובעד מול נגד כשיש (ומספר המנדטים של חברות הקואליציה כשהם יורדים מתחת ל-61). המפלגות מוצגות לפי תפקיד ואז לפי סדר המפלגות, בלי דירוג. כשהממשלה לא זוכה באמון, הפירוט לא מוצג.',
         'לא מחושבים: מעבר של חברי כנסת בודדים בין עמדות, היעדרויות, והצבעה של חברי כנסת שלא לפי עמדת הסיעה.',
         `מה חסר לרוב של 61: הצירופים הקטנים ביותר של מפלגות שאינן חברות בקואליציה (כולל תומכות ונמנעות) שמביאים את חברות הקואליציה לבדן ל-61 מנדטים לפחות. צירוף נחשב "קטן ביותר" כשהורדת כל אחת מהמפלגות בו משאירה את הקואליציה מתחת ל-61. ${linked ? 'הציונות הדתית וזהות, שרצו ברשימה אחת, נספרות כיחידה אחת כשאף אחת מהן לא בקואליציה. ' : ''}הסדר: קודם צירופים עם הכי מעט רשימות, אחר כך לפי מספר המנדטים שנוספים, ואחר כך סדר המפלגות. מוצגים 6, ואפשר להציג את כולם. לכל צירוף מוצגים מספר הנושאים בסתירה חזיתית בקואליציה שתתקבל וכמה מהם חדשים, ורק הקווים האדומים שהצירוף חוצה לראשונה. קווים אדומים שהקואליציה הנוכחית כבר חוצה מוצגים פעם אחת מעל הרשימה. זה מידע, לא המלצה.`,
       ] : []),

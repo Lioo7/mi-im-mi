@@ -77,9 +77,11 @@ const passedIds = () => ctx.parties.filter((p) => ctx.passed(p.id)).map((p) => p
 // name inside another name is not wrapped twice; longer names win.
 const reEscape = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const NUM_PAIR = '≈?\\d[\\d,.]*(?: (?:מול|מתוך|vs|of) ≈?\\d[\\d,.]*)';
+// A seat count with its noun ("40 מנדטים", "1 seat") stays whole too (#H1, the seats card's rows).
+const SEATS_N = '≈?\\d+ (?:מנדטים|seats?)';
 function keepWhole(text, names = []) {
   const alts = [...new Set(names.filter(Boolean).map(esc))].sort((a, b) => b.length - a.length).map(reEscape);
-  return esc(text).replace(new RegExp([...alts, NUM_PAIR].join('|'), 'g'), (m) => `<span class="nw">${m}</span>`);
+  return esc(text).replace(new RegExp([...alts, NUM_PAIR, SEATS_N].join('|'), 'g'), (m) => `<span class="nw">${m}</span>`);
 }
 const partyNames = () => ctx.parties.map((p) => p.name);
 
@@ -729,40 +731,79 @@ function profileHtml(pid) {
     </section>`).join('')}</div>`;
 }
 
-// Investiture vote, its outcome, and the members' own seats against 61.
-function voteHtml() {
+// Seats against the 61 majority, in words (C.majorityMargin): "6 מעל הרוב", "בדיוק רוב", "חסרים 3 לרוב".
+const marginText = (seats) => S.seats.margin(C.majorityMargin(seats), isResults());
+// Segments joined by " · ", each one kept whole, so a line breaks only between them (#35: larger text, polls' ≈).
+const segments = (parts) => parts.map((x) => `<span class="nw">${esc(x)}</span>`).join(' · ');
+
+// Investiture vote, its outcome, and the members' own seats against 61 (the builder's seats box and, with roles, the
+// compact line). `src` follows the vote line (the compact line's short source).
+function voteHtml(src = '') {
   const v = C.investiture(ctx, state);
   const S2 = S.seats;
   const n = (x) => S2.num(x, isResults());
   return {
     v,
-    // Each segment ("בעד 61", "נגד 59", …) stays whole, and the line breaks only between them (#35: larger text, polls' ≈).
-    html: `<p class="seats-line vote-line"><strong>${S2.vote(n(v.for), n(v.against), n(v.abstain)).split(' · ').map((x) => `<span class="nw">${esc(x)}</span>`).join(' · ')}</strong></p>
+    html: `<p class="seats-line vote-line seat-fig"><strong>${segments(S2.vote(n(v.for), n(v.against), n(v.abstain)).split(' · '))}</strong>${src}</p>
       <p class="verdict ${v.approved ? 'is-yes' : 'is-no'}"><span aria-hidden="true">${v.approved ? '✓' : '✕'}</span> ${esc(v.approved ? S2.approved : S2.rejected)}</p>
-      <p class="members-line">${esc(S2.membersLine(n(v.membersSeats), v.missing))}</p>`,
+      <p class="members-line seat-fig">${esc(S2.membersLine(n(v.membersSeats), marginText(v.membersSeats)))}</p>`,
   };
 }
 
-// The source line (CEC status, or the legal poll sentence) always comes before the seat numbers, so scrolling down
-// reaches it first on any screen.
-function seatsLine() {
-  if (!showSeats() || !C.selected(state).length) return '';
-  return `${seatSourceLine()}${positionsAsOfLine()}${voteHtml().html}${pivotalHtml()}`;
+// The short source after a seat figure in results mode (#H1): "(מקור: ועדת הבחירות)", kept whole, the link on the name.
+function srcShort() {
+  const E = S.elected;
+  return ` <span class="src-short nw">(${esc(E.srcLabel)}: <a href="${esc(meta.resultsSourceUrl)}" rel="noopener" target="_blank">${esc(E.srcName)}</a>)</span>`;
 }
 
-// Parties the 61 or the investiture majority depends on (#13): numbers only, right after the vote they change.
-function pivotalHtml() {
-  const v = C.investiture(ctx, state);
-  if (!v.approved) return '';
-  const S2 = S.seats;
-  const n = (x) => S2.num(x, isResults());
-  const rows = C.pivotal(ctx, state).map((p) => {
-    const text = S2.pivotalRow(name(p.partyId), p.role, p.breaksMajority ? n(p.vote.membersSeats) : null, n(p.vote.for), n(p.vote.against));
-    // Each name and number pair stays whole; a party outside the coalition gets the neutral marker instead.
-    const row = p.role === 'member' ? keepWhole(text, [name(p.partyId)]) : keepWhole(text).replace(esc(name(p.partyId)), () => outsideChip(name(p.partyId)));
-    return `<li>${row}</li>`;
+// The same source on its own line, before a card's figures (the completions card): "מקור: ועדת הבחירות".
+function srcLine() {
+  const E = S.elected;
+  return `<p class="src-line">${esc(E.srcLabel.charAt(0).toUpperCase() + E.srcLabel.slice(1))}: <a href="${esc(meta.resultsSourceUrl)}" rel="noopener" target="_blank">${esc(E.srcName)}</a></p>`;
+}
+
+// The compact seats line under the coalition header (#H1). Members only: their seats against 61 (the margin already says
+// whether the vote passes, so no verdict). With supporters or abstainers: the vote line, the verdict and the members
+// alone. Results mode: the short source on the first line. Polls mode: the legal sentence before the numbers.
+function seatsCompact() {
+  if (!showSeats() || !state.members.length) return '';
+  const head = isResults() ? '' : pollNoteBtn();
+  const src = isResults() ? srcShort() : '';
+  if (C.coalitionGroups(state).outside.length) return `<div class="seats-compact">${head}${voteHtml(src).html}</div>`;
+  const seats = C.investiture(ctx, state).membersSeats;
+  return `<div class="seats-compact">${head}<p class="seats-line seat-fig"><strong>${segments(S.seats.compact(S.seats.num(seats, isResults()), marginText(seats)))}</strong>${src}</p></div>`;
+}
+
+// The seats card (#H1), after the friction card: the full source line, how many parties the majority needs (the #13
+// rule, C.dependence), and the numbers without each party, collapsed. Role order, then party order; never ranked.
+function seatsCard() {
+  if (!showSeats() || !state.members.length) return '';
+  const K = S.seats.card;
+  const n = (x) => S.seats.num(x, isResults());
+  const rows = C.dependence(ctx, state);
+  const roles = C.coalitionGroups(state).outside.length > 0;
+  const src = isResults() ? seatSourceLine() : pollLegalLine();
+  const head = `<h3>${esc(K.title)}</h3>${src}`;
+  if (!rows.length) return `<section class="card seats-card">${head}<p class="dep-summary">${esc(K.noMajority)}</p></section>`;
+  const c = C.neededCount(rows);
+  const summary = [K.members(c.members.needed, c.members.total), ...(roles ? [K.outside(c.outside.needed, c.outside.total)] : [])];
+  const items = rows.map((r) => {
+    const nm = name(r.partyId);
+    const text = roles
+      ? K.roleRow(nm, r.role, n(r.vote.for), n(r.vote.against), K.outcome[r.vote.approved ? 'yes' : r.tie ? 'tie' : 'no'],
+        r.breaksMajority ? K.membersAlone(n(r.vote.membersSeats), marginText(r.vote.membersSeats)) : null)
+      : K.memberRow(nm, n(r.vote.membersSeats), marginText(r.vote.membersSeats), r.tie ? n(r.vote.for) : null);
+    // Each name and number stays whole; a party outside the coalition gets the neutral marker.
+    const row = r.role === 'member' ? keepWhole(text, [nm]) : keepWhole(text).replace(esc(nm), () => outsideChip(nm));
+    return `<li class="seat-fig" data-party="${r.partyId}">${row}</li>`;
   }).join('');
-  return `<div class="pivotal muted small"><p>${esc(S2.pivotalIntro(v.membersMajority))}</p>${rows ? `<ul>${rows}</ul>` : `<p>${esc(S2.pivotalNone)}</p>`}</div>`;
+  return `<section class="card seats-card">${head}
+    ${summary.map((t) => `<p class="dep-summary">${esc(t)}</p>`).join('')}
+    <details class="dep"><summary data-key="dep-details">${esc(K.details)}</summary>
+      ${roles ? `<p class="muted small">${esc(K.rolesIntro)}</p>` : ''}
+      <ul class="dep-list">${items}</ul>
+    </details>
+  </section>`;
 }
 
 // Results mode: the positions are as documented on election eve, while the seats are the results.
@@ -844,11 +885,8 @@ function pollNoteBtn() {
   return `<p class="poll-legal">${pollLegalText()} <button type="button" class="poll-btn" data-act="poll-info" data-key="poll-info" aria-label="${esc(S.seats.sourceInfo)}"><span aria-hidden="true">ⓘ</span></button></p>`;
 }
 
-function overallBar(r, { statuses = true } = {}) {
-  if (!statuses) {
-    const line = seatsLine();
-    return line ? `<section class="card overall"><h2 class="card-title">${esc(S.results.summaryTitle)}</h2>${line}</section>` : '';
-  }
+// The snapshot (#H1): positions only. The seats are in the compact line above it and in the seats card.
+function overallBar(r) {
   const segs = r.statuses.map((s) => {
     const t = topic(s.topicId);
     const lv = s.status;
@@ -864,9 +902,9 @@ function overallBar(r, { statuses = true } = {}) {
     <ol class="segs">${segs}</ol>
     ${outside ? `<p class="muted small breakdown-label">${esc(S.results.breakdownLabel)}</p>` : ''}
     <ul class="breakdown">${parts.map(([text, cls]) => `<li class="${cls}">${esc(text)}</li>`).join('')}</ul>
+    ${positionsAsOfLine()}
     ${redLinesLine()}
     ${outsideBlock()}
-    ${seatsLine()}
   </section>`;
 }
 
@@ -923,8 +961,7 @@ function frictionCard(r) {
   if (!r.friction.length) return '';
   const R = S.results;
   const items = r.friction.map((f) => {
-    const w = C.without(ctx, state, f.partyId);
-    const preview = R.withoutPreview(C.withoutDelta(r.statuses, w.statuses), showSeats() ? w.vote.membersSeats : null, isResults());
+    const preview = R.withoutPreview(C.withoutDelta(r.statuses, C.without(ctx, state, f.partyId).statuses));
     return `<li>
       <p class="row-title">${esc(name(f.partyId))}</p>
       ${preview ? `<p class="muted small">${esc(preview)}</p>` : ''}
@@ -990,7 +1027,7 @@ function renderResults() {
   const el = $('#results');
   const chosen = C.selected(state);
   $('#results-undo').innerHTML = undo ? undoLine() : '';
-  $('#results-coalition').innerHTML = chosen.length ? coalitionHeader() : '';
+  $('#results-coalition').innerHTML = chosen.length ? coalitionHeader() + seatsCompact() : '';
   $('#results-bar').innerHTML = `
     <a class="back" href="#build">${esc(S.nav.back)}</a>
     ${chosen.length >= 2 ? `<button type="button" class="btn btn-small" data-act="share" data-key="share">${esc(S.share.button)}</button>` : ''}`;
@@ -1005,17 +1042,18 @@ function renderResults() {
   }
   if (members.length === 1) {
     el.innerHTML = `<p class="empty">${esc(S.results.addPartner)} <a href="#build">${esc(S.results.resultsEmptyLink)}</a></p>
-      ${chosen.length > 1 ? overallBar(C.analyze(ctx, state), { statuses: false }) + peripheryCard() : ''}
+      ${seatsCard()}
       ${completionsCard()}
+      ${peripheryCard()}
       <h2>${esc(name(members[0]))}</h2>${profileHtml(members[0])}`;
     return;
   }
   const r = C.analyze(ctx, state);
   if (members.length === 2) {
-    el.innerHTML = overallBar(r) + `<section class="card">${pairHtml(members[0], members[1])}</section>` + peripheryCard() + completionsCard() + coverageFootnote() + shareCard(r);
+    el.innerHTML = overallBar(r) + `<section class="card">${pairHtml(members[0], members[1])}</section>` + seatsCard() + completionsCard() + peripheryCard() + coverageFootnote() + shareCard(r);
     return;
   }
-  el.innerHTML = overallBar(r) + crisesCard(r) + glueCard(r) + frictionCard(r) + peripheryCard() + completionsCard() + coverageFootnote() + shareCard(r);
+  el.innerHTML = overallBar(r) + crisesCard(r) + glueCard(r) + frictionCard(r) + seatsCard() + completionsCard() + peripheryCard() + coverageFootnote() + shareCard(r);
 }
 
 // ---------- pair view (#pair?p=a,b) ----------
@@ -1081,7 +1119,7 @@ function completionsCard() {
     // Named by its own text (#44), with the verb for screen readers in place of the "+".
     return `<li><button type="button" class="row-btn completion" data-act="complete" data-ids="${c.add.join(',')}" data-key="complete-${c.add.join('-')}">
       <span class="row-title"><span class="sr-only">${esc(K.verb)} </span><span aria-hidden="true">+ </span>${keepWhole(names.join(' + '), partyNames())}</span>
-      <span class="row-meta muted small">${esc(meta.join(' · '))}</span>
+      <span class="row-meta muted small seat-fig">${esc(meta.join(' · '))}</span>
       <span class="row-meta small">${c.newRedLines.length ? `<span class="tag tag-red"><span aria-hidden="true">🚩</span> ${keepWhole(red, partyNames())}</span>` : `<span class="muted">${esc(red)}</span>`}</span>
     </button></li>`;
   }).join('');
@@ -1091,7 +1129,8 @@ function completionsCard() {
     <h3>${esc(K.title)}</h3>
     <p class="note note-soft">${esc(K.note)}</p>
     ${isResults() ? '' : pollLegalLine()}
-    <p class="muted small">${esc(K.intro(n(v.membersSeats)))}</p>
+    ${isResults() ? srcLine() : ''}
+    <p class="muted small seat-fig">${esc(K.intro(n(v.membersSeats)))}</p>
     ${currentRedLines.length ? `<p class="small"><span class="tag tag-red tag-box"><span aria-hidden="true">🚩</span> ${keepWhole(K.currentRedLines(currentRedLines.length, redList(currentRedLines)), partyNames())}</span></p>` : ''}
     ${list.length ? `<ul class="list">${items}</ul>${toggle}` : `<p>${esc(K.none)}</p>`}
   </section>`;

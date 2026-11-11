@@ -30,10 +30,10 @@ test('count labels use the singular for 1 and the digit plural otherwise', () =>
 });
 
 test('friction preview: never "0 במקום 0", hides when nothing changes', () => {
-  assert.equal(S.results.withoutPreview(null, null), '');
-  assert.equal(S.results.withoutPreview(null, 52), 'בלעדיה: כ-52 מנדטים');
-  assert.equal(S.results.withoutPreview({ kind: 'major', before: 3, after: 1 }, null), 'בלעדיה: נושא אחד בפער מהותי במקום 3');
-  assert.equal(S.results.withoutPreview({ kind: 'clash', before: 2, after: 0 }, null), 'בלעדיה: אין נושא בסתירה חזיתית במקום 2');
+  // Positions only (#H1): the seats without a party are in the seats card.
+  assert.equal(S.results.withoutPreview(null), '');
+  assert.equal(S.results.withoutPreview({ kind: 'major', before: 3, after: 1 }), 'בלעדיה: נושא אחד בפער מהותי במקום 3');
+  assert.equal(S.results.withoutPreview({ kind: 'clash', before: 2, after: 0 }), 'בלעדיה: אין נושא בסתירה חזיתית במקום 2');
   assert.equal(S.results.pairsTag('פער מהותי', 3), 'פער מהותי · 3 זוגות מפלגות');
   assert.equal(S.results.pairsTag('סתירה חזיתית', 1), 'סתירה חזיתית · זוג מפלגות אחד');
 });
@@ -81,7 +81,7 @@ test('English formatting: dates, counts and the share text', () => {
   assert.equal(EN.share.text('A + B', 1, null), 'The coalition I built: A + B · 1 topic in a head-on clash');
   assert.equal(EN.share.text('A + B', 0, 0, [['C', 'abstains']]), 'The coalition I built: A + B · Outside the coalition: C (abstains) · 0 topics in a head-on clash between the coalition members · no head-on clashes with the parties outside the coalition');
   assert.equal(EN.share.text('A + B', 2, 1, [['C', 'supports from outside']]), 'The coalition I built: A + B · Outside the coalition: C (supports from outside) · 2 topics in a head-on clash between the coalition members · 1 head-on clash with the parties outside the coalition');
-  assert.equal(EN.results.withoutPreview({ kind: 'clash', before: 2, after: 0 }, 52, true), 'Without it: no topic in a head-on clash instead of 2 · 52 seats');
+  assert.equal(EN.results.withoutPreview({ kind: 'clash', before: 2, after: 0 }), 'Without it: no topic in a head-on clash instead of 2');
 });
 
 test('undo line (#29): what changed, and the restored coalition with the parties outside it', () => {
@@ -173,27 +173,53 @@ test('red-line summary (#14): singular, plural and none, in both languages', () 
   assert.ok(EN.method.redLinesCrossedRule.endsWith('This line checks only the coalition members. Red lines of supporters and abstainers are not checked here. In their card, 🚩 marks a 2-step gap that counts as a head-on clash because of a red line.'));
 });
 
-test('pivotal rows (#13): numbers only, an abstainer as voting against, in both languages', () => {
-  assert.equal(S.seats.pivotalIntro(true), 'מפלגות שבלעדיהן אין לחברות הקואליציה 61, או שאין רוב בהצבעת האמון (בעד מול נגד):');
-  assert.equal(S.seats.pivotalIntro(false), 'מפלגות שבלעדיהן אין רוב בהצבעת האמון (בעד מול נגד):');
-  assert.equal(EN.seats.pivotalIntro(true), 'Parties without which the members no longer have 61, or the confidence vote has no majority (for vs against):');
-  assert.equal(EN.seats.pivotalIntro(false), 'Parties without which the confidence vote has no majority (for vs against):');
-  assert.equal(S.seats.pivotalRow('ישר!', 'member', 40, 40, 80), 'בלי ישר!: חברות הקואליציה 40 מתוך 61 · 40 מול 80');
-  assert.equal(S.seats.pivotalRow('ביחד', 'member', null, 47, 65), 'בלי ביחד: 47 מול 65');
-  assert.equal(S.seats.pivotalRow('הרשימה המשותפת', 'supporter', null, 48, 64), 'בלי הרשימה המשותפת (תומכת מבחוץ): 48 מול 64');
-  assert.equal(S.seats.pivotalRow('רע״ם', 'abstainer', null, 59, 61), 'אם רע״ם תצביע נגד: 59 מול 61');
-  assert.equal(S.seats.pivotalRow('ביחד', 'member', null, '≈47', '≈65'), 'בלי ביחד: ≈47 מול ≈65');
-  assert.equal(EN.seats.pivotalRow('Yashar!', 'member', 40, 40, 80), 'Without Yashar!: coalition members 40 of 61 · 40 vs 80');
-  assert.equal(EN.seats.pivotalRow('Beyachad', 'member', null, 47, 65), 'Without Beyachad: 47 vs 65');
-  assert.equal(EN.seats.pivotalRow('The Joint List', 'supporter', null, 48, 64), 'Without The Joint List (supports from outside): 48 vs 64');
-  assert.equal(EN.seats.pivotalRow("Ra'am", 'abstainer', null, 59, 61), "If Ra'am votes against: 59 vs 61");
+test('seats wording (#H1): the margin, the compact line, the members alone, in both languages', () => {
+  const m = (kind, n) => ({ kind, n });
+  assert.deepEqual([m('over', 6), m('over', 1), m('exact', 0), m('short', 3), m('short', 1)].map((x) => S.seats.margin(x, true)),
+    ['6 מעל הרוב', 'מנדט אחד מעל הרוב', 'בדיוק רוב', 'חסרים 3 לרוב', 'חסר מנדט אחד לרוב']);
+  assert.deepEqual([m('over', 6), m('over', 1), m('exact', 0), m('short', 3), m('short', 1)].map((x) => EN.seats.margin(x, true)),
+    ['6 above a majority', '1 above a majority', 'exactly a majority', '3 short of a majority', '1 short of a majority']);
+  // Poll averages keep their "≈", with no singular in words.
+  assert.equal(S.seats.margin(m('short', 1), false), 'חסרים ≈1 לרוב');
+  assert.deepEqual(S.seats.compact(67, '6 מעל הרוב'), ['67 מנדטים', '6 מעל הרוב']);
+  assert.deepEqual(EN.seats.compact(67, '6 above a majority'), ['67 seats', '6 above a majority']);
+  assert.equal(S.seats.membersLine(48, 'חסרים 13 לרוב'), 'חברות הקואליציה לבדן: 48 · חסרים 13 לרוב');
+  assert.equal(EN.seats.membersLine(48, '13 short of a majority'), 'Coalition members alone: 48 · 13 short of a majority');
+});
+
+test('seats card (#H1): the summary and the rows, numbers only, an abstainer as voting against, in both languages', () => {
+  const K = S.seats.card;
+  const E = EN.seats.card;
+  assert.deepEqual([K.members(4, 4), K.members(2, 2), K.members(2, 4), K.members(1, 4), K.members(0, 4), K.members(1, 1)],
+    ['כל 4 החברות נחוצות לרוב', 'שתי החברות נחוצות לרוב', '2 מתוך 4 חברות נחוצות לרוב', 'חברה אחת מתוך 4 נחוצה לרוב', 'אין חברה שבלעדיה אין רוב', 'החברה היחידה בקואליציה נחוצה לרוב']);
+  assert.deepEqual([E.members(4, 4), E.members(2, 2), E.members(2, 4), E.members(1, 4), E.members(0, 4)],
+    ['All 4 members are needed for a majority', 'Both members are needed for a majority', '2 of the 4 members are needed for a majority', '1 of the 4 members is needed for a majority', 'No member on its own is needed for a majority']);
+  assert.deepEqual([K.outside(1, 3), K.outside(2, 3), K.outside(0, 3), K.outside(1, 1)],
+    ['מחוץ לקואליציה: אחת מתוך 3 נחוצה לרוב', 'מחוץ לקואליציה: 2 מתוך 3 נחוצות לרוב', 'מחוץ לקואליציה: אף אחת לא נחוצה לרוב', 'מחוץ לקואליציה: המפלגה היחידה נחוצה לרוב']);
+  assert.deepEqual([E.outside(1, 3), E.outside(0, 3)], ['Outside the coalition: 1 of 3 is needed for a majority', 'Outside the coalition: none is needed for a majority']);
+  assert.equal(K.memberRow('הליכוד', 40, 'חסרים 21 לרוב', null), 'בלי הליכוד: 40 מנדטים (חסרים 21 לרוב)');
+  assert.equal(K.memberRow('הציונות הדתית', 61, 'בדיוק רוב', null), 'בלי הציונות הדתית: 61 מנדטים (בדיוק רוב)');
+  assert.equal(K.memberRow('עוצמה יהודית', 60, 'חסר מנדט אחד לרוב', 60), 'בלי עוצמה יהודית: 60 מנדטים (חסר מנדט אחד לרוב, תיקו 60 מול 60)');
+  assert.equal(E.memberRow('Otzma Yehudit', 60, '1 short of a majority', 60), 'Without Otzma Yehudit: 60 seats (1 short of a majority, a 60–60 tie)');
+  assert.equal(E.memberRow('Likud', 40, '21 short of a majority', null), 'Without Likud: 40 seats (21 short of a majority)');
+  assert.equal(K.roleRow('ישר!', 'member', 38, 67, K.outcome.no, null), 'בלי ישר!: 38 מול 67 · אין רוב');
+  assert.equal(K.roleRow('הרשימה המשותפת', 'supporter', 48, 57, K.outcome.no, null), 'בלי הרשימה המשותפת (תומכת מבחוץ): 48 מול 57 · אין רוב');
+  assert.equal(K.roleRow('רע״ם', 'abstainer', 59, 54, K.outcome.yes, null), 'אם רע״ם תצביע נגד: 59 מול 54 · יש רוב');
+  assert.equal(K.roleRow('ביחד', 'member', 60, 60, K.outcome.tie, K.membersAlone(58, 'חסרים 3 לרוב')), 'בלי ביחד: 60 מול 60 · תיקו, אין רוב · חברות הקואליציה לבדן 58 (חסרים 3 לרוב)');
+  assert.equal(K.roleRow('ביחד', 'member', '≈47', '≈65', K.outcome.no, null), 'בלי ביחד: ≈47 מול ≈65 · אין רוב');
+  assert.equal(E.roleRow('Yashar!', 'member', 38, 67, E.outcome.no, null), 'Without Yashar!: 38 vs 67 · no majority');
+  assert.equal(E.roleRow("Ra'am", 'abstainer', 59, 54, E.outcome.yes, null), "If Ra'am votes against: 59 vs 54 · a majority");
+  assert.equal(E.roleRow('The Joint List', 'supporter', 48, 57, E.outcome.no, null), 'Without The Joint List (supports from outside): 48 vs 57 · no majority');
+  assert.equal(E.roleRow('Beyachad', 'member', 60, 60, E.outcome.tie, E.membersAlone(58, '3 short of a majority')), 'Without Beyachad: 60 vs 60 · a tie, no majority · coalition members alone 58 (3 short of a majority)');
 });
 
 test('#1, #13, #14: no verdict words (best, recommended, kingmaker, risk…) in the new strings, in both languages', () => {
   const VERDICT = /הטוב|מומלצ|מועדפ|סיכון|מסוכנ|מכריע|לשון מאזניים|קריטי|מפתח|\bbest\b|\brecommended\b|\bkingmaker\b|\brisk|\bcritical\b|\bkey\b|\bdecisive\b/i;
   for (const T of [S, EN]) {
     const texts = [
-      T.seats.pivotalIntro(true), T.seats.pivotalIntro(false), T.seats.pivotalNone, ...['member', 'supporter', 'abstainer'].map((r) => T.seats.pivotalRow('X', r, 60, 60, 60)),
+      T.seats.card.title, T.seats.card.details, T.seats.card.rolesIntro, T.seats.card.noMajority, ...[[4, 4], [2, 4], [0, 4], [1, 1]].flatMap(([k, n]) => [T.seats.card.members(k, n), T.seats.card.outside(k, n)]),
+      ...['member', 'supporter', 'abstainer'].map((r) => T.seats.card.roleRow('X', r, 60, 60, T.seats.card.outcome.tie, '58')), T.seats.card.memberRow('X', 60, 'Y', 60),
+      ...[['over', 6], ['exact', 0], ['short', 3]].map(([kind, n]) => T.seats.margin({ kind, n }, true)),
       T.results.redLinesCrossed(2, 'X'), T.results.noRedLinesCrossed, T.method.redLinesCrossedRule,
       T.share.text('X', 1, 0, [['Y', T.results.roleName.supporter]]), T.share.text('X', 1, 5, [['Y', T.results.roleName.abstainer]]), ...T.method.rolesRules(true, false),
       T.results.summaryTitleScoped(4), T.results.breakdownLabel, T.results.membersLabel(4), T.results.outsideLabel, T.results.outsideHeading,
