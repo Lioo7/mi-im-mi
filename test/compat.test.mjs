@@ -6,6 +6,7 @@ import {
   parseLocation, parsePair, locationFor, moveLegacyState, localize, contextFor,
   lowCoverage, addImpact, crisesHeading, breakdown, ballotOrder, selected, completions, redLinesCrossed, closestTo, groupRedLines,
   peripheryClashes, pivotal, coalitionGroups, canUndo, seatsByPosition, shownBreakdown, AXIS,
+  dependence, neededCount, majorityMargin,
 } from '../site/js/compat.js';
 
 const P = (partyId, topicId, position, redLine = false) => ({ partyId, topicId, position, redLine });
@@ -296,6 +297,53 @@ test('pivotal: a removal that leaves a tie fails the vote; a vote that is alread
     [['x', 'member', false, true], ['y', 'member', false, true], ['z', 'supporter', false, true]]);
   // 60 vs 60 already: not approved, nothing depends on one party.
   assert.deepEqual(pivotal(ctx, { members: ['x', 'y'] }), []);
+});
+
+test('majorityMargin (#H1): above 61 by n, exactly 61, n short', () => {
+  assert.deepEqual(majorityMargin(67), { kind: 'over', n: 6 });
+  assert.deepEqual(majorityMargin(62), { kind: 'over', n: 1 });
+  assert.deepEqual(majorityMargin(61), { kind: 'exact', n: 0 });
+  assert.deepEqual(majorityMargin(60), { kind: 'short', n: 1 });
+  assert.deepEqual(majorityMargin(0), { kind: 'short', n: 61 });
+});
+
+test('dependence (#H1): every selected party in role then party order, a tie flagged, needed = pivotal', () => {
+  // 27 + 21 + 12 + 7 = 67; without the 7: 60 vs 60, a tie.
+  const ctx = seated([['l', 27], ['y', 21], ['t', 12], ['o', 7], ['z', 53]]);
+  const rows = dependence(ctx, { members: ['t', 'o', 'l', 'y'] });
+  assert.deepEqual(rows.map((r) => [r.partyId, r.role, r.needed, r.tie, r.vote.membersSeats]),
+    [['l', 'member', true, false, 40], ['y', 'member', true, false, 46], ['t', 'member', true, false, 55], ['o', 'member', true, true, 60]]);
+  assert.deepEqual(neededCount(rows), { members: { needed: 4, total: 4 }, outside: { needed: 0, total: 0 } });
+  // Some needed: 27 + 21 + 12 + 5 + 1 = 66. Without the 5 (61) or the 1 (65) the majority holds.
+  const ctx2 = seated([['l', 27], ['y', 21], ['t', 12], ['r', 5], ['h', 1], ['z', 54]]);
+  const rows2 = dependence(ctx2, { members: ['l', 'y', 't', 'r', 'h'] });
+  assert.deepEqual(rows2.filter((r) => !r.needed).map((r) => [r.partyId, r.vote.membersSeats]), [['r', 61], ['h', 65]]);
+  assert.deepEqual(neededCount(rows2).members, { needed: 3, total: 5 });
+  // With roles: the members, then supporters, then abstainers; outside parties counted apart.
+  const ctx3 = seated([['a', 30], ['b', 20], ['c', 11], ['d', 10], ['e', 49]]);
+  const rows3 = dependence(ctx3, { members: ['b', 'a'], supporters: ['c'], abstainers: ['d'] });
+  assert.deepEqual(rows3.map((r) => [r.partyId, r.role, r.needed]), [['a', 'member', true], ['b', 'member', true], ['c', 'supporter', true], ['d', 'abstainer', false]]);
+  assert.deepEqual(neededCount(rows3), { members: { needed: 2, total: 2 }, outside: { needed: 1, total: 2 } });
+  // The vote fails: no rows.
+  assert.deepEqual(dependence(ctx3, { members: ['a', 'b'] }), []);
+});
+
+test('dependence: its needed rows are exactly pivotal(), on every role assignment of a small house', () => {
+  const ctx = seated([['a', 31], ['b', 20], ['c', 11], ['d', 9], ['e', 7], ['f', 42]]);
+  const ids = ['a', 'b', 'c', 'd', 'e'];
+  let checked = 0;
+  // Each party: unselected, member, supporter or abstainer (4^5 assignments).
+  for (let code = 0; code < 4 ** ids.length; code++) {
+    const st = { members: [], supporters: [], abstainers: [] };
+    ids.forEach((id, i) => { const r = Math.floor(code / 4 ** i) % 4; if (r) st[['', 'members', 'supporters', 'abstainers'][r]].push(id); });
+    const need = dependence(ctx, st).filter((r) => r.needed).map((r) => [r.partyId, r.role]);
+    assert.deepEqual(need, pivotal(ctx, st).map((p) => [p.partyId, p.role]));
+    // Every row is a selected party, each once.
+    const all = dependence(ctx, st).map((r) => r.partyId);
+    if (all.length) assert.deepEqual([...all].sort(), [...st.members, ...st.supporters, ...st.abstainers].sort());
+    checked++;
+  }
+  assert.equal(checked, 1024);
 });
 
 test('pivotal: an abstainer is listed only when its vote against makes the vote fail; rows in role, then party order', () => {

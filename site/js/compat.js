@@ -650,15 +650,38 @@ export function without(ctx, state, partyId) {
 // Role order (members, supporters, abstainers), then party order; never ranked.
 /** @param {Context} ctx @param {State} state */
 export function pivotal(ctx, state) {
+  return dependence(ctx, state).filter((p) => p.needed);
+}
+
+// The seats card's rows (#H1): every selected party, with the vote without it, by the same rule as pivotal() (needed =
+// pivotal). Role order, then party order; never ranked. tie: without it, for = against. Nothing when the vote fails.
+/** @param {Context} ctx @param {State} state */
+export function dependence(ctx, state) {
   const now = investiture(ctx, state);
   if (!now.approved) return [];
   const { members, supporters = [], abstainers = [] } = state;
   return /** @type {[string, string[]][]} */ ([['member', members], ['supporter', supporters], ['abstainer', abstainers]])
     .flatMap(([role, ids]) => sortByParty(ctx, ids).map((partyId) => {
       const vote = without(ctx, state, partyId).vote;
-      return { partyId, role, vote, breaksMajority: role === 'member' && now.membersMajority && !vote.membersMajority, breaksVote: !vote.approved };
-    }))
-    .filter((p) => p.breaksMajority || p.breaksVote);
+      const breaksMajority = role === 'member' && now.membersMajority && !vote.membersMajority;
+      const breaksVote = !vote.approved;
+      return { partyId, role, vote, breaksMajority, breaksVote, needed: breaksMajority || breaksVote, tie: vote.for === vote.against };
+    }));
+}
+
+// The seats card's summary: how many members, and how many parties outside the coalition, are needed (#H1).
+/** @param {{ role: string, needed: boolean }[]} rows */
+export function neededCount(rows) {
+  /** @param {(r: { role: string }) => boolean} f */
+  const count = (f) => ({ needed: rows.filter((r) => f(r) && r.needed).length, total: rows.filter(f).length });
+  return { members: count((r) => r.role === 'member'), outside: count((r) => r.role !== 'member') };
+}
+
+// Seats against the 61 majority, for the wording: above it by n, exactly at it, or n short.
+/** @param {number} seats @param {number} [quota] @returns {{ kind: 'over' | 'exact' | 'short', n: number }} */
+export function majorityMargin(seats, quota = 61) {
+  if (seats > quota) return { kind: 'over', n: seats - quota };
+  return seats === quota ? { kind: 'exact', n: 0 } : { kind: 'short', n: quota - seats };
 }
 
 /** @param {Context} ctx */
