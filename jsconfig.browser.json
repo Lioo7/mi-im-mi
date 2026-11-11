@@ -4,5 +4,5 @@
   "compilerOptions": { "noImplicitAny": false, "strictNullChecks": false },
   "include": [],
   "exclude": [],
-  "files": ["scripts/smoke.mjs", "scripts/readme-media.mjs", "scripts/browser.mjs"]
+  "files": ["scripts/smoke.mjs", "scripts/readme-media.mjs", "scripts/browser.mjs", "scripts/axe.mjs", "scripts/lighthouse.mjs"]
 }

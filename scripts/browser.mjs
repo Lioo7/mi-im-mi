@@ -1,7 +1,7 @@
 // Headless Chrome over the DevTools protocol with Node built-ins only (no dependency): the static server for ./site, the
-// Chrome launch with its cleanup, the CDP client, and the waits. Shared by smoke.mjs and readme-media.mjs (#28).
+// Chrome launch with its cleanup, the CDP client, and the waits. Shared by smoke.mjs, readme-media.mjs (#28), axe.mjs and lighthouse.mjs.
 // `where()` names the current step in timeout messages (smoke passes its case name).
-import { spawn, execFileSync } from 'node:child_process';
+import { spawn, execFileSync, spawnSync } from 'node:child_process';
 import { createServer } from 'node:http';
 import { mkdtempSync, rmSync, readFileSync, existsSync, statSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -29,6 +29,22 @@ export async function waitFor(fn, ms = 10000, where = none) {
     await sleep(50);
   }
   throw new Error(`timeout after ${ms}ms [${where()}]${last ? ` (last error: ${last.message})` : ''}`);
+}
+
+// The node_modules folder npx installs pinned packages into (npx's cache: the first run downloads them, later runs reuse
+// it), as test/typecheck.test.mjs does for tsc. Returns { dir } or { skip: the reason } when npx can't provide them
+// (offline on a first run, no npm). The folder is the first …/_npx/…/node_modules/.bin on the PATH npx sets up. The cache
+// first; when its package metadata is stale (a dependency's version missing: ETARGET), once more from the registry.
+export function npxModules(specs) {
+  let r = null;
+  for (const flags of [['--prefer-offline'], []]) {
+    r = spawnSync('npx', ['--yes', ...flags, ...specs.flatMap((s) => ['-p', s]), '-c', 'echo "$PATH"'], { cwd: ROOT, encoding: 'utf8', timeout: 300_000 });
+    const bin = r.status === 0 ? r.stdout.trim().split(':').find((d) => /[/\\]_npx[/\\]/.test(d) && d.endsWith('.bin')) : null;
+    if (bin) return { dir: join(bin, '..') };
+  }
+  const lines = (r.error?.message ?? r.stderr ?? '').trim().split('\n');
+  const why = lines.find((l) => /npm error (code|notarget|network|errno)/.test(l)) ?? lines.pop() ?? '';
+  return { skip: `npx could not provide ${specs.join(' + ')} (${why.trim() || `exit ${r.status}`})` };
 }
 
 export const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.csv': 'text/csv; charset=utf-8', '.png': 'image/png', '.svg': 'image/svg+xml', '.txt': 'text/plain; charset=utf-8' };

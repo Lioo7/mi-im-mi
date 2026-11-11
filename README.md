@@ -117,15 +117,19 @@ node scripts/validate.mjs             # אימות הנתונים
 node scripts/smoke.mjs --mode=all     # בדיקת smoke בשלושת המצבים במקביל (צילומי מסך עם --shots)
 node scripts/smoke.mjs --only=pair    # רק החלקים שהשינוי נוגע בהם (שם שגוי מציג את הרשימה)
 node scripts/smoke.mjs <url> --light  # הבדיקה מול פריסה: כל קובץ בית אחר בית, כל כותרת, והתצוגות ברוחב טלפון
+node scripts/axe.mjs [url]            # נגישות (axe-core, WCAG 2.x A/AA): כל תצוגה וחלונית, בשתי השפות, ב-390 וב-1280, בשלושת המצבים
+node scripts/lighthouse.mjs [url]     # ביצועים (Lighthouse) בקישור תוצאות משותף, בטלפון ובמחשב: CLS, והציון מול כתובת
 npm run media                         # צילומי המסך וההדגמה של ה-README, מחדש (ה-GIF דורש ffmpeg)
 ```
 
 `--mode=results|polls|hidden|all` בוחר מצב נתונים אחד או את שלושתם במקביל (השרת המקומי משנה את `meta.json` בזמן ההגשה).
 
+axe ו-Lighthouse רצים דרך `npx` בגרסאות נעולות (ההורדה הראשונה נשמרת במטמון), ומדלגים עם הודעה כשאין להם גישה. ציון הביצועים נבדק רק מול כתובת: השרת המקומי לא דוחס קבצים. הפלט המלא נשמר ב-`smoke/axe/` וב-`smoke/lighthouse/`.
+
 סדר העבודה:
 1. בזמן עבודה: רק החלקים הרלוונטיים, במצב שלהם.
-2. לפני טיוטה: הסוויטה המלאה פעם אחת (`--mode=all`).
-3. פריסת טיוטה, `--light` מול כתובת הטיוטה, ואז בדיקה בטלפון.
+2. לפני טיוטה: axe ו-Lighthouse, ורק אחרי ש-axe עובר, הסוויטה המלאה פעם אחת (`--mode=all`).
+3. פריסת טיוטה, `--light` ו-Lighthouse מול כתובת הטיוטה, ואז בדיקה בטלפון.
 4. פרסום של אותה טיוטה שנבדקה (`netlify api restoreSiteDeploy`), ואז `--light` מול הפרודקשן.
 
 לפני ואחרי [#37](https://github.com/Lioo7/mi-im-mi/issues/37), בלי לוותר על אף בדיקה: שלושת המצבים מ-13 דקות ל-2, הבדיקה מול טיוטה מ-6.5 דקות ל-23 שניות, ותיקון קטן מהבקשה ועד כתובת טיוטה מכ-20 דקות לכ-3.
@@ -226,12 +230,16 @@ npm run media                         # צילומי המסך וההדגמה ש�
 - `--light`: the check against a deploy: every file served byte for byte, every header, the views at phone width
 - `--shots`: save screenshots (none by default)
 
+Accessibility and performance, both through pinned `npx` (the first download is cached; without npx they skip with a message), full output in `smoke/axe/` and `smoke/lighthouse/`:
+- `node scripts/axe.mjs [url]`: axe-core (WCAG 2.x A/AA) over every view and sheet, both languages, 390 and 1280px, the three modes locally
+- `node scripts/lighthouse.mjs [url]`: Lighthouse on a shared results link, mobile and desktop. CLS always, and the performance score against a URL (the local server doesn't compress)
+
 README media: `npm run media` (`scripts/readme-media.mjs [url]`) recaptures the screenshots and the demo GIF the same way every run (needs ffmpeg for the GIF).
 
 The loop:
 1. While working: only the relevant sections, in their mode.
-2. Before a draft: the full suite once (`--mode=all`).
-3. Draft deploy, `--light` against the draft URL, then a check on a phone.
+2. Before a draft: axe and Lighthouse, then, once axe passes, the full suite once (`--mode=all`).
+3. Draft deploy, `--light` and Lighthouse against the draft URL, then a check on a phone.
 4. Publish that same tested draft (`netlify api restoreSiteDeploy`), then `--light` against production.
 
 Before → after ([#37](https://github.com/Lioo7/mi-im-mi/issues/37)), every assertion kept: all three modes 13 min → 2 min, the check against a draft 6.5 min → 23 s, a small fix from request to draft URL ~20 min → ~3 min.

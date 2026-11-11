@@ -89,7 +89,9 @@ const rel = (p) => p.slice(ROOT.length + 1);
 // --mode=all: one child run per mode, at the same time. Each prints its own errors and rerun command; this prints a line
 // per mode and passes those on.
 if (MODE === 'all') {
-  rmSync(SMOKE, { recursive: true, force: true });
+  // Everything from earlier runs, except the output of the checks that run before this one (axe.mjs, lighthouse.mjs).
+  const KEEP = new Set(['axe', 'lighthouse']);
+  for (const f of existsSync(SMOKE) ? readdirSync(SMOKE) : []) if (!KEEP.has(f)) rmSync(join(SMOKE, f), { recursive: true, force: true });
   const rest = args.filter((a) => !a.startsWith('--mode='));
   const kids = [];
   const runs = Object.keys(MODES).map((m) => new Promise((resolve) => {
