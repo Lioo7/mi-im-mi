@@ -149,6 +149,10 @@ const POWER_JS = `(() => { const s = document.querySelector('#power'); if (!s) r
   return { label: s.querySelector('.power-label')?.innerText.trim(), refs: [...s.querySelectorAll('a[href^="https://doi.org/"]')].map((a) => a.getAttribute('href')),
     srcFirst: Boolean(src && table && (src.compareDocumentPosition(table) & Node.DOCUMENT_POSITION_FOLLOWING)),
     rows: [...(table?.querySelectorAll('tbody tr') ?? [])].map((tr) => [...tr.children].map((c) => c.innerText.trim())) }; })()`;
+// An element's text from textContent, whitespace collapsed and trimmed (null when it is missing). innerText skips what
+// is not rendered, so it reads '' inside a closed <details>: read text there with this, never innerText. Page side, embed
+// it in a snippet (`const t = ${TEXT_FN};`); from a section, text(sel).
+const TEXT_FN = "(e) => e ? e.textContent.replace(/\\s+/g, ' ').trim() : null";
 // Text escaped twice shows its entities (&quot; in the joint-lists rule, broken by bidi(), 9.11.2026). textContent, so
 // text inside closed <details> is checked too.
 const ENTITY_JS = `(() => { const m = document.body.textContent.match(/&(?:quot|amp|lt|gt|#39|#x?[0-9a-f]+);/i); if (!m) return '';
@@ -371,7 +375,7 @@ function seatsCardText(lng, state) {
     }),
   };
 }
-const SEATS_JS = `(() => { const t = (e) => e ? e.textContent.replace(/\\s+/g, ' ').trim() : null;
+const SEATS_JS = `(() => { const t = ${TEXT_FN};
   const b = document.querySelector('#results-coalition .seats-compact'); const s = document.querySelector('#results .seats-card');
   const d = s?.querySelector('details.dep'); const src = s?.querySelector('${SRC_SEL}');
   return {
@@ -385,7 +389,7 @@ const SEATS_JS = `(() => { const t = (e) => e ? e.textContent.replace(/\\s+/g, '
     snapshotSeats: [...document.querySelectorAll('#results .overall')].map((o) => o.querySelectorAll('.seat-fig, .seat-src, .poll-legal, .seats-line').length + (/מנדט|בעד \\d|נגד \\d|\\b61\\b|\\bseats?\\b|For \\d|Against \\d/i.test(o.innerText) ? 1 : 0)).reduce((a, x) => a + x, 0),
   }; })()`;
 // #H2: the gap tags, exactly ("4 זוגות בסתירה חזיתית"), with the level's icon, in the order of the crises.
-const GAPTAGS_JS = "[...document.querySelectorAll('#results .gap-head .lv')].map((e) => e.textContent.replace(/\\s+/g, ' ').trim())";
+const GAPTAGS_JS = `[...document.querySelectorAll('#results .gap-head .lv')].map(${TEXT_FN})`;
 function gapTagErrors(lng, state, got) {
   if (state.members.length < 3) return [];
   const T = lng === 'he' ? S : EN;
@@ -427,6 +431,184 @@ const REDLINE_ORDER_JS = (scope) => `(() => { const e = [...document.querySelect
 // sheet's state and the gap chevron's transition. Every other check runs under prefers-reduced-motion: reduce.
 const MOTION_JS = `JSON.stringify({ open: document.querySelector('#sheet').open, anims: window.__anims,
   chev: (() => { const e = document.querySelector('#results .gap .chev'); return e ? getComputedStyle(e).transitionDuration : null; })() })`;
+// Page-side snippets (strings evaluated in the page) live here at module level, defined before any section can use them.
+const LEGAL_CHECK = `(() => {
+  const pts = (el, fxs, fys) => { const r = el.getBoundingClientRect(); return fxs.flatMap((fx) => fys.map((fy) => [r.left + r.width * fx, r.top + r.height * fy])); };
+  const hit = (el, [x, y]) => y >= 0 && y < innerHeight && x >= 0 && x < innerWidth && el.contains(document.elementFromPoint(x, y));
+  // Content under the sticky results bar at the top has been scrolled past, like content above the viewport.
+  const bar = [...document.querySelectorAll('.resbar')].find((e) => e.getClientRects().length);
+  const top = bar ? Math.max(0, bar.getBoundingClientRect().bottom) : 0;
+  const bad = [];
+  // Every seat figure (.seat-fig) in every seats block, not just the first line (#H1). The source: polls mode, the full
+  // legal sentence; results mode, the full results line in the builder's box and the seats card, and the link to the
+  // CEC results in the compact line and the completions card (the authorized #H1 change).
+  for (const box of document.querySelectorAll('.seats-box, .seats-compact, .seats-card, .completions')) {
+    const l = ${RESULTS ? `box.matches('.seats-box, .seats-card') ? box.querySelector('.seat-src') : box.querySelector('a[href="${meta.resultsSourceUrl}"]')` : "box.querySelector('.poll-legal')"};
+    for (const n of box.querySelectorAll('.seat-fig')) {
+      if (!n.getClientRects().length) continue;
+      if (!pts(n, [0.05, 0.5, 0.95], [0.25, 0.75]).some((p) => p[1] >= top && hit(n, p))) continue; // numbers not visible
+      const shown = l && pts(l, [0.05, 0.3, 0.5, 0.7, 0.95], [0.15, 0.5, 0.85]).every((p) => p[1] < top || hit(l, p));
+      if (!shown) { bad.push(box.className.split(' ').find((x) => /seats-|completions/.test(x)) ?? box.className); break; }
+    }
+  }
+  return bad.join(', ');
+})()`;
+const HIT_JS = (sel, max) => `(() => { const out = [];
+  for (const el of [...document.querySelectorAll(${JSON.stringify(sel)})].filter((e) => e.getClientRects().length).slice(0, ${max})) {
+    el.scrollIntoView({ block: 'center', inline: 'center' });
+    const r = el.getBoundingClientRect(), x = r.left + r.width / 2, y0 = r.top + r.height / 2;
+    const on = (y) => { const h = document.elementFromPoint(x, y); return h !== null && (h === el || el.contains(h)); };
+    let up = 0, down = 0; while (up < 80 && on(y0 - up - 1)) up++; while (down < 80 && on(y0 + down + 1)) down++;
+    out.push([(el.textContent || el.getAttribute('aria-label') || '').trim().slice(0, 20), up + down + 1]);
+  } return out; })()`;
+const ONE_STOP = `[...document.querySelectorAll('[role="radiogroup"]')].every((g) => { const z = [...g.querySelectorAll('[role="radio"]')].filter((r) => r.tabIndex === 0); return z.length === 1 && z[0].getAttribute('aria-checked') === 'true'; })`;
+// Hebrew text outside an element with lang="he" (an untranslated string on the English page).
+const HEBREW_OUTSIDE = `(() => { const out = []; const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  for (let n; (n = w.nextNode());) { if (!/[\\u05D0-\\u05EA]/.test(n.data)) continue; const el = n.parentElement;
+    if (el.closest('noscript, script, style') || el.closest('[lang]')?.lang === 'he') continue; out.push(n.data.trim().slice(0, 40)); }
+  return out.slice(0, 3).join(' | '); })()`;
+const CLOSEST_SHEET_JS = (T) => `(() => { const s = document.querySelector('#sheet'); if (!s.open) return null;
+  const rows = (root) => [...(root?.querySelectorAll('[data-act="closest-apply"]') ?? [])].map((b) => ({ ids: b.dataset.ids, text: b.innerText.replace(/\\s+/g, ' '), warn: b.querySelector('.tag-warn') !== null }));
+  const src = s.querySelector('.seat-src'); const first = s.querySelector('[data-act="closest-apply"]'); const part = s.querySelector('#closest-partial-list');
+  const toggle = s.querySelector('[data-act="closest-partial"]');
+  return { title: s.querySelector('h2')?.innerText, focus: document.activeElement === s.querySelector('h2'),
+    src: src?.innerText ?? '', srcFirst: Boolean(src && first && (src.compareDocumentPosition(first) & Node.DOCUMENT_POSITION_FOLLOWING)),
+    srcVisible: Boolean(src) && src.getBoundingClientRect().top >= 0 && src.getBoundingClientRect().bottom <= innerHeight,
+    full: rows(s.querySelector('.sheet-inner > .closest-list')), partial: part && !part.hidden ? rows(part) : null,
+    toggle: toggle ? toggle.innerText.replace(/^[▸▾]\\s*/, '') + '|' + toggle.getAttribute('aria-expanded') : '',
+    note: s.innerText.includes(${JSON.stringify(T.closest.partialNote)}), text: s.innerText.replace(/\\s+/g, ' '),
+    overflow: s.scrollWidth > s.clientWidth + 1 || document.documentElement.scrollWidth > innerWidth + 1 }; })()`;
+const FOCUS_JS = (id) => `document.activeElement === document.querySelector(${JSON.stringify(METHOD_GROUPS.includes(id) ? `#${id} > summary` : `#${id}`)})`;
+// The language switch: both names, the current one first as plain text (aria-current), the other a button, each with
+// its own lang; set off from the nav; and the header (logo, nav link, switch) on one line (up to 56px tall with the
+// links' tap padding; a wrapped line is 60px or more).
+const SWITCH_CHECK = (cur) => `(() => { const sw = document.querySelector('#lang-switch'); const items = [...sw.querySelectorAll('strong, button')];
+  const got = items.map((e) => e.tagName + ':' + e.lang + ':' + (e.getAttribute('aria-current') || '')).join(' ');
+  const want = ${JSON.stringify(cur === 'en' ? 'STRONG:en:true BUTTON:he:' : 'STRONG:he:true BUTTON:en:')};
+  if (got !== want) return 'items ' + got;
+  if (parseFloat(getComputedStyle(sw).borderInlineStartWidth) < 1) return 'no divider from the nav';
+  const rows = ['#brand-name', '#nav-method', '#lang-switch'].map((q) => document.querySelector(q).getBoundingClientRect());
+  const mid = (r) => r.top + r.height / 2;
+  if (rows.some((r) => Math.abs(mid(r) - mid(rows[0])) > 8 || r.height > 56)) return 'header wraps: ' + rows.map((r) => Math.round(r.top) + '/' + Math.round(r.height)).join(' ');
+  return 'ok'; })()`;
+const BK = 'JSON.stringify([location.hash, document.activeElement?.dataset?.key, scrollY])';
+const UNDO_STATE = `JSON.stringify((() => { const l = document.querySelector('#results-undo .undo-line'); const a = document.activeElement;
+  return { line: l ? l.querySelector('.undo-text').innerText : null, focus: a && a === document.querySelector('#results h2') ? 'heading' : (a?.dataset?.key || a?.id || a?.tagName),
+    btn: l ? (() => { const b = l.querySelector('[data-act="undo"]'); return [b.innerText.trim(), document.getElementById(b.getAttribute('aria-describedby'))?.innerText ?? null]; })() : null,
+    live: document.querySelector('#live').textContent, toastAction: document.querySelectorAll('#toast button, #toast a, #toast [data-act]').length,
+    hash: location.hash.split('?')[0] }; })())`;
+const LINE_LAYOUT = `(() => { const bad = []; const l = document.querySelector('#results-undo .undo-line'); if (!l) return 'no line';
+  if (getComputedStyle(l).position !== 'static') bad.push('not in the flow');
+  const r = l.getBoundingClientRect(), bar = document.querySelector('#results-bar').getBoundingClientRect(); const rtl = document.dir === 'rtl';
+  if (r.top < bar.bottom - 0.5) bad.push('under the sticky bar');
+  for (const sel of ['#results-coalition .coalition-line', '#results ${SRC_SEL}', '#results .seats-line']) for (const e of document.querySelectorAll(sel)) {
+    const b = e.getBoundingClientRect(); if (b.height && b.top < r.bottom - 0.5 && b.bottom > r.top + 0.5) bad.push('overlaps ' + sel); }
+  if (document.documentElement.scrollWidth > innerWidth) bad.push('horizontal scroll');
+  const [u, x] = l.querySelectorAll('button');
+  for (const b of [u, x]) { const q = b.getBoundingClientRect(); if (q.width < 44 || q.height < 44) bad.push('target ' + Math.round(q.width) + 'x' + Math.round(q.height));
+    if (q.left < r.left - 0.5 || q.right > r.right + 0.5) bad.push('button outside the line'); }
+  const ub = u.getBoundingClientRect(), xb = x.getBoundingClientRect();
+  if (rtl ? !(xb.right <= ub.left + 0.5 && xb.left - r.left < 6) : !(xb.left >= ub.right - 0.5 && r.right - xb.right < 6)) bad.push('close is not at the line end');
+  if (x.getAttribute('aria-label') === null || u.getAttribute('aria-describedby') !== 'undo-text') bad.push('names');
+  const src = document.querySelector('#results ${SRC_SEL}'), num = document.querySelector('#results .seats-line');
+  if (src && num && !(src.compareDocumentPosition(num) & Node.DOCUMENT_POSITION_FOLLOWING)) bad.push('source line after the numbers');
+  return bad.join('; '); })()`;
+const LAYOUT_CHECK = `(() => { const bad = []; const rtl = document.documentElement.dir === 'rtl';
+  const brand = document.querySelector('.brand').getBoundingClientRect(), nav = document.querySelector('.topnav').getBoundingClientRect();
+  const gap = rtl ? brand.left - nav.right : nav.left - brand.right; if (gap < 16) bad.push('brand–nav gap ' + Math.round(gap) + 'px');
+  const bar = document.querySelector('.topbar-in'); if (bar.scrollWidth > bar.clientWidth + 1) bad.push('header overflows');
+  const lines = (e) => { const r = document.createRange(); r.selectNodeContents(e); return new Set([...r.getClientRects()].map((x) => Math.round(x.top))).size; };
+  const segs = [...document.querySelectorAll('#results .seg-label')];
+  if (segs.some((e) => lines(e) > 1)) bad.push('overview topic label wraps or hyphenates: ' + segs.filter((e) => lines(e) > 1).map((e) => e.textContent).join(', '));
+  const rows = new Set([...document.querySelectorAll('#results .seg')].map((e) => Math.round(e.getBoundingClientRect().top))).size;
+  if (rows !== (innerWidth <= 600 ? 2 : 1)) bad.push('overview has ' + rows + ' rows');
+  if (rtl) { const tx = [...document.querySelectorAll('#matrix .topic-btn')].map((b) => { const r = document.createRange(); r.selectNodeContents(b); return r.getBoundingClientRect(); });
+    const sep = Math.min(...tx.slice(1).map((r, i) => tx[i].left - r.right)); if (sep < 4) bad.push('matrix headers ' + sep.toFixed(1) + 'px apart'); }
+  const note = document.querySelector('#lang-note'); if (!note.hidden && innerWidth <= 400 && lines(note) > 1) bad.push('translation line wraps');
+  return bad.join('; '); })()`;
+const ENLARGE = (pct) => `(() => { document.documentElement.style.setProperty('font-size', '${pct}%'); document.body.style.setProperty('font-size', '${16 * pct / 100}px'); return true; })()`;
+const SHEET_X = `(() => { const vv = visualViewport; const d = document.querySelector('#sheet'); if (!d?.open) return 'sheet not open';
+  const h = d.querySelector('.sheet-head').getBoundingClientRect(); const x = d.querySelector('.sheet-close').getBoundingClientRect(); const s = d.getBoundingClientRect();
+  const top = vv.offsetTop, bottom = vv.offsetTop + vv.height, left = vv.offsetLeft, right = vv.offsetLeft + vv.width;
+  if (x.width < 44 || x.height < 44) return 'close is ' + x.width + 'x' + x.height;
+  if (x.top < top - .5 || x.bottom > bottom + .5 || x.left < left - .5 || x.right > right + .5) return 'close outside the visible viewport (top ' + Math.round(x.top) + ', viewport top ' + Math.round(top) + ')';
+  if (h.top < top - .5) return 'sheet bar starts above the visible viewport (' + Math.round(h.top) + ')';
+  if (x.top < h.top - .5 || x.bottom > h.bottom + .5) return 'close does not fit in the bar (bar ' + Math.round(h.height) + 'px)';
+  if (s.top < top + 8 - .5) return 'sheet leaves no room above it (' + Math.round(s.top - top) + 'px)';
+  if (s.bottom > bottom + .5) return 'sheet runs below the visible viewport';
+  return 'ok'; })()`;
+const lineCount = (sel) => `[...document.querySelectorAll('${sel}')].map((e) => { const r = document.createRange(); r.selectNodeContents(e); return new Set([...r.getClientRects()].map((x) => Math.round(x.top))).size; })`;
+const WHY_JS = (scope) => `(() => { const w = document.querySelector('${scope} .why-row'); if (!w) return null; const b = w.querySelector('.lv'), t = w.querySelector('.why-text');
+  if (!b || !t || w.firstElementChild !== b) return { bad: 'badge must come first' };
+  return { below: b.getBoundingClientRect().bottom <= t.getBoundingClientRect().top + 1, text: t.innerText.trim() }; })()`;
+const LATIN_OUT = (sel) => `[...document.querySelectorAll(${JSON.stringify(sel)})].flatMap((el) => { const w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT), out = [];
+  while (w.nextNode()) { const n = w.currentNode; if (/[A-Za-z]/.test(n.data) && !n.parentElement.closest('bdi')) out.push(n.data.trim().slice(0, 50)); } return out; })`;
+const PADDED = (sel) => `(document.querySelector(${JSON.stringify(sel)})?.innerText.match(/(^|[^\\d.])(0\\d\\.\\d{1,2}|\\d{1,2}\\.0\\d)\\.20\\d\\d/g) ?? []).map((s) => s.trim())`;
+const SHEET_STATE = "JSON.stringify([document.body.dataset.view, location.hash, document.querySelector('#sheet').open])";
+const FIT_COMMON = `const bad = []; const vw = document.documentElement.clientWidth;
+  const textBox = (e) => { const r = document.createRange(); r.selectNodeContents(e); return r.getBoundingClientRect(); };
+  const out = (t, c) => t.left < c.left - .5 || t.right > c.right + .5;
+  if (document.documentElement.scrollWidth > vw + 1) bad.push('the page scrolls sideways by ' + (document.documentElement.scrollWidth - vw) + 'px');
+  const bar = document.querySelector('.topbar-in'); if (bar.scrollWidth > bar.clientWidth + 1) bad.push('header bar overflows');
+  const parts = [document.querySelector('.brand'), document.querySelector('.navlink'), document.querySelector('.langswitch')].map((e) => e.getBoundingClientRect());
+  if (parts.some((a, i) => parts.some((b, j) => j > i && a.left < b.right - .5 && b.left < a.right - .5 && a.top < b.bottom - .5 && b.top < a.bottom - .5))) bad.push('header items overlap');
+  if (parts.some((p) => p.left < -.5 || p.right > vw + .5)) bad.push('a header item leaves the viewport');`;
+const FIT_RESULTS = `(() => { ${FIT_COMMON}
+  const wrap = document.querySelector('#matrix .table-wrap'); const wr = wrap.getBoundingClientRect();
+  if (wrap.scrollWidth > wrap.clientWidth + 1) bad.push('the matrix scrolls sideways by ' + (wrap.scrollWidth - wrap.clientWidth) + 'px');
+  document.querySelectorAll('#matrix thead th').forEach((th) => { const b = th.querySelector('.topic-btn'); const t = textBox(b); const c = th.getBoundingClientRect();
+    if (out(t, c) || t.top < c.top - .5 || t.bottom > c.bottom + .5) bad.push('matrix header "' + b.textContent + '" leaves its column');
+    if (t.left < Math.max(wr.left, 0) - .5 || t.right > Math.min(wr.right, vw) + .5) bad.push('matrix header "' + b.textContent + '" leaves the viewport');
+    if (vw <= 480) { if (!getComputedStyle(b).writingMode.startsWith('vertical')) bad.push('matrix header "' + b.textContent + '" is not vertical');
+      else if (c.bottom - t.bottom > 12) bad.push('matrix header "' + b.textContent + '" is not next to the cells (' + Math.round(c.bottom - t.bottom) + 'px above)'); } });
+  document.querySelectorAll('#results .seg').forEach((g) => { const l = g.querySelector('.seg-label'); if (out(textBox(l), g.getBoundingClientRect())) bad.push('overview label "' + l.textContent + '" leaves its tile'); });
+  // One card per column (#35): the header's box sits within its column, with a visible gap to the next one.
+  const hb = [...document.querySelectorAll('#matrix thead th')].map((th) => [th.getBoundingClientRect(), th.querySelector('.topic-btn').getBoundingClientRect(), th.querySelector('.topic-btn').textContent]);
+  for (const [c, b, name] of hb) if (b.left < c.left - .5 || b.right > c.right + .5) bad.push('matrix header card "' + name + '" is wider than its column');
+  const xs = hb.map(([, b]) => b).sort((p, q) => p.left - q.left);
+  // The same gap as the cells under them (the first row's cells), and at least 2px.
+  const cs = [...document.querySelectorAll('#matrix tbody tr:first-child .cell')].map((e) => e.getBoundingClientRect()).sort((p, q) => p.left - q.left);
+  const cellGap = Math.min(...cs.slice(1).map((r, i) => r.left - cs[i].right));
+  for (let i = 1; i < xs.length; i++) { const g = xs[i].left - xs[i - 1].right; if (g < Math.max(2, cellGap - 1)) bad.push('matrix header cards ' + g.toFixed(1) + 'px apart (cells: ' + cellGap.toFixed(1) + 'px)'); }
+  // The confidence-vote line: each segment on one line (it wraps only between them).
+  document.querySelectorAll('#results-coalition .seats-compact .nw').forEach((e) => { const r = document.createRange(); r.selectNodeContents(e); if (new Set([...r.getClientRects()].map((x) => Math.round(x.top))).size > 1) bad.push('vote segment "' + e.textContent + '" breaks across lines'); });
+  return bad; })()`;
+const FIT_BUILD = `(() => { ${FIT_COMMON}
+  document.querySelectorAll('.task').forEach((t, i) => { const c = t.getBoundingClientRect();
+    if ([...t.querySelectorAll('*')].some((e) => { const r = e.getBoundingClientRect(); return r.width > 0 && out(r, c); })) bad.push('task card ' + (i + 1) + ' content leaves the card'); });
+  return bad; })()`;
+const reEsc = (x) => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const NOBREAK_JS = (sels, names) => {
+  const src = [...[...new Set(names)].sort((a, b) => b.length - a.length).map(reEsc), '≈?\\d[\\d,.]*(?: (?:מול|מתוך|vs|of) ≈?\\d[\\d,.]*)', '≈?\\d+ (?:מנדטים|seats?)'].join('|');
+  return `(() => { const bad = []; let seen = 0; const re = new RegExp(${JSON.stringify(src)}, 'g');
+    for (const root of document.querySelectorAll(${JSON.stringify(sels.join(', '))})) {
+      const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+      for (let n = w.nextNode(); n; n = w.nextNode()) for (const m of n.data.matchAll(re)) {
+        if (!m[0].includes(' ')) continue;
+        seen++;
+        const r = document.createRange(); r.setStart(n, m.index); r.setEnd(n, m.index + m[0].length);
+        if (new Set([...r.getClientRects()].filter((x) => x.width > 0).map((x) => Math.round(x.top))).size > 1) bad.push('"' + m[0] + '" breaks across lines');
+      }
+    }
+    return { bad, seen }; })()`;
+};
+const SHELL_SHOWN_JS = "['main', '#footer', '.topnav'].every((s) => getComputedStyle(document.querySelector(s)).visibility === 'visible')";
+const SHEET_RECS = `(() => { const s = document.querySelector('#sheet'); if (!s.open) return null; const t = (e) => e ? e.innerText.replace(/\\s+/g, ' ').trim() : null;
+  const src = s.querySelector('.recs-src'), tally = s.querySelector('.recs-tally'), table = s.querySelector('.recs-table'), mandate = s.querySelector('.recs-mandate');
+  const before = (a, b) => Boolean(a && b && (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING));
+  const inner = s.querySelector('.sheet-inner');
+  return { title: t(s.querySelector('h2')), src: t(src), srcHref: src?.querySelector('a')?.getAttribute('href'), mandate: t(mandate),
+    quote: t(tally?.querySelector('.q-text')), by: t(tally?.querySelector('.q-by')),
+    order: before(src, mandate) && before(mandate, tally) && before(tally, table) && inner.firstElementChild?.tagName === 'H2' && inner.children[1] === src,
+    rows: [...(table?.querySelectorAll('tbody tr') ?? [])].map((r) => ({ id: r.dataset.party, cells: [...r.children].map(t), href: r.querySelector('a')?.getAttribute('href'),
+      ext: r.querySelector('a')?.target === '_blank' && /noopener/.test(r.querySelector('a')?.rel ?? ''), label: r.querySelector('a')?.getAttribute('aria-label') })),
+    // One neutral style for every candidate: no class at all inside the rows.
+    styled: [...(table?.querySelectorAll('tbody *') ?? [])].filter((e) => e.className || e.getAttribute('style')).length,
+    hebrew: /[\\u0590-\\u05FF]/.test([...s.querySelectorAll('.sheet-inner *')].filter((e) => !e.closest('[lang="he"]') && !e.children.length).map((e) => e.innerText).join(' ')),
+    overflow: s.scrollWidth > s.clientWidth + 1 || document.documentElement.scrollWidth > innerWidth + 1 }; })()`;
+const LINE_JS = `(() => { const box = document.querySelector('#builder .seats-box'); const line = box?.querySelector('.recs-line'); const b = line?.querySelector('button');
+  return { box: Boolean(box), line: Boolean(line), any: document.querySelectorAll('.recs-line, .recs-party').length, afterSrc: (line?.previousElementSibling?.classList.contains('positions-asof') && line.previousElementSibling.previousElementSibling?.classList.contains('seat-src')) ?? false,
+    text: b ? b.innerText.replace(/\\s+/g, ' ').trim() : null, h: b ? b.getBoundingClientRect().height : 0, overflow: document.documentElement.scrollWidth > innerWidth + 1 }; })()`;
 const server = base ? null : await serve();
 const baseUrl = (base ?? server.url).replace(/\/?$/, '/');
 const onProd = new URL(baseUrl).hostname === PROD_HOST;
@@ -552,6 +734,8 @@ try {
   };
   // The fragment's state params, as a string.
   const frag = () => evaluate("location.hash.split('?')[1] ?? ''");
+  // The text of the first element matching sel (TEXT_FN: textContent, so it reads inside a closed <details> too).
+  const text = (sel) => evaluate(`(${TEXT_FN})(document.querySelector(${JSON.stringify(sel)}))`);
   const setSize = (z, height = z.height) => c.send('Emulation.setDeviceMetricsOverride', { width: z.width, height, deviceScaleFactor: z.dpr, mobile: z.mobile });
 
   const shoot = async (z, file, full = true, always = false) => {
@@ -813,27 +997,6 @@ try {
   // be visible too, except for parts already scrolled past the top (reading down, the sentence always comes first).
   // Checked on first load and at every 40px of scroll, on a regular and a short phone.
   if (!SEATS_HIDDEN && sec('legal')) {
-    const LEGAL_CHECK = `(() => {
-      const pts = (el, fxs, fys) => { const r = el.getBoundingClientRect(); return fxs.flatMap((fx) => fys.map((fy) => [r.left + r.width * fx, r.top + r.height * fy])); };
-      const hit = (el, [x, y]) => y >= 0 && y < innerHeight && x >= 0 && x < innerWidth && el.contains(document.elementFromPoint(x, y));
-      // Content under the sticky results bar at the top has been scrolled past, like content above the viewport.
-      const bar = [...document.querySelectorAll('.resbar')].find((e) => e.getClientRects().length);
-      const top = bar ? Math.max(0, bar.getBoundingClientRect().bottom) : 0;
-      const bad = [];
-      // Every seat figure (.seat-fig) in every seats block, not just the first line (#H1). The source: polls mode, the full
-      // legal sentence; results mode, the full results line in the builder's box and the seats card, and the link to the
-      // CEC results in the compact line and the completions card (the authorized #H1 change).
-      for (const box of document.querySelectorAll('.seats-box, .seats-compact, .seats-card, .completions')) {
-        const l = ${RESULTS ? `box.matches('.seats-box, .seats-card') ? box.querySelector('.seat-src') : box.querySelector('a[href="${meta.resultsSourceUrl}"]')` : "box.querySelector('.poll-legal')"};
-        for (const n of box.querySelectorAll('.seat-fig')) {
-          if (!n.getClientRects().length) continue;
-          if (!pts(n, [0.05, 0.5, 0.95], [0.25, 0.75]).some((p) => p[1] >= top && hit(n, p))) continue; // numbers not visible
-          const shown = l && pts(l, [0.05, 0.3, 0.5, 0.7, 0.95], [0.15, 0.5, 0.85]).every((p) => p[1] < top || hit(l, p));
-          if (!shown) { bad.push(box.className.split(' ').find((x) => /seats-|completions/.test(x)) ?? box.className); break; }
-        }
-      }
-      return bad.join(', ');
-    })()`;
     const legalCases = cases.filter(([n, suffix, v]) => members_in_url(suffix) && n !== 'results-single' && (v === 'build' || v === 'results'));
     for (const z of [{ ...SIZES[0] }, { tag: 's', width: 375, height: 667, mobile: true, dpr: 2 }]) {
       await setSize(z);
@@ -879,14 +1042,6 @@ try {
     // larger ::after hit area counts and an overlapping neighbour does not) of the source and correction links, the
     // matrix cells, the share button, the language toggle and the footer links is at least 44px, and the overview tile
     // labels are at least 12px, at 360 and 412px in both languages.
-    const HIT_JS = (sel, max) => `(() => { const out = [];
-      for (const el of [...document.querySelectorAll(${JSON.stringify(sel)})].filter((e) => e.getClientRects().length).slice(0, ${max})) {
-        el.scrollIntoView({ block: 'center', inline: 'center' });
-        const r = el.getBoundingClientRect(), x = r.left + r.width / 2, y0 = r.top + r.height / 2;
-        const on = (y) => { const h = document.elementFromPoint(x, y); return h !== null && (h === el || el.contains(h)); };
-        let up = 0, down = 0; while (up < 80 && on(y0 - up - 1)) up++; while (down < 80 && on(y0 + down + 1)) down++;
-        out.push([(el.textContent || el.getAttribute('aria-label') || '').trim().slice(0, 20), up + down + 1]);
-      } return out; })()`;
     let hitRuns = 0;
     for (const w of [360, 412]) {
       for (const l of ['he', 'en']) {
@@ -983,7 +1138,7 @@ try {
       const T = l === 'he' ? S : EN;
       await go(`${baseUrl}#results?b=together&m=likud,yashar,otzma-yehudit${l === 'en' ? '&l=en' : ''}`);
       await waitFor(() => evaluate("document.querySelector('#results-coalition .coalition-line') !== null && document.querySelector('[data-act=\"colorby\"]') !== null"));
-      const header = () => evaluate("document.querySelector('#results-coalition .coalition-line').textContent.replace(/\\s+/g, ' ').trim()");
+      const header = () => text('#results-coalition .coalition-line');
       const tag = T.results.baseTag(posCtx[l].byId.get('together').name);
       const before = await header();
       if (!before.includes(tag)) errors.push(`[${current}] the header should name the base as "${tag}" (${before})`);
@@ -1141,7 +1296,6 @@ try {
     // Radio groups (#11): one Tab stop per group (the checked radio), and the arrow keys choose. RTL: ← is next.
     const RADIO_KEYS = { ArrowLeft: 37, ArrowRight: 39, Home: 36, End: 35 };
     const press = async (k) => { for (const type of ['keyDown', 'keyUp']) await c.send('Input.dispatchKeyEvent', { type, key: k, code: k, windowsVirtualKeyCode: RADIO_KEYS[k] }); await settle(200); };
-    const ONE_STOP = `[...document.querySelectorAll('[role="radiogroup"]')].every((g) => { const z = [...g.querySelectorAll('[role="radio"]')].filter((r) => r.tabIndex === 0); return z.length === 1 && z[0].getAttribute('aria-checked') === 'true'; })`;
     if (!(await evaluate(ONE_STOP))) errors.push('[interaction] each role group should have one Tab stop, its checked radio');
     await evaluate("document.querySelector('[data-key=\"role-shas-member\"]').focus()");
     for (const [k, role, q] of /** @type {[string, string, RegExp][]} */ ([['ArrowLeft', 'supporter', /o=shas/], ['End', 'abstainer', /a=shas/], ['Home', 'member', /m=[^&]*shas/], ['ArrowRight', 'abstainer', /a=shas/]])) {
@@ -1344,11 +1498,6 @@ try {
     }
     log('  ✓ interactions');
   }
-  // Hebrew text outside an element with lang="he" (an untranslated string on the English page).
-  const HEBREW_OUTSIDE = `(() => { const out = []; const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
-    for (let n; (n = w.nextNode());) { if (!/[\\u05D0-\\u05EA]/.test(n.data)) continue; const el = n.parentElement;
-      if (el.closest('noscript, script, style') || el.closest('[lang]')?.lang === 'he') continue; out.push(n.data.trim().slice(0, 40)); }
-    return out.slice(0, 3).join(' | '); })()`;
   // Closest coalitions to a party (#22, results mode): from the party sheet and the build-view picker, in both languages,
   // on a regular and a short phone. Rows match closestTo() and show every sort key; coalitions with a silent partner are
   // collapsed behind a toggle naming exactly those partners (never X); tapping a row selects it with X as the base.
@@ -1365,17 +1514,6 @@ try {
         const rowText = (x, c, own) => [
           own ? T.closest.redLines(c.redLines.length, c.redLines.map((r) => lc.topics.find((t) => t.id === r.topicId).short).join(', ')) : null,
           T.closest.xClash(c.xClash, nm(x)), T.closest.wholeClash(c.wholeClash), T.closest.agree(c.agree), T.closest.seats(c.seats)].filter(Boolean);
-        const sheetState = `(() => { const s = document.querySelector('#sheet'); if (!s.open) return null;
-          const rows = (root) => [...(root?.querySelectorAll('[data-act="closest-apply"]') ?? [])].map((b) => ({ ids: b.dataset.ids, text: b.innerText.replace(/\\s+/g, ' '), warn: b.querySelector('.tag-warn') !== null }));
-          const src = s.querySelector('.seat-src'); const first = s.querySelector('[data-act="closest-apply"]'); const part = s.querySelector('#closest-partial-list');
-          const toggle = s.querySelector('[data-act="closest-partial"]');
-          return { title: s.querySelector('h2')?.innerText, focus: document.activeElement === s.querySelector('h2'),
-            src: src?.innerText ?? '', srcFirst: Boolean(src && first && (src.compareDocumentPosition(first) & Node.DOCUMENT_POSITION_FOLLOWING)),
-            srcVisible: Boolean(src) && src.getBoundingClientRect().top >= 0 && src.getBoundingClientRect().bottom <= innerHeight,
-            full: rows(s.querySelector('.sheet-inner > .closest-list')), partial: part && !part.hidden ? rows(part) : null,
-            toggle: toggle ? toggle.innerText.replace(/^[▸▾]\\s*/, '') + '|' + toggle.getAttribute('aria-expanded') : '',
-            note: s.innerText.includes(${JSON.stringify(T.closest.partialNote)}), text: s.innerText.replace(/\\s+/g, ' '),
-            overflow: s.scrollWidth > s.clientWidth + 1 || document.documentElement.scrollWidth > innerWidth + 1 }; })()`;
         const check = async (tag, x, st) => {
           const want = closestTo(lc, x);
           const silent = [...new Set(want.partial.flatMap((c) => c.low.map((l) => l.partyId)))].sort((a, b) => lc.order.get(a) - lc.order.get(b)).map(nm);
@@ -1426,7 +1564,7 @@ try {
           await settle(250);
           await evaluate("document.querySelector('#sheet [data-act=\"closest\"]').click()");
           await settle(300);
-          let st = await evaluate(sheetState);
+          let st = await evaluate(CLOSEST_SHEET_JS(T));
           const want = await check(tag, 'likud', st);
           if (st && !st.focus) errors.push(`[${tag}] focus should move to the list's heading`);
           if (size === SIZES[0]) await shoot(size, `interaction-closest-m${lng === 'he' ? '' : '-en'}.png`, false);
@@ -1434,14 +1572,14 @@ try {
           // Expand the silent-partner list, then both "show all".
           await evaluate("document.querySelector('#sheet [data-act=\"closest-partial\"]').click()");
           await settle(200);
-          st = await evaluate(sheetState);
+          st = await evaluate(CLOSEST_SHEET_JS(T));
           if (!st.partial || st.partial.map((r) => r.ids).join('|') !== want.partial.slice(0, 5).map((c) => c.add.join(',')).join('|')) errors.push(`[${tag}] expanded partial rows ${st.partial?.map((r) => r.ids).join('|')}`);
           if (st.partial && !st.partial.every((r) => r.warn)) errors.push(`[${tag}] every row with a silent partner needs its warning`);
           if (!st.toggle.endsWith('|true')) errors.push(`[${tag}] the toggle should report aria-expanded=true`);
           if (size === SIZES[0]) await shoot(size, `interaction-closest-partial-m${lng === 'he' ? '' : '-en'}.png`, false);
           for (const act of ['closest-all', 'closest-partial-all']) await evaluate(`document.querySelector('#sheet [data-act="${act}"]')?.click()`);
           await settle(200);
-          st = await evaluate(sheetState);
+          st = await evaluate(CLOSEST_SHEET_JS(T));
           if (st.full.length !== want.full.length || st.partial?.length !== want.partial.length) errors.push(`[${tag}] "show all" should list ${want.full.length} + ${want.partial.length}, got ${st.full.length} + ${st.partial?.length}`);
           if (st.full.map((r) => r.ids).join('|') !== want.full.map((c) => c.add.join(',')).join('|')) errors.push(`[${tag}] expanded main rows are out of order`);
           if (st.overflow) errors.push(`[${tag}] horizontal overflow with every row shown`);
@@ -1475,7 +1613,7 @@ try {
           await settle(250);
           await evaluate("document.querySelector('#sheet [data-act=\"closest\"]').click()");
           await settle(300);
-          st = await evaluate(sheetState);
+          st = await evaluate(CLOSEST_SHEET_JS(T));
           const shas = await check(`${tag}-shas`, 'shas', st);
           if (st && !st.text.includes(T.closest.ownCoverage(T.toParty(nm('shas')), shas.ownCoverage))) errors.push(`[${tag}-shas] the party's own coverage note is missing`);
           // "How is this calculated?" closes the sheet and lands on the rule on the method page.
@@ -1488,7 +1626,7 @@ try {
           await ready();
           await evaluate("(() => { const s = document.querySelector('[data-act=\"closest-pick\"]'); s.value = 'yisrael-beiteinu'; s.dispatchEvent(new Event('change', { bubbles: true })); })()");
           await settle(300);
-          st = await evaluate(sheetState);
+          st = await evaluate(CLOSEST_SHEET_JS(T));
           await check(`${tag}-picker`, 'yisrael-beiteinu', st);
           if ((await evaluate("document.querySelector('[data-act=\"closest-pick\"]').value")) !== '') errors.push(`[${tag}-picker] the picker should reset (no preselected party)`);
           if (size === SIZES[0] && lng === 'he') await shoot(size, 'interaction-closest-picker-m.png', false);
@@ -1681,14 +1819,13 @@ try {
     // (a group: its summary, which holds the h2; a section: the section). A link to the fragment already in the address bar
     // (no hashchange: the footer's #privacy, followed again after its group was closed) does the same.
     const inner = RESULTS ? 'power' : 'privacy';
-    const focusJs = (id) => `document.activeElement === document.querySelector(${JSON.stringify(METHOD_GROUPS.includes(id) ? `#${id} > summary` : `#${id}`)})`;
     const methodReady = () => waitFor(() => evaluate("document.querySelector('#method h1') !== null && document.querySelector('#footer')?.children.length > 0"));
     for (const id of [...METHOD_GROUPS, inner]) {
       await go(`${baseUrl}#${id}`);
       await methodReady();
       await settle(250);
       const first = await evaluate(methodLinkErrors(id, z.height));
-      if (first || !(await evaluate(focusJs(id)))) errors.push(`[fragment] #${id} on first load: ${first || 'focus should move to the target'}`);
+      if (first || !(await evaluate(FOCUS_JS(id)))) errors.push(`[fragment] #${id} on first load: ${first || 'focus should move to the target'}`);
     }
     await go(`${baseUrl}#method`);
     await methodReady();
@@ -1704,7 +1841,7 @@ try {
       await settle(400);
       const deep = await evaluate(methodLinkErrors(id, z.height));
       const reloaded = !(await evaluate('window.smokeNoReload === true'));
-      if (deep || reloaded || !(await evaluate(focusJs(id)))) errors.push(`[fragment] #${id} on hashchange: ${deep || (reloaded ? 'the page reloaded' : 'focus should move to the target')}`);
+      if (deep || reloaded || !(await evaluate(FOCUS_JS(id)))) errors.push(`[fragment] #${id} on hashchange: ${deep || (reloaded ? 'the page reloaded' : 'focus should move to the target')}`);
     }
     await evaluate("location.hash = '#privacy'");
     await settle(400);
@@ -1712,7 +1849,7 @@ try {
     await evaluate(`document.querySelector('#footer a[href="#privacy"]').click()`);
     await settle(400);
     const same = await evaluate(methodLinkErrors('privacy', z.height));
-    if (same || !(await evaluate(focusJs('privacy')))) errors.push(`[fragment] a link to the current fragment (#privacy): ${same || 'focus should move to the section'}`);
+    if (same || !(await evaluate(FOCUS_JS('privacy')))) errors.push(`[fragment] a link to the current fragment (#privacy): ${same || 'focus should move to the section'}`);
     if (await evaluate("document.querySelector('#method nav, #method .mtoc') !== null")) errors.push('[fragment] the method page should have no separate table of contents (the group headings are it)');
     log(`  ✓ fragment state: nav links, history, a pasted link; method deep links (${METHOD_GROUPS.length + 1} targets) on first load and hashchange, and to the current fragment`);
   }
@@ -1762,18 +1899,6 @@ try {
   const withLang = (suffix) => { const { search, hash } = splitSuffix(suffix); const h = hash || '#build'; return `${search}${h}${h.includes('?') ? '&' : '?'}l=en`; };
   const enCases = cases.filter(([, suffix]) => !isLegacy(suffix)).map(([name, suffix, v]) => [name, withLang(suffix), v]);
   const EN_SRC = RESULTS ? meta.en.resultsStatus : legal;
-  // The language switch: both names, the current one first as plain text (aria-current), the other a button, each with
-  // its own lang; set off from the nav; and the header (logo, nav link, switch) on one line (up to 56px tall with the
-  // links' tap padding; a wrapped line is 60px or more).
-  const SWITCH_CHECK = (cur) => `(() => { const sw = document.querySelector('#lang-switch'); const items = [...sw.querySelectorAll('strong, button')];
-    const got = items.map((e) => e.tagName + ':' + e.lang + ':' + (e.getAttribute('aria-current') || '')).join(' ');
-    const want = ${JSON.stringify(cur === 'en' ? 'STRONG:en:true BUTTON:he:' : 'STRONG:he:true BUTTON:en:')};
-    if (got !== want) return 'items ' + got;
-    if (parseFloat(getComputedStyle(sw).borderInlineStartWidth) < 1) return 'no divider from the nav';
-    const rows = ['#brand-name', '#nav-method', '#lang-switch'].map((q) => document.querySelector(q).getBoundingClientRect());
-    const mid = (r) => r.top + r.height / 2;
-    if (rows.some((r) => Math.abs(mid(r) - mid(rows[0])) > 8 || r.height > 56)) return 'header wraps: ' + rows.map((r) => Math.round(r.top) + '/' + Math.round(r.height)).join(' ');
-    return 'ok'; })()`;
   const EN_POLL_TEXT = /\bseats?\b|\bpolls?\b|at the threshold|of 61|\(61\+\)|≈\d/i;
   if (sec('en-views')) for (const z2 of VIEW_SIZES) {
     await setSize(z2);
@@ -2139,7 +2264,6 @@ try {
         await evaluate('history.back()');
         await waitFor(() => evaluate("document.body.dataset.view === 'build'"));
         // Focus returns once the view has rendered and restored its scroll: wait for that state (up to 3s), not a fixed time.
-        const BK = 'JSON.stringify([location.hash, document.activeElement?.dataset?.key, scrollY])';
         const wantBk = JSON.stringify([`#build${L}`, 'home-pair', 0]);
         const bk = await waitFor(async () => ((await evaluate(BK)) === wantBk ? wantBk : null), 3000).catch(() => evaluate(BK));
         if (bk !== wantBk) errors.push(`[${current}] back from the pair view should focus card 3: ${bk}`);
@@ -2169,27 +2293,6 @@ try {
   // × only hides it. Focus goes to the results' first heading after the change, undo and ×. Starting from an empty
   // coalition shows no line; leaving the view clears it; a language switch keeps it. At 375×667 and 360×740, both languages.
   if (sec('undo')) {
-    const UNDO_STATE = `JSON.stringify((() => { const l = document.querySelector('#results-undo .undo-line'); const a = document.activeElement;
-      return { line: l ? l.querySelector('.undo-text').innerText : null, focus: a && a === document.querySelector('#results h2') ? 'heading' : (a?.dataset?.key || a?.id || a?.tagName),
-        btn: l ? (() => { const b = l.querySelector('[data-act="undo"]'); return [b.innerText.trim(), document.getElementById(b.getAttribute('aria-describedby'))?.innerText ?? null]; })() : null,
-        live: document.querySelector('#live').textContent, toastAction: document.querySelectorAll('#toast button, #toast a, #toast [data-act]').length,
-        hash: location.hash.split('?')[0] }; })())`;
-    const LINE_LAYOUT = `(() => { const bad = []; const l = document.querySelector('#results-undo .undo-line'); if (!l) return 'no line';
-      if (getComputedStyle(l).position !== 'static') bad.push('not in the flow');
-      const r = l.getBoundingClientRect(), bar = document.querySelector('#results-bar').getBoundingClientRect(); const rtl = document.dir === 'rtl';
-      if (r.top < bar.bottom - 0.5) bad.push('under the sticky bar');
-      for (const sel of ['#results-coalition .coalition-line', '#results ${SRC_SEL}', '#results .seats-line']) for (const e of document.querySelectorAll(sel)) {
-        const b = e.getBoundingClientRect(); if (b.height && b.top < r.bottom - 0.5 && b.bottom > r.top + 0.5) bad.push('overlaps ' + sel); }
-      if (document.documentElement.scrollWidth > innerWidth) bad.push('horizontal scroll');
-      const [u, x] = l.querySelectorAll('button');
-      for (const b of [u, x]) { const q = b.getBoundingClientRect(); if (q.width < 44 || q.height < 44) bad.push('target ' + Math.round(q.width) + 'x' + Math.round(q.height));
-        if (q.left < r.left - 0.5 || q.right > r.right + 0.5) bad.push('button outside the line'); }
-      const ub = u.getBoundingClientRect(), xb = x.getBoundingClientRect();
-      if (rtl ? !(xb.right <= ub.left + 0.5 && xb.left - r.left < 6) : !(xb.left >= ub.right - 0.5 && r.right - xb.right < 6)) bad.push('close is not at the line end');
-      if (x.getAttribute('aria-label') === null || u.getAttribute('aria-describedby') !== 'undo-text') bad.push('names');
-      const src = document.querySelector('#results ${SRC_SEL}'), num = document.querySelector('#results .seats-line');
-      if (src && num && !(src.compareDocumentPosition(num) & Node.DOCUMENT_POSITION_FOLLOWING)) bad.push('source line after the numbers');
-      return bad.join('; '); })()`;
     const ids = parties.map((p) => p.id);
     // A preset with a friction party, preferably one with supporters (the global ctx has no positions; posCtx does).
     const hasFriction = (p) => analyze(posCtx.he, { base: null, ...p }).friction.length > 0;
@@ -2303,19 +2406,6 @@ try {
   // Phone layout, both languages, also at 360 (a common Android width): at least 16px between the brand and the nav, a
   // header that doesn't overflow, overview topics on one line each (no hyphenation) in a 4×2 grid on phones and one row
   // on wide screens, Hebrew matrix headers visibly apart, and the English translation line on one line on phones.
-  const LAYOUT_CHECK = `(() => { const bad = []; const rtl = document.documentElement.dir === 'rtl';
-    const brand = document.querySelector('.brand').getBoundingClientRect(), nav = document.querySelector('.topnav').getBoundingClientRect();
-    const gap = rtl ? brand.left - nav.right : nav.left - brand.right; if (gap < 16) bad.push('brand–nav gap ' + Math.round(gap) + 'px');
-    const bar = document.querySelector('.topbar-in'); if (bar.scrollWidth > bar.clientWidth + 1) bad.push('header overflows');
-    const lines = (e) => { const r = document.createRange(); r.selectNodeContents(e); return new Set([...r.getClientRects()].map((x) => Math.round(x.top))).size; };
-    const segs = [...document.querySelectorAll('#results .seg-label')];
-    if (segs.some((e) => lines(e) > 1)) bad.push('overview topic label wraps or hyphenates: ' + segs.filter((e) => lines(e) > 1).map((e) => e.textContent).join(', '));
-    const rows = new Set([...document.querySelectorAll('#results .seg')].map((e) => Math.round(e.getBoundingClientRect().top))).size;
-    if (rows !== (innerWidth <= 600 ? 2 : 1)) bad.push('overview has ' + rows + ' rows');
-    if (rtl) { const tx = [...document.querySelectorAll('#matrix .topic-btn')].map((b) => { const r = document.createRange(); r.selectNodeContents(b); return r.getBoundingClientRect(); });
-      const sep = Math.min(...tx.slice(1).map((r, i) => tx[i].left - r.right)); if (sep < 4) bad.push('matrix headers ' + sep.toFixed(1) + 'px apart'); }
-    const note = document.querySelector('#lang-note'); if (!note.hidden && innerWidth <= 400 && lines(note) > 1) bad.push('translation line wraps');
-    return bad.join('; '); })()`;
   if (sec('layout')) {
     for (const w of [360, 390, 1280]) {
       await c.send('Emulation.setDeviceMetricsOverride', { width: w, height: 800, deviceScaleFactor: 2, mobile: w < 600 });
@@ -2332,26 +2422,11 @@ try {
     log('  ✓ phone layout at 360, 390 and 1280 (both languages)');
   }
 
-  const ENLARGE = (pct) => `(() => { document.documentElement.style.setProperty('font-size', '${pct}%'); document.body.style.setProperty('font-size', '${16 * pct / 100}px'); return true; })()`;
   // Party sheet (#30): the sticky bar and its 44px close button stay fully inside the visible viewport at rest, mid-
   // scroll, at the end, after the viewport grows (the browser's bars hide: the sheet "expands") and after it shrinks
   // back (the bars return). Headless Chrome has no address bar, so resizing the viewport stands in for it. Also: the
   // "why this color" rows (badge line, then the sentence) in the cell sheet and in expanded pair rows (pair view and
   // the 2-member card), and the votes line's segments, each on one line, at normal and enlarged text.
-  const SHEET_X = `(() => { const vv = visualViewport; const d = document.querySelector('#sheet'); if (!d?.open) return 'sheet not open';
-    const h = d.querySelector('.sheet-head').getBoundingClientRect(); const x = d.querySelector('.sheet-close').getBoundingClientRect(); const s = d.getBoundingClientRect();
-    const top = vv.offsetTop, bottom = vv.offsetTop + vv.height, left = vv.offsetLeft, right = vv.offsetLeft + vv.width;
-    if (x.width < 44 || x.height < 44) return 'close is ' + x.width + 'x' + x.height;
-    if (x.top < top - .5 || x.bottom > bottom + .5 || x.left < left - .5 || x.right > right + .5) return 'close outside the visible viewport (top ' + Math.round(x.top) + ', viewport top ' + Math.round(top) + ')';
-    if (h.top < top - .5) return 'sheet bar starts above the visible viewport (' + Math.round(h.top) + ')';
-    if (x.top < h.top - .5 || x.bottom > h.bottom + .5) return 'close does not fit in the bar (bar ' + Math.round(h.height) + 'px)';
-    if (s.top < top + 8 - .5) return 'sheet leaves no room above it (' + Math.round(s.top - top) + 'px)';
-    if (s.bottom > bottom + .5) return 'sheet runs below the visible viewport';
-    return 'ok'; })()`;
-  const lineCount = (sel) => `[...document.querySelectorAll('${sel}')].map((e) => { const r = document.createRange(); r.selectNodeContents(e); return new Set([...r.getClientRects()].map((x) => Math.round(x.top))).size; })`;
-  const WHY_JS = (scope) => `(() => { const w = document.querySelector('${scope} .why-row'); if (!w) return null; const b = w.querySelector('.lv'), t = w.querySelector('.why-text');
-    if (!b || !t || w.firstElementChild !== b) return { bad: 'badge must come first' };
-    return { below: b.getBoundingClientRect().bottom <= t.getBoundingClientRect().top + 1, text: t.innerText.trim() }; })()`;
   if (sec('party-sheet')) {
     // The one check without the reduced-motion emulation: with motion allowed the sheet slides in (animation "up") and
     // the gap chevron turns (.15s), and the sheet's ✕ is in place once it lands. Under reduce neither moves.
@@ -2453,9 +2528,6 @@ try {
     // source line) and every party's pair view: in Hebrew, no Latin run outside a <bdi> in the attributions, summaries
     // and pair sentences (an outlet like "ynet" would otherwise flip the attribution's order). In both languages, no
     // zero-padded date (04.11.2026) next to the hand-written ones (4.11.2026).
-    const LATIN_OUT = (sel) => `[...document.querySelectorAll(${JSON.stringify(sel)})].flatMap((el) => { const w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT), out = [];
-      while (w.nextNode()) { const n = w.currentNode; if (/[A-Za-z]/.test(n.data) && !n.parentElement.closest('bdi')) out.push(n.data.trim().slice(0, 50)); } return out; })`;
-    const PADDED = (sel) => `(document.querySelector(${JSON.stringify(sel)})?.innerText.match(/(^|[^\\d.])(0\\d\\.\\d{1,2}|\\d{1,2}\\.0\\d)\\.20\\d\\d/g) ?? []).map((s) => s.trim())`;
     const allIds = posCtx.he.parties.map((p) => p.id);
     const passedIds = allIds.filter((id) => posCtx.he.passed(id));
     let sheetsScanned = 0;
@@ -2497,7 +2569,6 @@ try {
     // the same. A link inside a sheet (the closest rule) leaves no entry behind it. The history here starts on #build,
     // so "leaves the view" is a same-document move back to it. Chrome keeps 50 entries per tab and, once full, drops the
     // oldest entry left without a user gesture (every scripted click here): each case starts from a fresh history.
-    const SHEET_STATE = "JSON.stringify([document.body.dataset.view, location.hash, document.querySelector('#sheet').open])";
     const backMembers = ['likud', 'yashar', 'together'];
     const backHash = `#results${qsOf(backMembers)}`;
     const toResults = async () => {
@@ -2581,38 +2652,6 @@ try {
   // viewport, is vertical with its text next to the cells, the matrix and the page never scroll sideways, the overview
   // labels stay inside their tiles, the vote line breaks only between its segments, the header bar neither overflows nor
   // overlaps, and the task cards hold their content.
-  const FIT_COMMON = `const bad = []; const vw = document.documentElement.clientWidth;
-    const textBox = (e) => { const r = document.createRange(); r.selectNodeContents(e); return r.getBoundingClientRect(); };
-    const out = (t, c) => t.left < c.left - .5 || t.right > c.right + .5;
-    if (document.documentElement.scrollWidth > vw + 1) bad.push('the page scrolls sideways by ' + (document.documentElement.scrollWidth - vw) + 'px');
-    const bar = document.querySelector('.topbar-in'); if (bar.scrollWidth > bar.clientWidth + 1) bad.push('header bar overflows');
-    const parts = [document.querySelector('.brand'), document.querySelector('.navlink'), document.querySelector('.langswitch')].map((e) => e.getBoundingClientRect());
-    if (parts.some((a, i) => parts.some((b, j) => j > i && a.left < b.right - .5 && b.left < a.right - .5 && a.top < b.bottom - .5 && b.top < a.bottom - .5))) bad.push('header items overlap');
-    if (parts.some((p) => p.left < -.5 || p.right > vw + .5)) bad.push('a header item leaves the viewport');`;
-  const FIT_RESULTS = `(() => { ${FIT_COMMON}
-    const wrap = document.querySelector('#matrix .table-wrap'); const wr = wrap.getBoundingClientRect();
-    if (wrap.scrollWidth > wrap.clientWidth + 1) bad.push('the matrix scrolls sideways by ' + (wrap.scrollWidth - wrap.clientWidth) + 'px');
-    document.querySelectorAll('#matrix thead th').forEach((th) => { const b = th.querySelector('.topic-btn'); const t = textBox(b); const c = th.getBoundingClientRect();
-      if (out(t, c) || t.top < c.top - .5 || t.bottom > c.bottom + .5) bad.push('matrix header "' + b.textContent + '" leaves its column');
-      if (t.left < Math.max(wr.left, 0) - .5 || t.right > Math.min(wr.right, vw) + .5) bad.push('matrix header "' + b.textContent + '" leaves the viewport');
-      if (vw <= 480) { if (!getComputedStyle(b).writingMode.startsWith('vertical')) bad.push('matrix header "' + b.textContent + '" is not vertical');
-        else if (c.bottom - t.bottom > 12) bad.push('matrix header "' + b.textContent + '" is not next to the cells (' + Math.round(c.bottom - t.bottom) + 'px above)'); } });
-    document.querySelectorAll('#results .seg').forEach((g) => { const l = g.querySelector('.seg-label'); if (out(textBox(l), g.getBoundingClientRect())) bad.push('overview label "' + l.textContent + '" leaves its tile'); });
-    // One card per column (#35): the header's box sits within its column, with a visible gap to the next one.
-    const hb = [...document.querySelectorAll('#matrix thead th')].map((th) => [th.getBoundingClientRect(), th.querySelector('.topic-btn').getBoundingClientRect(), th.querySelector('.topic-btn').textContent]);
-    for (const [c, b, name] of hb) if (b.left < c.left - .5 || b.right > c.right + .5) bad.push('matrix header card "' + name + '" is wider than its column');
-    const xs = hb.map(([, b]) => b).sort((p, q) => p.left - q.left);
-    // The same gap as the cells under them (the first row's cells), and at least 2px.
-    const cs = [...document.querySelectorAll('#matrix tbody tr:first-child .cell')].map((e) => e.getBoundingClientRect()).sort((p, q) => p.left - q.left);
-    const cellGap = Math.min(...cs.slice(1).map((r, i) => r.left - cs[i].right));
-    for (let i = 1; i < xs.length; i++) { const g = xs[i].left - xs[i - 1].right; if (g < Math.max(2, cellGap - 1)) bad.push('matrix header cards ' + g.toFixed(1) + 'px apart (cells: ' + cellGap.toFixed(1) + 'px)'); }
-    // The confidence-vote line: each segment on one line (it wraps only between them).
-    document.querySelectorAll('#results-coalition .seats-compact .nw').forEach((e) => { const r = document.createRange(); r.selectNodeContents(e); if (new Set([...r.getClientRects()].map((x) => Math.round(x.top))).size > 1) bad.push('vote segment "' + e.textContent + '" breaks across lines'); });
-    return bad; })()`;
-  const FIT_BUILD = `(() => { ${FIT_COMMON}
-    document.querySelectorAll('.task').forEach((t, i) => { const c = t.getBoundingClientRect();
-      if ([...t.querySelectorAll('*')].some((e) => { const r = e.getBoundingClientRect(); return r.width > 0 && out(r, c); })) bad.push('task card ' + (i + 1) + ' content leaves the card'); });
-    return bad; })()`;
   const FIT_MEMBERS = 'm=likud,yashar,together,otzma-yehudit,shas,utj';
   if (sec('fit')) {
     let fitRuns = 0;
@@ -2671,21 +2710,6 @@ try {
   // Never broken inside (#30/#31/#34): a party name, an outlet or person's name, or a number pair ("53 מול 67", "53 מתוך
   // 61", "59 vs 61") stays on one line in the red-line lines, the "בלי X" rows, the completions card and the scenario
   // sources, at 360/375 in both languages with normal and enlarged text. The pattern is built here and passed as JSON.
-  const reEsc = (x) => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const NOBREAK_JS = (sels, names) => {
-    const src = [...[...new Set(names)].sort((a, b) => b.length - a.length).map(reEsc), '≈?\\d[\\d,.]*(?: (?:מול|מתוך|vs|of) ≈?\\d[\\d,.]*)', '≈?\\d+ (?:מנדטים|seats?)'].join('|');
-    return `(() => { const bad = []; let seen = 0; const re = new RegExp(${JSON.stringify(src)}, 'g');
-      for (const root of document.querySelectorAll(${JSON.stringify(sels.join(', '))})) {
-        const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-        for (let n = w.nextNode(); n; n = w.nextNode()) for (const m of n.data.matchAll(re)) {
-          if (!m[0].includes(' ')) continue;
-          seen++;
-          const r = document.createRange(); r.setStart(n, m.index); r.setEnd(n, m.index + m[0].length);
-          if (new Set([...r.getClientRects()].filter((x) => x.width > 0).map((x) => Math.round(x.top))).size > 1) bad.push('"' + m[0] + '" breaks across lines');
-        }
-      }
-      return { bad, seen }; })()`;
-  };
   let nbRuns = 0;
   let nbSeen = 0;
   if (RESULTS && sec('nobreak')) {
@@ -2742,7 +2766,6 @@ try {
   if (sec('load')) {
     await setSize(SIZES[0]);
     await c.send('Page.addScriptToEvaluateOnNewDocument', { source: `window.__cls = 0; try { new PerformanceObserver((l) => { for (const e of l.getEntries()) if (!e.hadRecentInput) window.__cls += e.value; }).observe({ type: 'layout-shift', buffered: true }); } catch {}` });
-    const shown = "['main', '#footer', '.topnav'].every((s) => getComputedStyle(document.querySelector(s)).visibility === 'visible')";
     // A slow phone (4× CPU, a 150ms round trip, as Lighthouse's mobile run): on a fast machine the old skeleton moved before
     // the first paint, so no shift was measured. Throttled, the old shell measures 0.95 here, as Lighthouse did.
     const throttle = async (on) => {
@@ -2756,7 +2779,7 @@ try {
       await go(`${baseUrl}${hash}`);
       await waitFor(() => evaluate("document.documentElement.classList.contains('ready') && document.querySelector('#footer')?.children.length > 0"), 30000).finally(() => throttle(false));
       await settle(600);
-      const [cls, visible] = await evaluate(`JSON.stringify([window.__cls, ${shown}])`).then(JSON.parse);
+      const [cls, visible] = await evaluate(`JSON.stringify([window.__cls, ${SHELL_SHOWN_JS}])`).then(JSON.parse);
       if (!(cls < 0.1)) errors.push(`[${current}] ${name}: layout shift ${cls.toFixed(3)} on load (want < 0.1)`);
       if (!visible) errors.push(`[${current}] ${name}: the shell is still hidden after the first render`);
       const twice = ['parties', 'topics', 'positions', 'meta'].map((f) => [f, siteRequests.filter((p) => p.endsWith(`/data/${f}.json`)).length]).filter(([, n]) => n !== 1);
@@ -2778,7 +2801,7 @@ try {
       await blocked(['*/data/meta.json'], async () => {
         await go(`${baseUrl}#results?m=likud,yashar${l === 'en' ? '&l=en' : ''}`);
         await waitFor(() => evaluate("document.documentElement.classList.contains('ready')"), 5000).catch(() => {});
-        const got = await evaluate(`JSON.stringify([${shown}, document.querySelector('.view:not([hidden]) .empty')?.textContent ?? null])`);
+        const got = await evaluate(`JSON.stringify([${SHELL_SHOWN_JS}, document.querySelector('.view:not([hidden]) .empty')?.textContent ?? null])`);
         if (got !== JSON.stringify([true, T.loadError])) errors.push(`[${current}] with the data blocked, the load error should show in ${l}: [shell shown, message] = ${got}`);
       });
     }
@@ -2786,9 +2809,9 @@ try {
     await blocked(['*/js/app.js'], async () => {
       await go(`${baseUrl}#build`);
       await sleep(1000);
-      const early = await evaluate(shown);
+      const early = await evaluate(SHELL_SHOWN_JS);
       await sleep(2800);
-      const late = await evaluate(shown);
+      const late = await evaluate(SHELL_SHOWN_JS);
       if (early || !late) errors.push(`[${current}] with app.js blocked, the shell should stay hidden at 1s and show by 3.8s (got ${early} then ${late})`);
     });
     log('  ✓ load (#45): no layout shift on a results link and #method, each data file fetched once; the load error in he/en; the shell shows without app.js');
@@ -2797,22 +2820,6 @@ try {
   if (sec('recs')) {
     const { recommendations: recs } = loadData();
     let recRuns = 0;
-    const SHEET_RECS = `(() => { const s = document.querySelector('#sheet'); if (!s.open) return null; const t = (e) => e ? e.innerText.replace(/\\s+/g, ' ').trim() : null;
-      const src = s.querySelector('.recs-src'), tally = s.querySelector('.recs-tally'), table = s.querySelector('.recs-table'), mandate = s.querySelector('.recs-mandate');
-      const before = (a, b) => Boolean(a && b && (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING));
-      const inner = s.querySelector('.sheet-inner');
-      return { title: t(s.querySelector('h2')), src: t(src), srcHref: src?.querySelector('a')?.getAttribute('href'), mandate: t(mandate),
-        quote: t(tally?.querySelector('.q-text')), by: t(tally?.querySelector('.q-by')),
-        order: before(src, mandate) && before(mandate, tally) && before(tally, table) && inner.firstElementChild?.tagName === 'H2' && inner.children[1] === src,
-        rows: [...(table?.querySelectorAll('tbody tr') ?? [])].map((r) => ({ id: r.dataset.party, cells: [...r.children].map(t), href: r.querySelector('a')?.getAttribute('href'),
-          ext: r.querySelector('a')?.target === '_blank' && /noopener/.test(r.querySelector('a')?.rel ?? ''), label: r.querySelector('a')?.getAttribute('aria-label') })),
-        // One neutral style for every candidate: no class at all inside the rows.
-        styled: [...(table?.querySelectorAll('tbody *') ?? [])].filter((e) => e.className || e.getAttribute('style')).length,
-        hebrew: /[\\u0590-\\u05FF]/.test([...s.querySelectorAll('.sheet-inner *')].filter((e) => !e.closest('[lang="he"]') && !e.children.length).map((e) => e.innerText).join(' ')),
-        overflow: s.scrollWidth > s.clientWidth + 1 || document.documentElement.scrollWidth > innerWidth + 1 }; })()`;
-    const LINE_JS = `(() => { const box = document.querySelector('#builder .seats-box'); const line = box?.querySelector('.recs-line'); const b = line?.querySelector('button');
-      return { box: Boolean(box), line: Boolean(line), any: document.querySelectorAll('.recs-line, .recs-party').length, afterSrc: (line?.previousElementSibling?.classList.contains('positions-asof') && line.previousElementSibling.previousElementSibling?.classList.contains('seat-src')) ?? false,
-        text: b ? b.innerText.replace(/\\s+/g, ' ').trim() : null, h: b ? b.getBoundingClientRect().height : 0, overflow: document.documentElement.scrollWidth > innerWidth + 1 }; })()`;
     for (const w of RESULTS ? [360, 390] : [390]) {
       await c.send('Emulation.setDeviceMetricsOverride', { width: w, height: 800, deviceScaleFactor: 2, mobile: true });
       for (const l of ['he', 'en']) {
