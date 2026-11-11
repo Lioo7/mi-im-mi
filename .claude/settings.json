@@ -1,6 +1,13 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
   "permissions": {
+    "allow": [
+      "Bash(gh issue create *)",
+      "Bash(gh issue comment *)",
+      "Bash(gh issue close *)",
+      "Bash(gh issue edit *)",
+      "Bash(gh api repos/:owner/:repo/milestones *)"
+    ],
     "ask": [
       "Bash(netlify deploy --prod *)",
       "Bash(netlify deploy * --prod *)",
