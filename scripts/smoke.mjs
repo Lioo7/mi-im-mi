@@ -414,6 +414,15 @@ function seatsErrors(lng, state, got) {
   if (JSON.stringify(g.rows) !== JSON.stringify(wc.rows) || g.intro !== wc.intro) out.push(`seats card rows: expected ${JSON.stringify([wc.intro, wc.rows])}, got ${JSON.stringify([g.intro, g.rows])}`);
   return out;
 }
+// #H3: in a position block with a red line, the 🚩 tag first, then the summary, the quote and the source, and the
+// red-line block ("הקו האדום, בלשונם") last.
+const REDLINE_ORDER_JS = (scope) => `(() => { const e = [...document.querySelectorAll('${scope} .pos .redline-ev')].find((x) => x.getClientRects().length || x.closest('details')); if (!e) return 'no red-line block';
+  const pos = e.parentElement; const kids = [...pos.children]; const i = kids.indexOf(e);
+  const flag = pos.querySelector(':scope > p .tag-red')?.closest('p'); const src = pos.querySelector(':scope > .source'); const q = pos.querySelector(':scope > blockquote');
+  const summary = kids.find((k) => k.tagName === 'P' && !k.className && !k.querySelector('.tag'));
+  if (!flag || kids.indexOf(flag) > i) return 'the 🚩 tag must come before the red-line block';
+  if (!summary || !src) return 'the summary or the source line is missing';
+  return [summary, q, src].filter(Boolean).every((x) => kids.indexOf(x) < i) && i === kids.length - 1 ? 'ok' : 'the red-line block must come after the summary, the quote and the source'; })()`;
 const server = base ? null : await serve();
 const baseUrl = (base ?? server.url).replace(/\/?$/, '/');
 const onProd = new URL(baseUrl).hostname === PROD_HOST;
@@ -1598,10 +1607,21 @@ try {
       const wantBy = lng === 'he' ? 'אריה דרעי, כיכר השבת, 14.10.2026' : 'Aryeh Deri, Kikar HaShabbat, 14 Oct 2026';
       const textOk = rl && rl.texts[0] === `״${redRow.redLineQuote}״` && (lng === 'he' ? rl.texts.length === 1 : (rl.texts[1] ?? '').startsWith(`“${redRow.redLineQuoteTranslationEn}”`));
       if (!rl || rl.label !== T.sheet.redLineEvidence || !textOk || rl.by !== wantBy || rl.href !== redRow.redLineUrl || !rl.afterFlag) {
-        errors.push(`[cells red-line ${lng}] ש״ס × גיוס should show, under the 🚩, the label, the quote${lng === 'en' ? ' and its translation' : ''}, "${wantBy}" and a link to ${redRow.redLineUrl} (${JSON.stringify(rl)})`);
+        errors.push(`[cells red-line ${lng}] ש״ס × גיוס should show, after the 🚩, the label, the quote${lng === 'en' ? ' and its translation' : ''}, "${wantBy}" and a link to ${redRow.redLineUrl} (${JSON.stringify(rl)})`);
       }
       await shoot(z, `cells-red-line-m${lng === 'he' ? '' : '-en'}.png`, false);
+      // #H3: the position first, the condition second, in the cell sheet, the party sheet and the pair view.
+      const order = async (where, scope) => { const r = await evaluate(REDLINE_ORDER_JS(scope)); if (r !== 'ok') errors.push(`[cells red-line ${lng}] ש״ס × גיוס, ${where}: ${r}`); };
+      await order('cell sheet', '#sheet');
       await evaluate("document.querySelector('#sheet').close()");
+      await evaluate("document.querySelector('.party-btn[data-id=\"shas\"]').click()");
+      await settle(300);
+      await order('party sheet', '#sheet');
+      await evaluate("document.querySelector('#sheet').close()");
+      await go(`${baseUrl}#pair?p=shas,likud${lng === 'en' ? '&l=en' : ''}`);
+      await waitFor(() => evaluate("document.querySelector('#pair-view .pos') !== null"));
+      await evaluate("document.querySelectorAll('#pair-view details').forEach((d) => { d.open = true; }); true");
+      await order('pair view', '#pair-view');
     }
     // Arabic quotes keep the original and add a marked Hebrew translation under it.
     await go(`${baseUrl}#results?m=raam,together`);

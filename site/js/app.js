@@ -627,9 +627,9 @@ function positionBlock(pid, tid, { heading = true } = {}) {
   return `<div class="pos">
     ${heading ? `<p class="pos-label">${esc(axisLabel(tid, p.position))}</p>` : ''}
     ${p.redLine || p.componentsDisagree ? `<p>${p.redLine ? `<span class="tag tag-red"><span aria-hidden="true">🚩</span> ${esc(S.redLine)}</span> ` : ''}${p.componentsDisagree ? `<span class="tag tag-split"><span aria-hidden="true">${S.componentsIcon}</span> ${esc(S.componentsDisagree)}</span>` : ''}</p>` : ''}
-    ${redLineHtml(p, pid)}
     <p>${bidi(p.summary)}</p>
     ${evidenceHtml(p, pid)}
+    ${redLineHtml(p, pid)}
   </div>`;
 }
 
@@ -648,7 +648,8 @@ function evidenceHtml(p, pid) {
     </p>` : ''}`;
 }
 
-// The words behind the 🚩 (#49), right under the flag: the party's or its leader's statement that the topic is a coalition
+// The words behind the 🚩 (#49), after the position's own evidence (#H3: the position first, the condition second; the
+// flag stays at the top): the party's or its leader's statement that the topic is a coalition
 // condition, verbatim, with its attribution and its own source link. Validate requires them on every red-line row.
 function redLineHtml(p, pid) {
   if (!p.redLine || !p.redLineQuote) return '';
