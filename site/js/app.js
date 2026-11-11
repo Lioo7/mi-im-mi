@@ -3,25 +3,12 @@ import { S as EN } from './strings.en.js';
 import * as C from './compat.js';
 import { countPageview } from './stats.js';
 import { correctionMailto, quoteAttribution, SITE_TRANSLATOR } from './links.js';
+import * as H from './html.js';
+import { esc, keepWhole, segments, extLink, fmtNum } from './html.js';
 
 const $ = (sel, root = document) => root.querySelector(sel);
-// Escaped text with runs of the other script isolated in <bdi>: Latin (names, standards) in Hebrew, Hebrew (ballot
-// letters, names) in English.
-// Latin runs in Hebrew text are isolated whole, across spaces and hyphens ("Shapley-Shubik" must not flip to "Shubik-Shapley").
-const OTHER_SCRIPT = { he: /[A-Za-z][A-Za-z0-9.]*(?:[ -][A-Za-z0-9.]+)*/g, en: /[\u0590-\u05FF](?:[\u0590-\u05FF׳״"' -]*[\u0590-\u05FF׳״])?/g };
-// The runs are found in the raw text and each piece is escaped on its own: matching after escaping would take the "quot"
-// of &quot; for a Latin run and break the entity.
-const bidi = (v) => {
-  const s = String(v ?? '');
-  let out = '';
-  let i = 0;
-  for (const m of s.matchAll(OTHER_SCRIPT[lang])) {
-    out += esc(s.slice(i, m.index)) + (lang === 'he' ? `<bdi>${esc(m[0])}</bdi>` : `<bdi lang="he">${esc(m[0])}</bdi>`);
-    i = m.index + m[0].length;
-  }
-  return out + esc(s.slice(i));
-};
-const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+// Escaped text with runs of the other script isolated in <bdi>, in the reader's language (html.js).
+const bidi = (v) => H.bidi(v, lang);
 
 // The reader's language (fragment `l=`, Hebrew by default) and its strings; see setLanguage().
 const STRINGS = { he: HE, en: EN };
@@ -63,7 +50,6 @@ const ordered = (ids) => [...ids].sort((a, b) => ctx.order.get(a) - ctx.order.ge
 const isResults = () => ctx.mode === 'results';
 // Official results are always shown; poll averages only while showSeats is on.
 const showSeats = () => isResults() || meta.showSeats !== false;
-const fmtNum = (n) => n.toLocaleString('en-US');
 // Red lines as "<party> · <topic>", comma-separated (the overview line and the completions card).
 // Red lines by topic (#31): "גיוס: ישראל ביתנו, יהדות התורה · חקירה: ישראל ביתנו". The count stays one per party and topic.
 const redList = (lines) => C.groupRedLines(ctx, lines).map((g) => `${topic(g.topicId).short}: ${g.partyIds.map(name).join(', ')}`).join(' · ');
@@ -72,17 +58,7 @@ const outsideChip = (text) => `<span class="outside">${esc(text)}</span>`;
 const outsideParty = (id) => S.results.outsideParty(name(id), S.results.roleName[roleOf(id)]);
 const passedIds = () => ctx.parties.filter((p) => ctx.passed(p.id)).map((p) => p.id);
 
-// A party name, an outlet name or a number pair never breaks inside (#30, #31, #34): plain text in, HTML out, with each
-// of the given names and every "53 מול 67" / "53 מתוך 61" / "59 vs 61" / "53 of 61" in a nowrap span. One pass, so a
-// name inside another name is not wrapped twice; longer names win.
-const reEscape = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-const NUM_PAIR = '≈?\\d[\\d,.]*(?: (?:מול|מתוך|vs|of) ≈?\\d[\\d,.]*)';
-// A seat count with its noun ("40 מנדטים", "1 seat") stays whole too (#H1, the seats card's rows).
-const SEATS_N = '≈?\\d+ (?:מנדטים|seats?)';
-function keepWhole(text, names = []) {
-  const alts = [...new Set(names.filter(Boolean).map(esc))].sort((a, b) => b.length - a.length).map(reEscape);
-  return esc(text).replace(new RegExp([...alts, NUM_PAIR, SEATS_N].join('|'), 'g'), (m) => `<span class="nw">${m}</span>`);
-}
+// Names for keepWhole() (html.js): a party name never breaks inside.
 const partyNames = () => ctx.parties.map((p) => p.name);
 
 function levelBadge(level, extraClass = '') {
@@ -377,7 +353,7 @@ function loadChangelog() {
     if (ul) ul.innerHTML = changeItems();
   }).catch((err) => console.error(err));
 }
-const fillTokens = (text) => text.replace(/\{(party|topic):([^}]*)\}/g, (_, k, id) => (k === 'party' ? name(id) : topic(id)?.name ?? id));
+const fillTokens = (text) => H.fillTokens(text, (k, id) => (k === 'party' ? name(id) : topic(id)?.name ?? id));
 function changeItems() {
   const G = S.method.changes;
   return (changelog?.entries ?? []).map((e) => {
@@ -528,8 +504,6 @@ function renderPresets() {
     </div>
     <p class="muted small">${esc(S.presets.blocNote)}</p>`);
 }
-
-const ltr = (text) => `<bdi dir="ltr">${esc(text)}</bdi>`;
 
 function pillsHtml(a, c, u) {
   return `<span class="pills" dir="ltr" aria-hidden="true"><span class="pill im-ok">✓${a}</span><span class="pill im-clash">✕${c}</span><span class="pill im-unk">?${u}</span></span>`;
@@ -734,8 +708,6 @@ function profileHtml(pid) {
 
 // Seats against the 61 majority, in words (C.majorityMargin): "6 מעל הרוב", "בדיוק רוב", "חסרים 3 לרוב".
 const marginText = (seats) => S.seats.margin(C.majorityMargin(seats), isResults());
-// Segments joined by " · ", each one kept whole, so a line breaks only between them (#35: larger text, polls' ≈).
-const segments = (parts) => parts.map((x) => `<span class="nw">${esc(x)}</span>`).join(' · ');
 
 // Investiture vote, its outcome, and the members' own seats against 61 (the builder's seats box and, with roles, the
 // compact line). `src` follows the vote line (the compact line's short source).
@@ -833,7 +805,6 @@ function recsLine() {
 }
 
 const recLeader = (pid) => (pid ? party(pid).leader : null);
-const extLink = (url, text, label = '') => `<a href="${esc(url)}" rel="noopener" target="_blank"${label ? ` aria-label="${esc(label)}"` : ''}>${esc(text)}</a>`;
 
 // The source line first, then the mandate, the office's own tally (verbatim, attributed), and one row per faction in
 // party order, each linking its release. One neutral style for every candidate: no colors, no per-faction counts.

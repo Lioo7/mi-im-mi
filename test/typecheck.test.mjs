@@ -15,7 +15,7 @@ const TYPESCRIPT = 'typescript@5.9.3';
 const NODE_TYPES = '@types/node@22.20.5';
 // jsconfig.json: strict. jsconfig.browser.json: the browser-driving scripts (implicit any and null checks relaxed).
 const CONFIGS = ['jsconfig.json', 'jsconfig.browser.json'];
-const SITE_MODULES = ['site/js/compat.js', 'site/js/links.js', 'site/js/stats.js'];
+const SITE_MODULES = ['site/js/compat.js', 'site/js/links.js', 'site/js/stats.js', 'site/js/html.js'];
 
 const readConfig = (f) => JSON.parse(readFileSync(join(ROOT, f), 'utf8'));
 
@@ -32,7 +32,7 @@ function locateTsc() {
   return { tsc: realpathSync(bin), typeRoots: join(dirname(bin), '..', '@types') };
 }
 
-test('the type-check covers every script and the three site modules, each in exactly one config', () => {
+test('the type-check covers every script and the strict site modules, each in exactly one config', () => {
   const main = readConfig('jsconfig.json');
   const browser = readConfig('jsconfig.browser.json');
   for (const [k, v] of [['strict', true], ['checkJs', true], ['noEmit', true]]) assert.equal(main.compilerOptions[k], v, `jsconfig.json: ${k}`);

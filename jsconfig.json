@@ -12,6 +12,6 @@
     "strict": true,
     "skipLibCheck": true
   },
-  "include": ["site/js/compat.js", "site/js/links.js", "site/js/stats.js", "scripts/*.mjs"],
+  "include": ["site/js/compat.js", "site/js/links.js", "site/js/stats.js", "site/js/html.js", "scripts/*.mjs"],
   "exclude": ["scripts/smoke.mjs", "scripts/readme-media.mjs", "scripts/browser.mjs", "scripts/axe.mjs", "scripts/lighthouse.mjs"]
 }

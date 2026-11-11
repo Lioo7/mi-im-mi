@@ -1,5 +1,5 @@
 // No semicolons in Hebrew UI text (#33): in Hebrew ";" reads stiff and machine-written. A period, a comma or a list
-// instead. Checks every string literal of strings.js (and the Hebrew ones in app.js), and every Hebrew text field of
+// instead. Checks every string literal of strings.js (and the Hebrew ones in app.js and html.js), and every Hebrew text field of
 // the data, with quoted spans removed: quotes are verbatim and keep their punctuation.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -17,6 +17,7 @@ test('no ";" in the Hebrew UI strings', () => {
   const bad = [
     ...stringLiterals(src('strings.js')).map((l) => ({ ...l, file: 'strings.js' })),
     ...stringLiterals(src('app.js')).filter((l) => HEBREW.test(l.text)).map((l) => ({ ...l, file: 'app.js' })),
+    ...stringLiterals(src('html.js')).filter((l) => HEBREW.test(l.text)).map((l) => ({ ...l, file: 'html.js' })),
   ].filter((l) => l.text.includes(';')).map((l) => `${l.file}:${l.line}: ${l.text.slice(0, 80)}`);
   assert.deepEqual(bad, []);
 });
@@ -48,6 +49,7 @@ test('no ASCII " as gershayim in the Hebrew UI strings or in our Hebrew data tex
   const bad = [
     ...stringLiterals(src('strings.js')).map((l) => ({ ...l, file: 'strings.js' })),
     ...stringLiterals(src('app.js')).filter((l) => HEBREW.test(l.text)).map((l) => ({ ...l, file: 'app.js' })),
+    ...stringLiterals(src('html.js')).filter((l) => HEBREW.test(l.text)).map((l) => ({ ...l, file: 'html.js' })),
   ].flatMap((l) => asciiGershayim(l.text).map((w) => `${l.file}:${l.line}: ${w}`));
   const walk = (v, path) => {
     if (typeof v === 'string') { for (const w of asciiGershayim(v)) bad.push(`${path}: ${w}`); return; }
