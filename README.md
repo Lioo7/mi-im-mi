@@ -34,8 +34,8 @@
 
 - **14 מפלגות × 8 נושאים = 112 עמדות.** הנושאים: גיוס ושוויון בנטל · מערכת המשפט ושלטון החוק · ועדת חקירה ממלכתית ל-7 באוקטובר · דת, מדינה וזהות · הסוגיה הפלסטינית · ביטחון, עזה והיום שאחרי · כלכלה ויוקר המחיה · ביטחון אישי ופשיעה.
 - **כל מפלגה ממוקמת על ציר של 5 דרגות בכל נושא,** רק לפי מה שהמפלגה עצמה אמרה, כתבה או עשתה:
-  - **מצע** (59 עמדות)
-  - **הצהרה רשמית** בלשון המפלגה או מנהיגה (30)
+  - **מצע** (58 עמדות)
+  - **הצהרה רשמית** בלשון המפלגה או מנהיגה (31)
   - **רקורד בפועל**: הצעות חוק שהמפלגה יזמה או קידמה (7)
 - **כשאין מקור שעומד בכללים, התא מסומן "אין עמדה מוצהרת"** (16 תאים). לא מנחשים. כשנמצאו דברים שאינם עמדה על הציר, הם מוצגים עם המקור, בלי למקם את העמדה.
 - **ההתאמה מחושבת אוטומטית מהמרחק על הציר,** בלי שיפוט ידני של זוגות:
@@ -192,7 +192,7 @@ npm run media                         # צילומי המסך וההדגמה ש�
 
 **Method.**
 - **Coverage:** 14 parties × 8 topics = 112 positions.
-- **Placement:** each party is placed on a 5-point axis per topic, using only its own platform (59), official statements (30) or legislative record: bills the party sponsored or advanced (7). Cells without a qualifying source say "no stated position" (16).
+- **Placement:** each party is placed on a 5-point axis per topic, using only its own platform (58), official statements (31) or legislative record: bills the party sponsored or advanced (7). Cells without a qualifying source say "no stated position" (16).
 - **Scoring:** compatibility is computed from axis distance:
   - 0 = agree
   - 1 = minor gap

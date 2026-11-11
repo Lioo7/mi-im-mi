@@ -16,6 +16,7 @@ export const NAMES = {
   'פייסבוק': 'Facebook', 'כיפה': 'Kipa',
   'יעקב אשר': 'Yaakov Asher', 'אביגדור ליברמן': 'Avigdor Liberman', 'כיכר השבת': 'Kikar HaShabbat',
   'פגוש את העיתונות': 'Meet the Press', 'גלי צה״ל': 'Army Radio (Galei Tzahal)',
+  'ועדת החוקה, חוק ומשפט של הכנסת, פרוטוקול 828': 'Knesset Constitution, Law and Justice Committee, protocol 828',
 };
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const dayMonth = (iso) => { const [, m, d] = iso.split('-').map(Number); return `${d} ${MONTHS[m - 1]}`; };
