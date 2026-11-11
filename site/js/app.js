@@ -8,7 +8,7 @@ import { esc, keepWhole, segments, extLink, fmtNum } from './html.js';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 // Escaped text with runs of the other script isolated in <bdi>, in the reader's language (html.js).
-const bidi = (v) => H.bidi(v, lang);
+const bidi = (v) => H.bidi(v, /** @type {'he' | 'en'} */ (lang));
 
 // The reader's language (fragment `l=`, Hebrew by default) and its strings; see setLanguage().
 const STRINGS = { he: HE, en: EN };
@@ -86,6 +86,7 @@ function writeUrl() {
 }
 
 // Every state change clears the undo line; the three changes that offer undo pass the new one (undoFor()).
+/** @param {object} next the new state (applyState) @param {{ announceParty?: string, undo?: object | null }} [opts] */
 function setState(next, { announceParty, undo: nextUndo = null } = {}) {
   undo = nextUndo;
   applyState(next);
@@ -867,7 +868,7 @@ function overallBar(r) {
       <span class="sr-only">${esc(t.name)}: ${esc(S.levels[lv].label)}</span></li>`;
   }).join('');
   const b = C.breakdown(r.statuses);
-  const parts = C.shownBreakdown(b, S.results.breakdown(b.agree, b.minor, b.major, b.clash, b.nodata));
+  const parts = C.shownBreakdown(b, /** @type {[string, string, boolean][]} */ (S.results.breakdown(b.agree, b.minor, b.major, b.clash, b.nodata)));
   const outside = C.coalitionGroups(state).outside.length > 0;
   return `<section class="card overall">
     <h2 class="card-title">${esc(S.results.summaryTitleScoped(state.members.length))}</h2>
@@ -1164,7 +1165,7 @@ function renderMatrix() {
   let anySplit = false;
   const rows = (base ? [base, ...members.filter((id) => id !== base)] : members).map((pid) => {
     const cells = ctx.topics.map((t) => {
-      const cell = C.matrixCell(ctx, pid, t.id, members, base);
+      const cell = /** @type {{ level: string, ref?: string }} */ (C.matrixCell(ctx, pid, t.id, members, base));
       const p = posOf(pid, t.id);
       const lv = cell.level;
       present.add(lv === 'BASE_NULL' ? 'NONE' : lv);
@@ -1243,7 +1244,7 @@ function pollInfoSheet() {
 
 async function share(text = shareText(C.analyze(ctx, state)), url = shareUrl()) {
   if (navigator.share) {
-    try { await navigator.share({ title: S.appName, text, url }); return; } catch (e) { if (e.name === 'AbortError') return; }
+    try { await navigator.share({ title: S.appName, text, url }); return; } catch (e) { if (/** @type {Error} */ (e).name === 'AbortError') return; }
   }
   // Without Web Share (in-app browsers, desktop), the text and the link are copied together, as the WhatsApp link
   // sends them (#41).
@@ -1545,14 +1546,14 @@ function route(initial = false) {
 }
 
 function render() {
-  const focusKey = document.activeElement?.dataset?.key;
+  const focusKey = /** @type {HTMLElement | null} */ (document.activeElement)?.dataset?.key;
   if (view === 'build') renderBuilder();
   if (view === 'results') { renderResults(); renderMatrix(); }
   if (view === 'pair') renderPair();
   renderBar();
   // The CSP allows no inline style attributes; set the meters' widths through the CSSOM.
-  for (const el of document.querySelectorAll('.meter [data-pct]')) el.style.inlineSize = `${el.dataset.pct}%`;
-  if (focusKey) document.querySelector(`[data-key="${CSS.escape(focusKey)}"]`)?.focus();
+  for (const el of /** @type {NodeListOf<HTMLElement>} */ (document.querySelectorAll('.meter [data-pct]'))) el.style.inlineSize = `${el.dataset.pct}%`;
+  if (focusKey) /** @type {HTMLElement | null} */ (document.querySelector(`[data-key="${CSS.escape(focusKey)}"]`))?.focus();
 }
 
 function onClick(e) {
@@ -1750,17 +1751,18 @@ function bind() {
   window.addEventListener('resize', () => { if (view === 'results') syncResbarHeight(); });
   for (const ev of ['resize', 'scroll']) window.visualViewport?.addEventListener(ev, () => { if ($('#sheet').open) fitSheet(); });
   document.addEventListener('change', (e) => {
-    const el = e.target.closest('select[data-act="compare"]');
+    const target = /** @type {Element} */ (e.target);
+    const el = /** @type {HTMLSelectElement | null} */ (target.closest('select[data-act="compare"]'));
     // The sheet is rebuilt, so focus moves to the new select (#6) instead of dropping inside the modal.
     if (el) { partySheet(el.dataset.id, el.value); $('#sheet select[data-act="compare"]').focus(); }
-    const pp = e.target.closest('select[data-act="pair-pick"]');
+    const pp = /** @type {HTMLSelectElement | null} */ (target.closest('select[data-act="pair-pick"]'));
     if (pp) {
       pair[Number(pp.dataset.slot)] = pp.value || null;
       writeUrl();
       render();
       if (pair[0] && pair[1]) announce(pairSummaryText(...pair));
     }
-    const pick = e.target.closest('select[data-act="closest-pick"]');
+    const pick = /** @type {HTMLSelectElement | null} */ (target.closest('select[data-act="closest-pick"]'));
     if (pick?.value) {
       const id = pick.value;
       pick.value = '';

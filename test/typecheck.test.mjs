@@ -16,6 +16,8 @@ const NODE_TYPES = '@types/node@22.20.5';
 // jsconfig.json: strict. jsconfig.browser.json: the browser-driving scripts (implicit any and null checks relaxed).
 const CONFIGS = ['jsconfig.json', 'jsconfig.browser.json'];
 const SITE_MODULES = ['site/js/compat.js', 'site/js/links.js', 'site/js/stats.js', 'site/js/html.js'];
+// app.js (#53) is checked with the browser scripts' relaxed flags.
+const BROWSER_SITE_MODULES = ['site/js/app.js'];
 
 const readConfig = (f) => JSON.parse(readFileSync(join(ROOT, f), 'utf8'));
 
@@ -32,17 +34,18 @@ function locateTsc() {
   return { tsc: realpathSync(bin), typeRoots: join(dirname(bin), '..', '@types') };
 }
 
-test('the type-check covers every script and the strict site modules, each in exactly one config', () => {
+test('the type-check covers every script and the site modules, each in exactly one config', () => {
   const main = readConfig('jsconfig.json');
   const browser = readConfig('jsconfig.browser.json');
   for (const [k, v] of [['strict', true], ['checkJs', true], ['noEmit', true]]) assert.equal(main.compilerOptions[k], v, `jsconfig.json: ${k}`);
   const inMain = (f) => (main.include.includes(f) || (f.startsWith('scripts/') && main.include.includes('scripts/*.mjs')))
     && !main.exclude.includes(f);
   const scripts = readdirSync(join(ROOT, 'scripts')).filter((f) => f.endsWith('.mjs')).map((f) => `scripts/${f}`);
-  for (const f of [...SITE_MODULES, ...scripts]) {
+  for (const f of [...SITE_MODULES, ...BROWSER_SITE_MODULES, ...scripts]) {
     assert.equal(Number(inMain(f)) + Number(browser.files.includes(f)), 1, `${f} must be in exactly one jsconfig`);
   }
   for (const f of SITE_MODULES) assert.ok(inMain(f), `${f} is checked strictly`);
+  for (const f of BROWSER_SITE_MODULES) assert.ok(browser.files.includes(f), `${f} is checked in jsconfig.browser.json`);
 });
 
 describe('tsc --noEmit', { concurrency: true }, () => {
