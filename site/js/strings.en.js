@@ -201,8 +201,10 @@ export const S = {
     belowPct: (pct) => `${pct}% of the vote`,
     viewPositions: (n) => `Positions of ${n}`,
     // Segments: each one stays whole on screen, and lines break only between them (joined by " · ").
-    partyResult: (seats, pct, votes, joint) => [`${seatsN(seats)}${joint ? ' (part of the joint list)' : ''}`, `${pct}% of the vote`, `${votes} votes${joint ? ' for the list' : ''}`],
-    partyBelow: (pct, threshold) => `Did not pass the electoral threshold: ${pct}% of the vote (threshold ${threshold}%).`,
+    partySeats: (seats, joint) => `${seatsN(seats)}${joint ? ' (part of the joint list)' : ''}`,
+    partyBelow: 'Did not pass the electoral threshold',
+    partyVotes: (pct, votes, joint) => [`${pct}% of the vote`, `${votes} votes${joint ? ' for the list' : ''}`],
+    partyBelowVotes: (pct, threshold) => [`${pct}% of the vote (threshold ${threshold}%)`],
     resultsTitle: 'Election results',
     vsTitle: (d) => `Poll average (${d.replace(/ \d{4}$/, '')}) vs. results`,
     vsSplitNote: '* The joint list\'s average (about 7), split by us according to Zehut\'s places on the list.',
@@ -228,8 +230,8 @@ export const S = {
     cols: ['Faction', 'Recommendation', "Office's release"],
     none: 'Recommended no one',
     rowSource: (party, date) => `The President's Office release on ${party}, ${date}`,
-    partyLine: (date, person) => `In the consultations with the President (${date}): ${person ? `recommended ${person}` : 'recommended no one'}.`,
-    partySource: "The President's Office release",
+    partyLine: (date, person) => `${person ? `Recommended ${person}` : 'Recommended no one'}, ${date}`,
+    partySource: "President's Office",
   },
 
   levels: {

@@ -280,7 +280,11 @@ test('why rows and the votes line (#30): the gap sentence in both languages, the
   assert.equal(S.sheet.gapTitle('א', 'ב', 1), 'א ↔ ב: פער של דרגה אחת');
   assert.equal(EN.sheet.gapTitle('A', 'B', 3), 'A ↔ B: a gap of 3 steps');
   assert.equal(EN.sheet.gapTitle('A', 'B', 1), 'A ↔ B: a gap of 1 step');
-  assert.deepEqual(S.elected.partyResult(8, '6.44', '366,278', false), ['8 מנדטים', '6.44% מהקולות', '366,278 קולות']);
-  assert.deepEqual(EN.elected.partyResult(8, '6.44', '366,278', false), ['8 seats', '6.44% of the vote', '366,278 votes']);
-  assert.equal(S.elected.partyResult(5, '4.10', '200,000', true).length, 3);
+  // #H3: the seats on the sheet's main line, the vote share and votes as segments on its muted line.
+  assert.equal(S.elected.partySeats(8, false), '8 מנדטים');
+  assert.equal(S.elected.partySeats(5, true), '5 מנדטים (חלק מהרשימה המשותפת)');
+  assert.equal(EN.elected.partySeats(1, false), '1 seat');
+  assert.deepEqual(S.elected.partyVotes('6.44', '366,278', false), ['6.44% מהקולות', '366,278 קולות']);
+  assert.deepEqual(EN.elected.partyVotes('6.44', '366,278', false), ['6.44% of the vote', '366,278 votes']);
+  assert.deepEqual(S.elected.partyBelowVotes('1.20', 3.25), ['1.20% מהקולות (הסף 3.25%)']);
 });

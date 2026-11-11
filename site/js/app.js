@@ -857,12 +857,12 @@ function recsSheet() {
     </table></div>`);
 }
 
-// The party sheet's line: what this faction recommended, with its release.
+// The party sheet's main line, second part (#H3): what this faction recommended, with its release as the short source.
 function recsPartyLine(pid) {
   const rec = recData && ctx.passed(pid) ? C.localize(C.recommendationOf(recData, pid), lang) : null;
   if (!rec) return '';
   const R = S.recs;
-  return `<p class="note recs-party">${esc(R.partyLine(R.date(rec.date), recLeader(rec.recommended)))} ${extLink(rec.sourceUrl, R.partySource)}</p>`;
+  return ` · <span class="recs-party">${esc(R.partyLine(S.presets.shortDate(rec.date), recLeader(rec.recommended)))}</span> <span class="src-short nw">(${esc(S.elected.srcLabel)}: ${extLink(rec.sourceUrl, R.partySource)})</span>`;
 }
 
 // The poll sentence is a legal requirement in Hebrew: in English it is shown verbatim, followed by our translation.
@@ -1426,16 +1426,23 @@ function partyNotes(p) {
   }
   if (isResults()) {
     const l = ctx.listOf(p.id);
-    const result = ctx.passed(p.id)
-      ? S.elected.partyResult(ctx.seatsOf(p.id), l.pct.toFixed(2), fmtNum(l.votes), l.parties.length > 1)
-      : S.elected.partyBelow(l.pct.toFixed(2), electionResults.threshold);
+    const E = S.elected;
+    const passed = ctx.passed(p.id);
     if (l.splitNote) notes.push(l.splitNote);
-    const line = Array.isArray(result) ? result.map((x) => `<span class="nw">${esc(x)}</span>`).join(' · ') : esc(result);
-    return seatSourceLine() + `<p class="note votes-line">${line}</p>` + recsPartyLine(p.id) + notes.map((n) => `<p class="note note-soft">${bidi(n)}</p>`).join('');
+    // One main line: the seats (or the threshold) and the recommendation, each with its short source (#H3).
+    const main = `<p class="party-main seat-fig"><span class="nw">${esc(passed ? E.partySeats(ctx.seatsOf(p.id), l.parties.length > 1) : E.partyBelow)}</span>${srcShort()}${recsPartyLine(p.id)}</p>`;
+    const votes = passed ? E.partyVotes(l.pct.toFixed(2), fmtNum(l.votes), l.parties.length > 1) : E.partyBelowVotes(l.pct.toFixed(2), electionResults.threshold);
+    return main + officialLine(p, votes) + notes.map((n) => `<p class="note note-soft">${bidi(n)}</p>`).join('');
   }
   const seatNote = p.seatNote && showSeats();
   if (seatNote) notes.push(p.seatNote);
-  return notes.map((n) => `<p class="note note-soft">${bidi(n)}</p>`).join('') + (seatNote ? pollLegalLine() : '');
+  return officialLine(p) + notes.map((n) => `<p class="note note-soft">${bidi(n)}</p>`).join('') + (seatNote ? pollLegalLine() : '');
+}
+
+// The party sheet's muted line (#H3): the official list name, then (results mode) the vote share and the votes, each
+// kept whole.
+function officialLine(p, segs = []) {
+  return `<p class="muted small party-meta">${esc(S.sheet.officialName)}: ${officialNameHtml(p)}${segs.map((x) => ` · <span class="nw">${esc(x)}</span>`).join('')}</p>`;
 }
 
 // One coalition from closestTo(): every number on the row is a sort key, shown in sort order. The red-line part
@@ -1509,7 +1516,6 @@ function partySheet(pid, compareWith = '') {
     .map((x) => `<option value="${x.id}"${x.id === compareWith ? ' selected' : ''}>${esc(x.name)}</option>`).join('');
   openSheet(`
     <h2>${esc(p.name)}</h2>
-    <p class="muted small">${esc(S.sheet.officialName)}: ${officialNameHtml(p)}</p>
     ${partyNotes(p)}
     <label class="compare">${esc(S.pair.compareWith)}
       <select data-act="compare" data-id="${pid}"><option value="">${esc(S.pair.choose)}</option>${options}</select>

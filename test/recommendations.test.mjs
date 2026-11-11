@@ -98,5 +98,7 @@ test('date range strings in both languages', () => {
   assert.equal(S.recs.range('2026-10-30', '2026-11-02'), '30.10.2026–2.11.2026');
   assert.equal(S.recs.mandate.announced('7.11.2026', 'גדי איזנקוט'), 'ב-7.11.2026 הודיע הנשיא כי יטיל על גדי איזנקוט את מלאכת הרכבת הממשלה.');
   assert.equal(EN.recs.mandate.announced('7 Nov 2026', 'Gadi Eisenkot'), 'On 7 Nov 2026 the President announced he would task Gadi Eisenkot with forming the government.');
-  assert.equal(S.recs.partyLine('5.11.2026', null), 'בסבב ההתייעצויות אצל הנשיא (5.11.2026): לא המליצה על אף מועמד.');
+  assert.equal(S.recs.partyLine('5.11', null), 'לא המליצה על אף מועמד, 5.11');
+  assert.equal(S.recs.partyLine('5.11', 'בנימין נתניהו'), 'המליצה על בנימין נתניהו, 5.11');
+  assert.equal(EN.recs.partyLine('5 Nov', 'Benjamin Netanyahu'), 'Recommended Benjamin Netanyahu, 5 Nov');
 });

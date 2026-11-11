@@ -974,6 +974,29 @@ try {
       const after = await header();
       if (after.includes('★') || after.includes(tag.slice(2))) errors.push(`[${current}] with no base, the header should have no star or base tag (${after})`);
     }
+    // #H3: in every party sheet the positions start within the first screen (390×844), in both languages. Lists in the
+    // Knesset open from the matrix, lists under the threshold from their section on the build view.
+    for (const l of ['he', 'en']) {
+      step(`interaction-sheet-first-screen-${l}`);
+      const sheetTop = async (pid) => {
+        await settle(250);
+        const got = await evaluate("(() => { const c = document.querySelector('#sheet .profile .card'); const vh = window.visualViewport?.height ?? innerHeight; return c ? [Math.round(c.getBoundingClientRect().top), Math.round(vh)] : null; })()");
+        if (!got || got[0] > got[1] - 48) errors.push(`[${current}] ${pid}: the positions start at ${got?.[0]}px, below the first screen (${got?.[1]}px)`);
+        await evaluate("(() => { const d = document.querySelector('#sheet'); if (d.open) d.close(); return true; })()");
+      };
+      await go(`${baseUrl}#results?m=${passedIds.join(',')}${l === 'en' ? '&l=en' : ''}`);
+      await waitFor(() => evaluate(`document.querySelectorAll('.party-btn').length === ${passedIds.length}`));
+      for (const pid of passedIds) {
+        await evaluate(`document.querySelector('.party-btn[data-id="${pid}"]').click()`);
+        await sheetTop(pid);
+      }
+      if (RESULTS) for (const pid of ctx.parties.filter((x) => !ctx.passed(x.id)).map((x) => x.id)) {
+        await go(`${baseUrl}#build${l === 'en' ? '?l=en' : ''}`);
+        await waitFor(() => evaluate(`document.querySelector('details.below [data-id="${pid}"]') !== null`));
+        await evaluate(`document.querySelector('details.below').open = true; document.querySelector('details.below [data-id="${pid}"]').click()`);
+        await sheetTop(pid);
+      }
+    }
     step('interaction@390');
     await go(baseUrl);
     await ready();
@@ -1182,7 +1205,14 @@ try {
       await settle(300);
       const text = await evaluate("document.querySelector('#sheet').innerText.replace(/\\s+/g, ' ')");
       if (RESULTS) {
-        if (!text.includes(meta.resultsStatus)) errors.push(`[interaction] ${pid} party sheet lacks the results source line`);
+        // #H3 (authorized change): the sheet's first line after the name is the main line, which starts with the seats (or
+        // the threshold) and its own source link to the CEC results, visible on open, before any other seat figure.
+        const main = await evaluate(`(() => { const s = document.querySelector('#sheet'); const inner = s.querySelector('.sheet-inner'); const m = inner.querySelector('.party-main');
+          const a = m?.querySelector('a'); const r = a?.getBoundingClientRect(); const vh = window.visualViewport?.height ?? innerHeight;
+          return m && { second: inner.children[1] === m, text: m.textContent.replace(/\\s+/g, ' ').trim(), href: a.getAttribute('href'), visible: Boolean(r && r.height && r.top >= 0 && r.bottom <= vh),
+            firstFig: [...inner.querySelectorAll('.seat-fig, .axis-seats')][0] === m }; })()`);
+        const head = `${ctx.passed(pid) ? S.elected.partySeats(ctx.seatsOf(pid), ctx.listOf(pid).parties.length > 1) : S.elected.partyBelow} (${S.elected.srcLabel}: ${S.elected.srcName})`;
+        if (!main || !main.second || !main.text.startsWith(head) || main.href !== meta.resultsSourceUrl || !main.visible || !main.firstFig) errors.push(`[interaction] ${pid} party sheet: the main line should start "${head}" with a visible link to ${meta.resultsSourceUrl}, right under the name (${JSON.stringify(main)})`);
         if (!ctx.passed(pid) && !text.includes('לא עברה את אחוז החסימה')) errors.push(`[interaction] ${pid} party sheet should say it did not pass the threshold`);
         if (!topics.every((t) => text.includes(t.name))) errors.push(`[interaction] ${pid} party sheet should list its positions on all topics`);
       } else if (SEATS_HIDDEN) {
@@ -2328,8 +2358,9 @@ try {
         for (const pct of [100, 125]) {
           await evaluate(ENLARGE(pct));
           await settle(150);
-          const segs = await evaluate(lineCount('#sheet .votes-line .nw'));
-          if (RESULTS && (segs.length !== 3 || segs.some((n) => n > 1))) errors.push(`[${current}] votes line at ${pct}%: segments ${JSON.stringify(segs)} (want 3, one line each)`);
+          // #H3: the seats and its source on the main line, the vote share and the votes on the muted line.
+          const segs = await evaluate(lineCount('#sheet .party-main .nw, #sheet .party-meta .nw'));
+          if (RESULTS && (segs.length !== 5 || segs.some((n) => n > 1))) errors.push(`[${current}] the sheet's main and muted lines at ${pct}%: segments ${JSON.stringify(segs)} (want 5: seats, 2 sources, vote share, votes; one line each)`);
         }
         await evaluate(ENLARGE(100));
         // "Compare with…" (#6): choosing a party re-renders the sheet, and keyboard focus stays on the select.
@@ -2787,9 +2818,11 @@ try {
           await evaluate("(() => { const d = document.querySelector('#sheet'); if (d.open) d.close(); return true; })()");
           await evaluate(`document.querySelector('.party-btn[data-id="${f.partyId}"]').click()`);
           await settle(150);
-          const p = await evaluate("(() => { const e = document.querySelector('#sheet .recs-party'); return e && { text: e.innerText.replace(/\\s+/g, ' ').trim(), href: e.querySelector('a')?.getAttribute('href'), afterVotes: e.previousElementSibling?.classList.contains('votes-line') }; })()");
-          const wantText = `${R.partyLine(R.date(f.date), leader(f.recommended))} ${R.partySource}`;
-          if (!p || p.text !== wantText || p.href !== f.sourceUrl || !p.afterVotes) errors.push(`[${current}] party sheet ${f.partyId}: ${JSON.stringify(p)}, want "${wantText}" → ${f.sourceUrl}, after the votes line`);
+          // #H3: on the main line, after the seats and their source: the recommendation, then its own short source.
+          const p = await evaluate("(() => { const e = document.querySelector('#sheet .recs-party'); const src = e?.nextElementSibling; return e && { text: e.textContent.replace(/\\s+/g, ' ').trim(), src: src?.textContent.trim(), href: src?.querySelector('a')?.getAttribute('href'), inMain: e.parentElement?.classList.contains('party-main') && e.parentElement.querySelector('a')?.getAttribute('href') !== src?.querySelector('a')?.getAttribute('href') }; })()");
+          const wantText = R.partyLine(T.presets.shortDate(f.date), leader(f.recommended));
+          const wantSrc = `(${T.elected.srcLabel}: ${R.partySource})`;
+          if (!p || p.text !== wantText || p.src !== wantSrc || p.href !== f.sourceUrl || !p.inMain) errors.push(`[${current}] party sheet ${f.partyId}: ${JSON.stringify(p)}, want "${wantText} ${wantSrc}" → ${f.sourceUrl}, on the main line after the seats`);
         }
         await evaluate("(() => { const d = document.querySelector('#sheet'); if (d.open) d.close(); return true; })()");
         for (const id of ctx.parties.filter((p) => !ctx.passed(p.id)).map((p) => p.id)) {

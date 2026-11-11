@@ -210,8 +210,11 @@ export const S = {
     belowPct: (pct) => `${pct}% מהקולות`,
     viewPositions: (n) => `העמדות של ${n}`,
     // Segments: each one stays whole on screen, and lines break only between them (joined by " · ").
-    partyResult: (seats, pct, votes, joint) => [`${seats} מנדטים${joint ? ' (חלק מהרשימה המשותפת)' : ''}`, `${pct}% מהקולות`, `${votes} קולות${joint ? ' לרשימה' : ''}`],
-    partyBelow: (pct, threshold) => `לא עברה את אחוז החסימה: ${pct}% מהקולות (הסף ${threshold}%).`,
+    // The party sheet (#H3): the main line's seats (or the threshold), and the muted line's vote share and votes.
+    partySeats: (seats, joint) => `${seats} מנדטים${joint ? ' (חלק מהרשימה המשותפת)' : ''}`,
+    partyBelow: 'לא עברה את אחוז החסימה',
+    partyVotes: (pct, votes, joint) => [`${pct}% מהקולות`, `${votes} קולות${joint ? ' לרשימה' : ''}`],
+    partyBelowVotes: (pct, threshold) => [`${pct}% מהקולות (הסף ${threshold}%)`],
     resultsTitle: 'תוצאות הבחירות',
     vsTitle: (d) => `ממוצע סקרים (${d.slice(0, 5)}) מול תוצאות`,
     vsSplitNote: '* ממוצע הרשימה המשותפת (כ-7), בחלוקה שלנו לפי מיקומי זהות ברשימה.',
@@ -237,8 +240,9 @@ export const S = {
     cols: ['סיעה', 'המלצה', 'הודעת הלשכה'],
     none: 'לא המליצה על אף מועמד',
     rowSource: (party, date) => `הודעת לשכת הנשיא על ${party}, ${date}`,
-    partyLine: (date, person) => `בסבב ההתייעצויות אצל הנשיא (${date}): ${person ? `המליצה על ${person}` : 'לא המליצה על אף מועמד'}.`,
-    partySource: 'הודעת לשכת הנשיא',
+    // The party sheet's main line (#H3): what the faction recommended, and the short source after it.
+    partyLine: (date, person) => `${person ? `המליצה על ${person}` : 'לא המליצה על אף מועמד'}, ${date}`,
+    partySource: 'לשכת הנשיא',
   },
 
   levels: {
