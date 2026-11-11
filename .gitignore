@@ -2,6 +2,7 @@
 /review/
 /smoke/
 /docs/plans/
+/docs/review-media/
 .netlify/
 .DS_Store
 node_modules/
