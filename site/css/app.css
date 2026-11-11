@@ -391,7 +391,8 @@ h2 { margin-block-start: 1.2em; }
 
 /* ===== round 5: Israeli look, seats box, footer ===== */
 .topbar { border-block-end: 1px solid var(--line); }
-.topbar::before { content: ""; display: block; block-size: 11px; background: linear-gradient(var(--accent) 0 3px, transparent 3px 8px, var(--accent) 8px 11px); }
+/* One 4px accent stripe across the top (it was two stripes, 11px in all), above the header's 1px bottom border. */
+.topbar::before { content: ""; display: block; block-size: 4px; background: var(--accent); }
 h1, h2, h3 { color: var(--accent); }
 .brand { color: var(--accent); }
 .intro { color: var(--fg); }
