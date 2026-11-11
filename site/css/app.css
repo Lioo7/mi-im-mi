@@ -226,8 +226,10 @@ details.mgroup[open] > summary { border-block-end: 1px solid var(--line); margin
   .topic-btn { font-size: .8rem; }
   .matrix th[scope="row"], .matrix thead td { inline-size: 120px; }
 }
+/* Every animation and transition sits here, so none runs under prefers-reduced-motion: reduce (smoke runs that way). */
 @media (prefers-reduced-motion: no-preference) {
   .sheet[open] { animation: up .18s ease-out; }
+  .chev { transition: transform .15s; }
   @keyframes up { from { transform: translateY(24px); opacity: .6; } }
 }
 
@@ -460,7 +462,7 @@ body[data-view="build"]:has(#bar:not([hidden])) { padding-block-end: 100px; }
 .gap-main, .closest-main { display: grid; gap: 4px; flex: 1; min-inline-size: 0; }
 [dir="ltr"] .closest-row .chev { transform: scaleX(-1); }
 .closest-counts { gap: 2px 6px; }
-.chev { flex: none; font-size: 1.7rem; line-height: 1; color: var(--accent); transition: transform .15s; }
+.chev { flex: none; font-size: 1.7rem; line-height: 1; color: var(--accent); }
 .gap.is-open .chev { transform: rotate(-90deg); }
 /* The chevron points to the reading direction's end; open, it points down in both directions. */
 [dir="ltr"] .gap:not(.is-open) .chev { transform: scaleX(-1); }

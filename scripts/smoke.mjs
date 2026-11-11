@@ -423,8 +423,10 @@ const REDLINE_ORDER_JS = (scope) => `(() => { const e = [...document.querySelect
   if (!flag || kids.indexOf(flag) > i) return 'the 🚩 tag must come before the red-line block';
   if (!summary || !src) return 'the summary or the source line is missing';
   return [summary, q, src].filter(Boolean).every((x) => kids.indexOf(x) < i) && i === kids.length - 1 ? 'ok' : 'the red-line block must come after the summary, the quote and the source'; })()`;
-// The sheet slides in (translateY(24px) → 0, app.css): measure it at rest, after its own animation has finished.
-const SHEET_STILL_JS = "Promise.all((document.querySelector('#sheet')?.getAnimations() ?? []).map((a) => a.finished)).then(() => true)";
+// Motion (party-sheet section): the animations that ran since the page loaded (window.__anims, an init script), the
+// sheet's state and the gap chevron's transition. Every other check runs under prefers-reduced-motion: reduce.
+const MOTION_JS = `JSON.stringify({ open: document.querySelector('#sheet').open, anims: window.__anims,
+  chev: (() => { const e = document.querySelector('#results .gap .chev'); return e ? getComputedStyle(e).transitionDuration : null; })() })`;
 const server = base ? null : await serve();
 const baseUrl = (base ?? server.url).replace(/\/?$/, '/');
 const onProd = new URL(baseUrl).hostname === PROD_HOST;
@@ -508,6 +510,11 @@ try {
     }
   });
   for (const d of ['Page', 'Runtime', 'Log', 'Network']) await c.send(`${d}.enable`);
+  // Every check runs under prefers-reduced-motion: reduce, so nothing waits for the sheet's slide-in or a transition
+  // (app.css keeps them all under a no-preference query). One check in party-sheet runs without it (MOTION_JS).
+  const motion = (value) => c.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value }] });
+  await motion('reduce');
+  await c.send('Page.addScriptToEvaluateOnNewDocument', { source: "window.__anims = []; document.addEventListener('animationstart', (e) => window.__anims.push((e.target.id || e.target.tagName) + ':' + e.animationName), true);" });
   await c.send('Network.setCacheDisabled', { cacheDisabled: true });
   await c.send('Fetch.enable', { patterns: [{ urlPattern: '*goatcounter.com/count*' }] });
   // CSP violations become console errors and fail the run.
@@ -992,7 +999,6 @@ try {
       step(`interaction-sheet-first-screen-${l}`);
       const sheetTop = async (pid) => {
         await settle(250);
-        await evaluate(SHEET_STILL_JS);
         const got = await evaluate("(() => { const c = document.querySelector('#sheet .profile .card'); const vh = window.visualViewport?.height ?? innerHeight; return c ? [Math.round(c.getBoundingClientRect().top), Math.round(vh)] : null; })()");
         if (got && got[0] > worstTop[0]) worstTop = [got[0], `${pid} (${l})`];
         if (!got || got[0] > got[1] - 48) { errors.push(`[${current}] ${pid}: the positions start at ${got?.[0]}px, below the first screen (${got?.[1]}px)`); await shoot(z, `sheet-first-screen-fail-${pid}-${l}.png`, false, true); }
@@ -2347,6 +2353,22 @@ try {
     if (!b || !t || w.firstElementChild !== b) return { bad: 'badge must come first' };
     return { below: b.getBoundingClientRect().bottom <= t.getBoundingClientRect().top + 1, text: t.innerText.trim() }; })()`;
   if (sec('party-sheet')) {
+    // The one check without the reduced-motion emulation: with motion allowed the sheet slides in (animation "up") and
+    // the gap chevron turns (.15s), and the sheet's ✕ is in place once it lands. Under reduce neither moves.
+    for (const pref of ['no-preference', 'reduce']) {
+      step(`sheet-motion-${pref}`);
+      await motion(pref);
+      await setSize(SIZES[0]);
+      await go(`${baseUrl}#results?m=likud,yashar,together,otzma-yehudit,shas,utj`);
+      await waitFor(() => evaluate("document.querySelector('.party-btn[data-id=\"likud\"]') !== null && document.querySelector('#results .gap .chev') !== null"));
+      await evaluate("document.querySelector('.party-btn[data-id=\"likud\"]').click()");
+      await waitFor(() => evaluate("document.querySelector('#sheet').getAnimations().every((a) => a.playState !== 'running')"), 3000).catch(() => {});
+      const m = JSON.parse(await evaluate(MOTION_JS));
+      const slid = m.anims.filter((a) => a === 'sheet:up').length;
+      const want = pref === 'reduce' ? { slid: 0, chev: '0s' } : { slid: 1, chev: '0.15s' };
+      if (!m.open || slid !== want.slid || m.chev !== want.chev) errors.push(`[${current}] want the sheet open, ${want.slid} slide-in and a ${want.chev} chevron transition; got ${JSON.stringify(m)}`);
+      if (pref === 'no-preference') { const x = await evaluate(SHEET_X); if (x !== 'ok') errors.push(`[${current}] sheet ✕ after the slide-in: ${x}`); }
+    }
     let sheetRuns = 0;
     for (const w of [360, 375, 390]) {
       for (const l of ['he', 'en']) {
@@ -2361,7 +2383,6 @@ try {
         await waitFor(() => evaluate("document.querySelector('.party-btn[data-id=\"likud\"]') !== null"));
         await evaluate("document.querySelector('.party-btn[data-id=\"likud\"]').click()");
         await settle(300);
-        await evaluate(SHEET_STILL_JS);
         const sheetCheck = async (what) => { const r = await evaluate(SHEET_X); if (r !== 'ok') errors.push(`[${current}] ${what}: ${r}`); };
         await sheetCheck('at rest');
         await evaluate("(() => { const d = document.querySelector('#sheet'); d.scrollTop = 120; return true; })()");
@@ -2835,8 +2856,6 @@ try {
         if (got.styled) errors.push(`[${current}] ${got.styled} styled element(s) in the table rows: every candidate gets the same neutral look`);
         if (l === 'en' && got.hebrew) errors.push(`[${current}] Hebrew in the English sheet`);
         if (got.overflow) errors.push(`[${current}] the sheet overflows horizontally`);
-        // The sheet slides in (.18s): under load (three modes at once) settle(250) can end first, so wait for it to land.
-        await waitFor(() => evaluate("document.querySelector('#sheet').getAnimations().every((a) => a.playState !== 'running')"), 3000).catch(() => {});
         const x = await evaluate(SHEET_X);
         if (x !== 'ok') errors.push(`[${current}] sheet ✕: ${x}`);
         await evaluate("document.querySelector('#sheet .sheet-close').click()");
