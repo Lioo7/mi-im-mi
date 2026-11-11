@@ -1404,7 +1404,8 @@ try {
       await evaluate("document.querySelector('.cell[data-party=\"raam\"][data-topic=\"draft\"]').click()");
       await settle(300);
       const note = await evaluate("(() => { const p = document.querySelector('#sheet .pos'); return { text: p?.innerText ?? '', links: [...(p?.querySelectorAll('.source a') ?? [])].map((a) => a.href) }; })()");
-      const year = lng === 'he' ? "במצע הרשימה מ-1999 נכתב: 'דחיית גיוסם של הערבים בצה״ל'." : "The list's 1999 platform says: 'rejection of the conscription of Arabs into the IDF'.";
+      // The note names the list as the 1999 document's own title does ("הרשימה הערבית המאוחדת - מצע", #51).
+      const year = lng === 'he' ? "במצע הרשימה הערבית המאוחדת מ-1999 נכתב: 'דחיית גיוסם של הערבים בצה״ל'." : "The United Arab List's 1999 platform says: 'rejection of the conscription of Arabs into the IDF'.";
       if (!note.text.includes(year) || !note.links.includes('https://www.idi.org.il/media/16883/%D7%A8%D7%A2%D7%9E-1999.pdf')) errors.push(`[interaction-${lng}] רע״ם × גיוס should carry the dated 1999 note and link the IDI copy (${JSON.stringify(note.links)})`);
       await shoot(z, `interaction-dated-note-m${lng === 'he' ? '' : '-en'}.png`, false);
       await evaluate("document.querySelector('#sheet').close()");

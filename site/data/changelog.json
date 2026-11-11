@@ -1,5 +1,5 @@
 {
-  "reviewed": "4813d8d0850a41904532e13e687644a1d5d06c0501a835775f8d900d103d8f95",
+  "reviewed": "a5af1ac1f0186e0ed47f041e0f238652760ace9be2f71fa2f19d220b9725aa63",
   "entries": [
     {
       "date": "2026-11-08",
@@ -10,8 +10,8 @@
     {
       "date": "2026-11-08",
       "kind": "scenario",
-      "he": "בשורות המקור של שני תרחישים נוספו תגובות של {party:yisrael-beiteinu}, {party:utj} ו{party:shas}. ההרכבים והתפקידים לא השתנו.",
-      "en": "Responses by {party:yisrael-beiteinu}, {party:utj} and {party:shas} were added to the source lines of two scenarios. Members and roles did not change."
+      "he": "בשורות המקור של שני תרחישים עודכנו התגובות של המפלגות: בתרחיש אחד, הכחשה של {party:yisrael-beiteinu} מ-5.11 הוחלפה בהצהרה של יו״ר {party:yisrael-beiteinu}, בתגובה של {party:utj} ובהכחשה של {party:shas}, ובתרחיש השני נוספה דחייה של {party:yisrael-beiteinu}. ההרכבים והתפקידים לא השתנו.",
+      "en": "The parties' responses in the source lines of two scenarios were updated: in one, a 5 Nov denial by {party:yisrael-beiteinu} was replaced by a statement from the {party:yisrael-beiteinu} chairman, a response by {party:utj} and a denial by {party:shas}, and in the other a rejection by {party:yisrael-beiteinu} was added. Members and roles did not change."
     },
     {
       "date": "2026-11-06",
@@ -28,8 +28,8 @@
     {
       "date": "2026-11-03",
       "kind": "notes",
-      "he": "בחמישה תאים בלי עמדה מוצהרת נוספה הערה מתוארכת ממצע רשמי של המפלגה מבחירות קודמות. ההערה מוצגת עם המקור שלה ואינה משמשת למיקום.",
-      "en": "A dated note from the party's official platform in a previous election was added to five cells with no stated position. The note is shown with its source and is not used for placement."
+      "he": "בחמישה תאים בלי עמדה מוצהרת נוספה הערה מתוארכת ממצע או ממסמך עקרונות רשמי של המפלגה מבחירות קודמות. ההערה מוצגת עם המקור שלה ואינה משמשת למיקום.",
+      "en": "A dated note from the party's official platform or statement of principles in a previous election was added to five cells with no stated position. The note is shown with its source and is not used for placement."
     },
     {
       "date": "2026-11-02",
