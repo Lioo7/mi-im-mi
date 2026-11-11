@@ -2,7 +2,7 @@
 // Usage: node scripts/export-csv.mjs [source.json] [out.csv]
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
-import { loadData, readJson, toCsv, reviewSort, MERGED, REVIEW_CSV } from './lib.mjs';
+import { loadData, readJson, toCsv, reviewSort, redLineColumns, MERGED, REVIEW_CSV, RED_LINE_COLUMNS } from './lib.mjs';
 
 const src = process.argv[2] ?? MERGED;
 const out = process.argv[3] ?? REVIEW_CSV;
@@ -16,7 +16,7 @@ const topic = new Map(topics.map((t) => [t.id, t]));
 const COLUMNS = [
   'flagged', 'flag_reason', 'red_line', 'components_disagree', 'position', 'position_label', 'topic', 'party', 'summary', 'summary_en', 'quote', 'quote_by', 'quote_translation', 'quote_translation_en', 'quote_translated_by', 'quote_channel',
   'source_type', 'source_url', 'extra_source_url', 'archive_url', 'via_url', 'source_date', 'confidence', 'party_id', 'topic_id',
-  'evidence_note', 'red_line_evidence',
+  'evidence_note', ...RED_LINE_COLUMNS,
 ];
 
 const rows = reviewSort(records, parties, topics).map((r) => ({
@@ -46,7 +46,7 @@ const rows = reviewSort(records, parties, topics).map((r) => ({
   party_id: r.partyId,
   topic_id: r.topicId,
   evidence_note: r.evidenceNote ?? '',
-  red_line_evidence: r.redLineEvidence ? `${r.redLineEvidence.quote ?? ''} ${r.redLineEvidence.url ?? ''}`.trim() : '',
+  ...redLineColumns(r),
 }));
 
 mkdirSync(dirname(out), { recursive: true });

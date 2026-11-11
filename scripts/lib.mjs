@@ -49,7 +49,16 @@ export function loadData() {
 export const PUBLIC_FIELDS = [
   'partyId', 'topicId', 'position', 'redLine', 'summary', 'summaryEn', 'quote', 'quoteBy', 'quoteTranslation', 'quoteTranslationEn', 'quoteTranslatedBy', 'quoteChannel',
   'sourceUrl', 'extraSourceUrl', 'sourceType', 'sourceDate', 'viaUrl', 'archiveUrl', 'confidence', 'componentsDisagree',
+  'redLineQuote', 'redLineQuoteTranslationEn', 'redLineBy', 'redLineChannel', 'redLineUrl', 'redLineDate',
 ];
+
+// The words behind a 🚩 (#49): the party's or its leader's own statement that the topic is a coalition condition, verbatim,
+// with our English translation, the speaker (null: the party), the channel (null: from the URL's host), the URL and date.
+export const RED_LINE_FIELDS = ['redLineQuote', 'redLineQuoteTranslationEn', 'redLineBy', 'redLineChannel', 'redLineUrl', 'redLineDate'];
+// The same fields as columns of the review CSV, the evidence files and the download.
+export const RED_LINE_COLUMNS = ['red_line_quote', 'red_line_quote_translation_en', 'red_line_by', 'red_line_channel', 'red_line_url', 'red_line_date'];
+/** @param {Rec} r @returns {Rec} the red-line columns of one record ('' for null) */
+export const redLineColumns = (r) => Object.fromEntries(RED_LINE_COLUMNS.map((c, i) => [c, r[RED_LINE_FIELDS[i]] ?? '']));
 
 export const SOURCE_TYPES = ['platform', 'statement', 'record'];
 export const CONFIDENCE = ['high', 'med', 'low'];
@@ -356,6 +365,19 @@ export function validatePositions(positions, parties, topics, where = (p) => key
     if (p.position !== null && ![-2, -1, 0, 1, 2].includes(p.position)) errors.push(`${at}: position out of range (${p.position})`);
     if (typeof p.redLine !== 'boolean') errors.push(`${at}: redLine must be true/false`);
     if (p.redLine && p.position === null) errors.push(`${at}: redLine without a position`);
+    // A red line shows the words that make it one (#49): the quote, its date and its URL, translated when not in English.
+    if (p.redLine) {
+      if (!p.redLineQuote || !String(p.redLineQuote).trim()) errors.push(`${at}: redLine without redLineQuote (the statement that makes it a coalition condition)`);
+      else if (p.redLineQuote.length > 300) errors.push(`${at}: redLineQuote too long`);
+      if (!isHttps(p.redLineUrl)) errors.push(`${at}: redLine without a valid redLineUrl`);
+      if (!isDate(p.redLineDate)) errors.push(`${at}: redLine without a full redLineDate (YYYY-MM-DD)`);
+      if (p.redLineQuote && (/[\u0590-\u06FF]/.test(p.redLineQuote) ? !isEnglish(p.redLineQuoteTranslationEn) : p.redLineQuoteTranslationEn != null)) {
+        errors.push(`${at}: redLineQuoteTranslationEn must translate a non-English redLineQuote, and only one`);
+      }
+    } else {
+      const set = RED_LINE_FIELDS.filter((f) => p[f] != null);
+      if (set.length) errors.push(`${at}: ${set.join(', ')} on a row without a red line`);
+    }
     if (!p.summary || !p.summary.trim()) errors.push(`${at}: empty summary`);
     // English (#3): every summary has a translation, and so does every quote not already in English.
     if (!isEnglish(p.summaryEn)) errors.push(`${at}: missing or non-English summaryEn`);
@@ -447,7 +469,7 @@ export function evidenceRows(records, parties, topics) {
       position: r.position ?? '',
       position_label: r.position == null ? 'אין עמדה מוצהרת' : T(r.topicId).axis[String(r.position)],
       red_line: r.redLine ? 'TRUE' : 'FALSE',
-      red_line_evidence: r.redLineEvidence ? `${r.redLineEvidence.quote ?? ''} ${r.redLineEvidence.url ?? ''}`.trim() : '',
+      ...redLineColumns(r),
       components_disagree: r.componentsDisagree ? 'TRUE' : 'FALSE',
       source_type: r.sourceType ?? '',
       source_url: r.sourceUrl ?? '',
@@ -467,8 +489,9 @@ export function evidenceRows(records, parties, topics) {
     }));
 }
 
-// Columns that come from merged.json alone, so the live data cannot check them.
-const MERGED_ONLY = ['red_line_evidence', 'evidence_note'];
+// Columns that come from merged.json alone, so the live data cannot check them. (The red-line evidence is public since
+// #49, so validate checks it like any other column.)
+const MERGED_ONLY = ['evidence_note'];
 
 // The published evidence files must match the live positions (they fell behind once, #40), and the CSV must be the JSON.
 // `merged` (research/merged.json, gitignored) is checked only where it exists: its public fields must equal positions.json.
@@ -531,6 +554,7 @@ export function downloadRows({ meta, parties, topics, positions, results }) {
         position_label: none ? HE.levels.NONE.label : t.axis[String(r.position)],
         position_label_en: none ? EN.levels.NONE.label : t.en.axis[String(r.position)],
         red_line: Boolean(r.redLine),
+        ...Object.fromEntries(Object.entries(redLineColumns(r)).map(([k, v]) => [k, v === '' ? null : v])),
         components_disagree: Boolean(r.componentsDisagree),
         source_type: r.sourceType ?? null,
         source_date: r.sourceDate ?? null,
@@ -564,6 +588,7 @@ export function buildDownload(data) {
     dataUpdated: data.meta.dataUpdated,
     license: { name: D.licenseName, url: D.licenseUrl, he: D.license, en: E.license },
     positionNote: { he: D.positionNote, en: E.positionNote },
+    redLineNote: { he: D.redLineNote, en: E.redLineNote },
     rows,
   };
   return {
@@ -591,7 +616,7 @@ export function validateDownload(data, files) {
 // only as {party:<id>} / {topic:<id>} tokens. `reviewed` is the fingerprint of the data files when the list was last
 // checked, so any data change fails validate until it gets an entry or an explicit `node scripts/changelog.mjs --ack`.
 export const CHANGELOG_FILE = 'changelog.json';
-export const CHANGE_KINDS = ['results', 'placement', 'name', 'scenario', 'recommendations', 'notes'];
+export const CHANGE_KINDS = ['results', 'placement', 'name', 'scenario', 'recommendations', 'notes', 'sources'];
 const TOKEN = /\{(party|topic):([^}]*)\}/g;
 
 // sha256 of every data file the site shows, except the changelog itself, in name order.

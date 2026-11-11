@@ -373,6 +373,8 @@ export const S = {
     close: 'סגירה',
     source: 'מקור',
     extraSource: 'מקור נוסף',
+    // Above the red-line quote (#49): the party's or its leader's own words that make the topic a coalition condition.
+    redLineEvidence: 'הקו האדום, בלשונם',
     via: 'דרך בקלפי',
     sourceTypes: { platform: 'מצע', statement: 'הצהרה', record: 'רקורד חקיקתי' },
     // A year alone: an older platform whose exact date is not known.
@@ -492,7 +494,7 @@ export const S = {
       intro: 'שינויים במה שמוצג באתר: תוצאות, מיקומים, שמות, תרחישים, המלצות לנשיא והערות מתוארכות. הנימוקים המלאים ביומן ההחלטות.',
       logLink: 'יומן ההחלטות',
       logUrl: 'https://github.com/Lioo7/mi-im-mi/blob/main/docs/research/decisions.md',
-      kinds: { results: 'תוצאות', placement: 'מיקום', name: 'שם', scenario: 'תרחיש', recommendations: 'המלצות לנשיא', notes: 'הערה מתוארכת' },
+      kinds: { results: 'תוצאות', placement: 'מיקום', name: 'שם', scenario: 'תרחיש', recommendations: 'המלצות לנשיא', notes: 'הערה מתוארכת', sources: 'מקורות' },
       placement: (p, t, from, to) => `${p}, ${t}: מ-״${from}״ ל-״${to}״`,
     },
     // Data download (#18): the files are site/download/, written by scripts/export-download.mjs. positionNote and license
@@ -503,6 +505,7 @@ export const S = {
       csv: 'CSV',
       json: 'JSON',
       positionNote: 'עמודת position היא המיקום על הציר של כל נושא (\u200E−2 עד 2). הכיוון נקבע לכל נושא בנפרד, והוא לא ציון של שמאל וימין.',
+      redLineNote: 'עמודות red_line_quote, red_line_quote_translation_en, red_line_by, red_line_channel, red_line_url ו-red_line_date: בתאים שמסומנים בקו אדום, הציטוט שבו המפלגה או מנהיגה הציבו את התנאי (כלשונו), התרגום שלנו לאנגלית, הדובר (ריק: המפלגה עצמה), הערוץ שבו נאמרו הדברים (ריק: לפי אתר המקור), הקישור והתאריך.',
       csvNote: 'בקובץ ה-CSV, תא טקסט שמתחיל ב-=, +, - או @ מקבל גרש (\') בתחילתו, כדי שגיליון אלקטרוני לא יריץ אותו כנוסחה. בקובץ ה-JSON הטקסט מופיע כמו שהוא.',
       license: 'הנתונים שלנו (מיקומים, סיכומים ותוויות הצירים) ברישיון CC BY 4.0: מותר לשתף ולעבד בציון המקור. הציטוטים והמקורות המקושרים שייכים לבעליהם.',
       licenseName: 'CC BY 4.0',

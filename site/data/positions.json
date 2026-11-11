@@ -19,7 +19,13 @@
     "viaUrl": "https://www.bakalpi.co.il/he/issues/recruitment",
     "archiveUrl": null,
     "confidence": "low",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "yashar",
@@ -41,7 +47,13 @@
     "viaUrl": "https://www.bakalpi.co.il/he/issues/recruitment",
     "archiveUrl": "https://web.archive.org/web/20261025210506/https://yasharwitheisenkot.com/principles/service-for-all/",
     "confidence": "high",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "together",
@@ -63,7 +75,13 @@
     "viaUrl": "https://www.bakalpi.co.il/he/issues/recruitment",
     "archiveUrl": null,
     "confidence": "high",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "democrats",
@@ -85,7 +103,13 @@
     "viaUrl": "https://www.bakalpi.co.il/he/issues/recruitment",
     "archiveUrl": "https://web.archive.org/web/20261015220056/https://democrats-media.s3.us-east-1.amazonaws.com/%D7%92%D7%99%D7%95%D7%A1+%D7%95%D7%97%D7%9C%D7%95%D7%A7%D7%AA+%D7%94%D7%A0%D7%98%D7%9C.pdf",
     "confidence": "med",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "joint-list",
@@ -107,7 +131,13 @@
     "viaUrl": "https://www.bakalpi.co.il/he/issues/recruitment",
     "archiveUrl": "https://web.archive.org/web/20261025210525/https://jointlist.org.il/he/platform/",
     "confidence": "high",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "otzma-yehudit",
@@ -129,7 +159,13 @@
     "viaUrl": "https://www.bakalpi.co.il/he/issues/recruitment",
     "archiveUrl": null,
     "confidence": "med",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "shas",
@@ -151,7 +187,13 @@
     "viaUrl": null,
     "archiveUrl": null,
     "confidence": "high",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": "לא תהיה ממשלה בישראל שש\"ס תומכת או משתתפת בלי שנסדיר את מעמד תלמידי הישיבות.",
+    "redLineQuoteTranslationEn": "There will be no government in Israel that Shas supports or takes part in unless we settle the status of yeshiva students.",
+    "redLineBy": "אריה דרעי",
+    "redLineChannel": "כיכר השבת",
+    "redLineUrl": "https://www.mako.co.il/news-israel-elections/2026/Article-420d8b8ce3931a1027.htm",
+    "redLineDate": "2026-10-14"
   },
   {
     "partyId": "utj",
@@ -173,7 +215,13 @@
     "viaUrl": "https://www.bakalpi.co.il/he/issues/recruitment",
     "archiveUrl": null,
     "confidence": "high",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": "אנחנו לא נהיה שותפים בשום ממשלה שלא תחוקק בתחילת הקדנציה, מיד בהתחלה, את חוק הגיוס",
+    "redLineQuoteTranslationEn": "We will not be partners in any government that does not enact the enlistment law at the start of its term, right at the beginning.",
+    "redLineBy": "יעקב אשר",
+    "redLineChannel": "פגוש את העיתונות",
+    "redLineUrl": "https://www.mako.co.il/news-israel-elections/2026/liveblog-be85d8f1b3e61a1026.htm",
+    "redLineDate": "2026-10-24"
   },
   {
     "partyId": "yisrael-beiteinu",
@@ -195,7 +243,13 @@
     "viaUrl": "https://www.bakalpi.co.il/he/issues/recruitment",
     "archiveUrl": "https://web.archive.org/web/20261025175623/https://beytenu.org.il/party-platform/",
     "confidence": "high",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": "לא תהיה פה שום ויתור: לא בנושא גיוס לכולם, לא בוועדת חקירה ממלכתית, לא בנושא של הממשלת מיעוט.",
+    "redLineQuoteTranslationEn": "There will be no concession here: not on enlistment for all, not on a state commission of inquiry, not on a minority government.",
+    "redLineBy": "אביגדור ליברמן",
+    "redLineChannel": "גלי צה״ל",
+    "redLineUrl": "https://www.mako.co.il/news-politics/2026_q3/Article-9a282338bce00a1026.htm",
+    "redLineDate": "2026-08-17"
   },
   {
     "partyId": "religious-zionism",
@@ -217,7 +271,13 @@
     "viaUrl": "https://www.bakalpi.co.il/he/issues/recruitment",
     "archiveUrl": "https://web.archive.org/web/20261025214549/https://miluim.zionutdatit.digital/",
     "confidence": "med",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "raam",
@@ -239,7 +299,13 @@
     "viaUrl": null,
     "archiveUrl": null,
     "confidence": "med",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "kalkalit",
@@ -261,7 +327,13 @@
     "viaUrl": "https://www.bakalpi.co.il/he/issues/recruitment",
     "archiveUrl": null,
     "confidence": "med",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "zehut",
@@ -283,7 +355,13 @@
     "viaUrl": null,
     "archiveUrl": null,
     "confidence": "med",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "amcha-yisrael",
@@ -305,7 +383,13 @@
     "viaUrl": "https://www.bakalpi.co.il/he/issues/recruitment",
     "archiveUrl": "https://web.archive.org/web/20261025174418/https://amchaisrael.co.il/foundations",
     "confidence": "med",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": "חקיקת חוק זה לפני השבעת הממשלה מהווה תנאי סף עבור כניסתנו לכל ממשלה.",
+    "redLineQuoteTranslationEn": "Passing this law before the government is sworn in is a threshold condition for our joining any government.",
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": "https://www.ynet.co.il/news/elections2026/article/yokra14898966",
+    "redLineDate": "2026-09-16"
   },
   {
     "partyId": "likud",
@@ -327,7 +411,13 @@
     "viaUrl": "https://www.bakalpi.co.il/he/parties/likud",
     "archiveUrl": null,
     "confidence": "med",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "yashar",
@@ -349,7 +439,13 @@
     "viaUrl": "https://www.bakalpi.co.il/he/parties/yashar",
     "archiveUrl": null,
     "confidence": "high",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "together",
@@ -371,7 +467,13 @@
     "viaUrl": "https://www.maariv.co.il/news/politics/article-1379752",
     "archiveUrl": null,
     "confidence": "high",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "democrats",
@@ -393,7 +495,13 @@
     "viaUrl": "https://www.bakalpi.co.il/he/issues/judiciary-governance",
     "archiveUrl": null,
     "confidence": "high",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "joint-list",
@@ -415,7 +523,13 @@
     "viaUrl": "https://www.bakalpi.co.il/he/parties/joint-list",
     "archiveUrl": null,
     "confidence": "low",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "otzma-yehudit",
@@ -437,7 +551,13 @@
     "viaUrl": "https://www.bakalpi.co.il/he/parties/otzma-yehudit",
     "archiveUrl": null,
     "confidence": "high",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "shas",
@@ -459,7 +579,13 @@
     "viaUrl": "https://www.bakalpi.co.il/he/parties/shas",
     "archiveUrl": "https://web.archive.org/web/20261025212955/https://www.mako.co.il/news-politics/2026_q1/Article-10134d4d1444d91026.htm",
     "confidence": "med",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "utj",
@@ -481,7 +607,13 @@
     "viaUrl": "https://www.bakalpi.co.il/he/parties/utj",
     "archiveUrl": null,
     "confidence": "med",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "yisrael-beiteinu",
@@ -503,7 +635,13 @@
     "viaUrl": "https://www.bakalpi.co.il/he/parties/yisrael-beiteinu",
     "archiveUrl": "https://web.archive.org/web/20261025175623/https://beytenu.org.il/party-platform/",
     "confidence": "med",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "religious-zionism",
@@ -525,7 +663,13 @@
     "viaUrl": "https://www.bakalpi.co.il/he/issues/judiciary-governance",
     "archiveUrl": "https://web.archive.org/web/20261025213144/https://zionutdatit.org.il/mishpat/",
     "confidence": "high",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "raam",
@@ -547,7 +691,13 @@
     "viaUrl": "https://www.bakalpi.co.il/he/parties/raam",
     "archiveUrl": "https://web.archive.org/web/20261025213121/https://www.maariv.co.il/news/politics/article-990029",
     "confidence": "med",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "kalkalit",
@@ -569,7 +719,13 @@
     "viaUrl": "https://www.bakalpi.co.il/he/parties/kalkalit",
     "archiveUrl": null,
     "confidence": "med",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "zehut",
@@ -591,7 +747,13 @@
     "viaUrl": null,
     "archiveUrl": null,
     "confidence": "high",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "amcha-yisrael",
@@ -613,7 +775,13 @@
     "viaUrl": "https://www.bakalpi.co.il/he/parties/amcha-yisrael",
     "archiveUrl": "https://web.archive.org/web/20261025174418/https://amchaisrael.co.il/foundations",
     "confidence": "high",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "likud",
@@ -635,7 +803,13 @@
     "viaUrl": null,
     "archiveUrl": null,
     "confidence": "high",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "yashar",
@@ -657,7 +831,13 @@
     "viaUrl": "https://www.ynet.co.il/news/elections2026/article/yokra14915209",
     "archiveUrl": null,
     "confidence": "high",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "together",
@@ -679,7 +859,13 @@
     "viaUrl": "https://www.ynet.co.il/news/elections2026/article/yokra14915209",
     "archiveUrl": null,
     "confidence": "high",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "democrats",
@@ -701,7 +887,13 @@
     "viaUrl": "https://www.ynet.co.il/news/elections2026/article/yokra14915209",
     "archiveUrl": null,
     "confidence": "high",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "joint-list",
@@ -723,7 +915,13 @@
     "viaUrl": null,
     "archiveUrl": null,
     "confidence": "med",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "otzma-yehudit",
@@ -745,7 +943,13 @@
     "viaUrl": null,
     "archiveUrl": null,
     "confidence": "high",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "shas",
@@ -767,7 +971,13 @@
     "viaUrl": "https://www.ynet.co.il/news/elections2026/article/yokra14915209",
     "archiveUrl": null,
     "confidence": "low",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "utj",
@@ -789,7 +999,13 @@
     "viaUrl": null,
     "archiveUrl": null,
     "confidence": "low",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "yisrael-beiteinu",
@@ -811,7 +1027,13 @@
     "viaUrl": "https://www.ynet.co.il/news/elections2026/article/yokra14915209",
     "archiveUrl": "https://web.archive.org/web/20261025175623/https://beytenu.org.il/party-platform/",
     "confidence": "high",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": "לא תהיה פה שום ויתור: לא בנושא גיוס לכולם, לא בוועדת חקירה ממלכתית, לא בנושא של הממשלת מיעוט.",
+    "redLineQuoteTranslationEn": "There will be no concession here: not on enlistment for all, not on a state commission of inquiry, not on a minority government.",
+    "redLineBy": "אביגדור ליברמן",
+    "redLineChannel": "גלי צה״ל",
+    "redLineUrl": "https://www.mako.co.il/news-politics/2026_q3/Article-9a282338bce00a1026.htm",
+    "redLineDate": "2026-08-17"
   },
   {
     "partyId": "religious-zionism",
@@ -833,7 +1055,13 @@
     "viaUrl": null,
     "archiveUrl": null,
     "confidence": "med",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "raam",
@@ -855,7 +1083,13 @@
     "viaUrl": null,
     "archiveUrl": null,
     "confidence": "med",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "kalkalit",
@@ -877,7 +1111,13 @@
     "viaUrl": "https://www.bakalpi.co.il/he/parties/kalkalit",
     "archiveUrl": null,
     "confidence": "med",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "zehut",
@@ -899,7 +1139,13 @@
     "viaUrl": null,
     "archiveUrl": null,
     "confidence": "low",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "amcha-yisrael",
@@ -921,7 +1167,13 @@
     "viaUrl": "https://www.bakalpi.co.il/he/issues/judiciary-governance",
     "archiveUrl": null,
     "confidence": "med",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "likud",
@@ -943,7 +1195,13 @@
     "viaUrl": null,
     "archiveUrl": null,
     "confidence": "med",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "yashar",
@@ -965,7 +1223,13 @@
     "viaUrl": "https://www.bakalpi.co.il/he/issues/religion-state",
     "archiveUrl": null,
     "confidence": "med",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "together",
@@ -987,7 +1251,13 @@
     "viaUrl": "https://www.bakalpi.co.il/he/issues/religion-state",
     "archiveUrl": null,
     "confidence": "high",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "democrats",
@@ -1009,7 +1279,13 @@
     "viaUrl": "https://www.bakalpi.co.il/he/issues/religion-state",
     "archiveUrl": null,
     "confidence": "med",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "joint-list",
@@ -1031,7 +1307,13 @@
     "viaUrl": null,
     "archiveUrl": "https://web.archive.org/web/20261025210525/https://jointlist.org.il/he/platform/",
     "confidence": "med",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "otzma-yehudit",
@@ -1053,7 +1335,13 @@
     "viaUrl": "https://www.bakalpi.co.il/he/issues/religion-state",
     "archiveUrl": null,
     "confidence": "med",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "shas",
@@ -1075,7 +1363,13 @@
     "viaUrl": "https://www.bakalpi.co.il/he/issues/religion-state",
     "archiveUrl": null,
     "confidence": "high",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "utj",
@@ -1097,7 +1391,13 @@
     "viaUrl": "https://www.bakalpi.co.il/he/issues/religion-state",
     "archiveUrl": null,
     "confidence": "high",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "yisrael-beiteinu",
@@ -1119,7 +1419,13 @@
     "viaUrl": "https://www.bakalpi.co.il/he/issues/religion-state",
     "archiveUrl": "https://web.archive.org/web/20261025175623/https://beytenu.org.il/party-platform/",
     "confidence": "high",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "religious-zionism",
@@ -1141,7 +1447,13 @@
     "viaUrl": "https://www.bakalpi.co.il/he/issues/religion-state",
     "archiveUrl": "https://web.archive.org/web/20261025213215/https://zionutdatit.org.il/wp-content/uploads/2021/12/%D7%96%D7%94%D7%95%D7%AA-%D7%99%D7%94%D7%95%D7%93%D7%99%D7%AA.pdf",
     "confidence": "med",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "raam",
@@ -1163,7 +1475,13 @@
     "viaUrl": null,
     "archiveUrl": null,
     "confidence": "med",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "kalkalit",
@@ -1185,7 +1503,13 @@
     "viaUrl": "https://www.bakalpi.co.il/he/issues/religion-state",
     "archiveUrl": null,
     "confidence": "low",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "zehut",
@@ -1207,7 +1531,13 @@
     "viaUrl": null,
     "archiveUrl": null,
     "confidence": "low",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "amcha-yisrael",
@@ -1229,7 +1559,13 @@
     "viaUrl": "https://www.bakalpi.co.il/he/issues/religion-state",
     "archiveUrl": null,
     "confidence": "med",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "likud",
@@ -1251,7 +1587,13 @@
     "viaUrl": "https://www.bakalpi.co.il/he/issues/security-diplomacy",
     "archiveUrl": null,
     "confidence": "med",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "yashar",
@@ -1273,7 +1615,13 @@
     "viaUrl": "https://www.bakalpi.co.il/he/parties/yashar",
     "archiveUrl": null,
     "confidence": "high",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "together",
@@ -1295,7 +1643,13 @@
     "viaUrl": "https://www.bakalpi.co.il/he/parties/together",
     "archiveUrl": null,
     "confidence": "high",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "democrats",
@@ -1317,7 +1671,13 @@
     "viaUrl": "https://www.bakalpi.co.il/he/issues/security-diplomacy",
     "archiveUrl": null,
     "confidence": "high",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "joint-list",
@@ -1339,7 +1699,13 @@
     "viaUrl": "https://www.bakalpi.co.il/he/issues/security-diplomacy",
     "archiveUrl": "https://web.archive.org/web/20261025210525/https://jointlist.org.il/he/platform/",
     "confidence": "high",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "otzma-yehudit",
@@ -1361,7 +1727,13 @@
     "viaUrl": "https://www.bakalpi.co.il/he/parties/otzma-yehudit",
     "archiveUrl": null,
     "confidence": "high",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "shas",
@@ -1383,7 +1755,13 @@
     "viaUrl": "https://www.bakalpi.co.il/he/issues/security-diplomacy",
     "archiveUrl": null,
     "confidence": "low",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "utj",
@@ -1405,7 +1783,13 @@
     "viaUrl": "https://www.bakalpi.co.il/he/issues/security-diplomacy",
     "archiveUrl": null,
     "confidence": "low",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "yisrael-beiteinu",
@@ -1427,7 +1811,13 @@
     "viaUrl": "https://www.bakalpi.co.il/he/issues/security-diplomacy",
     "archiveUrl": null,
     "confidence": "high",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "religious-zionism",
@@ -1449,7 +1839,13 @@
     "viaUrl": "https://www.bakalpi.co.il/he/parties/religious-zionism",
     "archiveUrl": "https://web.archive.org/web/20261025213108/https://zionutdatit.org.il/hityashvut/sovereignty/",
     "confidence": "high",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "raam",
@@ -1471,7 +1867,13 @@
     "viaUrl": null,
     "archiveUrl": null,
     "confidence": "med",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "kalkalit",
@@ -1493,7 +1895,13 @@
     "viaUrl": "https://www.bakalpi.co.il/he/issues/security-diplomacy",
     "archiveUrl": null,
     "confidence": "med",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "zehut",
@@ -1515,7 +1923,13 @@
     "viaUrl": null,
     "archiveUrl": null,
     "confidence": "high",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "amcha-yisrael",
@@ -1537,7 +1951,13 @@
     "viaUrl": "https://www.bakalpi.co.il/he/issues/security-diplomacy",
     "archiveUrl": null,
     "confidence": "med",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "likud",
@@ -1559,7 +1979,13 @@
     "viaUrl": "https://www.bakalpi.co.il/he/issues/security-diplomacy",
     "archiveUrl": null,
     "confidence": "med",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "yashar",
@@ -1581,7 +2007,13 @@
     "viaUrl": "https://www.bakalpi.co.il/he/issues/security-diplomacy",
     "archiveUrl": null,
     "confidence": "med",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "together",
@@ -1603,7 +2035,13 @@
     "viaUrl": "https://www.bakalpi.co.il/he/issues/security-diplomacy",
     "archiveUrl": null,
     "confidence": "med",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "democrats",
@@ -1625,7 +2063,13 @@
     "viaUrl": "https://www.bakalpi.co.il/he/issues/security-diplomacy",
     "archiveUrl": null,
     "confidence": "med",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "joint-list",
@@ -1647,7 +2091,13 @@
     "viaUrl": "https://www.bakalpi.co.il/he/issues/security-diplomacy",
     "archiveUrl": "https://web.archive.org/web/20261025210525/https://jointlist.org.il/he/platform/",
     "confidence": "high",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "otzma-yehudit",
@@ -1669,7 +2119,13 @@
     "viaUrl": "https://www.bakalpi.co.il/he/parties/otzma-yehudit",
     "archiveUrl": null,
     "confidence": "high",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "shas",
@@ -1691,7 +2147,13 @@
     "viaUrl": "https://www.bakalpi.co.il/he/issues/security-diplomacy",
     "archiveUrl": null,
     "confidence": "low",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "utj",
@@ -1713,7 +2175,13 @@
     "viaUrl": "https://www.bakalpi.co.il/he/issues/security-diplomacy",
     "archiveUrl": null,
     "confidence": "low",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "yisrael-beiteinu",
@@ -1735,7 +2203,13 @@
     "viaUrl": "https://www.bakalpi.co.il/he/issues/security-diplomacy",
     "archiveUrl": null,
     "confidence": "med",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "religious-zionism",
@@ -1757,7 +2231,13 @@
     "viaUrl": "https://www.bakalpi.co.il/he/parties/religious-zionism",
     "archiveUrl": null,
     "confidence": "high",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "raam",
@@ -1779,7 +2259,13 @@
     "viaUrl": "https://www.kikar.co.il/israel-news/mansour-abbas-hamas-terror-question",
     "archiveUrl": null,
     "confidence": "med",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "kalkalit",
@@ -1801,7 +2287,13 @@
     "viaUrl": "https://www.bakalpi.co.il/he/issues/security-diplomacy",
     "archiveUrl": null,
     "confidence": "med",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "zehut",
@@ -1823,7 +2315,13 @@
     "viaUrl": null,
     "archiveUrl": null,
     "confidence": "high",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "amcha-yisrael",
@@ -1845,7 +2343,13 @@
     "viaUrl": "https://amchaisrael.co.il/foundations",
     "archiveUrl": null,
     "confidence": "med",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "likud",
@@ -1867,7 +2371,13 @@
     "viaUrl": "https://www.bakalpi.co.il/he/issues/economy",
     "archiveUrl": null,
     "confidence": "med",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "yashar",
@@ -1889,7 +2399,13 @@
     "viaUrl": "https://www.bakalpi.co.il/he/issues/economy",
     "archiveUrl": null,
     "confidence": "med",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "together",
@@ -1911,7 +2427,13 @@
     "viaUrl": "https://www.bakalpi.co.il/he/issues/economy",
     "archiveUrl": null,
     "confidence": "med",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "democrats",
@@ -1933,7 +2455,13 @@
     "viaUrl": "https://www.bakalpi.co.il/he/issues/economy",
     "archiveUrl": null,
     "confidence": "high",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "joint-list",
@@ -1955,7 +2483,13 @@
     "viaUrl": "https://www.bakalpi.co.il/he/issues/economy",
     "archiveUrl": null,
     "confidence": "high",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "otzma-yehudit",
@@ -1977,7 +2511,13 @@
     "viaUrl": null,
     "archiveUrl": null,
     "confidence": "med",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "shas",
@@ -1999,7 +2539,13 @@
     "viaUrl": "https://www.bakalpi.co.il/he/parties/shas",
     "archiveUrl": null,
     "confidence": "low",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "utj",
@@ -2021,7 +2567,13 @@
     "viaUrl": "https://www.bakalpi.co.il/he/parties/utj",
     "archiveUrl": null,
     "confidence": "low",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "yisrael-beiteinu",
@@ -2043,7 +2595,13 @@
     "viaUrl": "https://www.bakalpi.co.il/he/issues/economy",
     "archiveUrl": "https://web.archive.org/web/20261025175623/https://beytenu.org.il/party-platform/",
     "confidence": "med",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "religious-zionism",
@@ -2065,7 +2623,13 @@
     "viaUrl": "https://www.bakalpi.co.il/he/issues/economy",
     "archiveUrl": null,
     "confidence": "med",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "raam",
@@ -2087,7 +2651,13 @@
     "viaUrl": null,
     "archiveUrl": null,
     "confidence": "low",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "kalkalit",
@@ -2109,7 +2679,13 @@
     "viaUrl": "https://www.bakalpi.co.il/he/issues/economy",
     "archiveUrl": null,
     "confidence": "med",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "zehut",
@@ -2131,7 +2707,13 @@
     "viaUrl": null,
     "archiveUrl": null,
     "confidence": "high",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "amcha-yisrael",
@@ -2153,7 +2735,13 @@
     "viaUrl": "https://www.bakalpi.co.il/he/issues/economy",
     "archiveUrl": "https://web.archive.org/web/20261025174418/https://amchaisrael.co.il/foundations",
     "confidence": "med",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "likud",
@@ -2175,7 +2763,13 @@
     "viaUrl": null,
     "archiveUrl": null,
     "confidence": "med",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "yashar",
@@ -2197,7 +2791,13 @@
     "viaUrl": "https://www.bakalpi.co.il/he/issues/crime-personal-security",
     "archiveUrl": null,
     "confidence": "med",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "together",
@@ -2219,7 +2819,13 @@
     "viaUrl": "https://www.bakalpi.co.il/he/issues/crime-personal-security",
     "archiveUrl": null,
     "confidence": "high",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "democrats",
@@ -2241,7 +2847,13 @@
     "viaUrl": "https://www.bakalpi.co.il/he/issues/crime-personal-security",
     "archiveUrl": null,
     "confidence": "med",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "joint-list",
@@ -2263,7 +2875,13 @@
     "viaUrl": "https://www.bakalpi.co.il/he/issues/crime-personal-security",
     "archiveUrl": null,
     "confidence": "med",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "otzma-yehudit",
@@ -2285,7 +2903,13 @@
     "viaUrl": null,
     "archiveUrl": null,
     "confidence": "high",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "shas",
@@ -2307,7 +2931,13 @@
     "viaUrl": "https://www.bakalpi.co.il/he/issues/crime-personal-security",
     "archiveUrl": null,
     "confidence": "low",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "utj",
@@ -2329,7 +2959,13 @@
     "viaUrl": "https://www.bakalpi.co.il/he/issues/crime-personal-security",
     "archiveUrl": null,
     "confidence": "low",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "yisrael-beiteinu",
@@ -2351,7 +2987,13 @@
     "viaUrl": "https://www.bakalpi.co.il/he/issues/crime-personal-security",
     "archiveUrl": "https://web.archive.org/web/20261025175623/https://beytenu.org.il/party-platform/",
     "confidence": "high",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "religious-zionism",
@@ -2373,7 +3015,13 @@
     "viaUrl": "https://www.bakalpi.co.il/he/issues/crime-personal-security",
     "archiveUrl": "https://web.archive.org/web/20261025212308/https://zionutdatit.org.il/judaization/",
     "confidence": "high",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "raam",
@@ -2395,7 +3043,13 @@
     "viaUrl": null,
     "archiveUrl": null,
     "confidence": "low",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "kalkalit",
@@ -2417,7 +3071,13 @@
     "viaUrl": "https://www.bakalpi.co.il/he/issues/crime-personal-security",
     "archiveUrl": null,
     "confidence": "high",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "zehut",
@@ -2439,7 +3099,13 @@
     "viaUrl": null,
     "archiveUrl": null,
     "confidence": "med",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   },
   {
     "partyId": "amcha-yisrael",
@@ -2461,6 +3127,12 @@
     "viaUrl": "https://www.bakalpi.co.il/he/issues/crime-personal-security",
     "archiveUrl": "https://web.archive.org/web/20261025174418/https://amchaisrael.co.il/foundations",
     "confidence": "med",
-    "componentsDisagree": false
+    "componentsDisagree": false,
+    "redLineQuote": null,
+    "redLineQuoteTranslationEn": null,
+    "redLineBy": null,
+    "redLineChannel": null,
+    "redLineUrl": null,
+    "redLineDate": null
   }
 ]

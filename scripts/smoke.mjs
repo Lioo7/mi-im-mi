@@ -1431,6 +1431,26 @@ try {
         await evaluate("document.querySelector('#sheet').close()");
       }
     }
+    // #49: a 🚩 cell shows the words behind the flag, right under it: the label, the verbatim quote (in English, our
+    // translation under the Hebrew original), "<speaker>, <channel>, <date>" and its own source link.
+    const redRow = loadData().positions.find((p) => p.partyId === 'shas' && p.topicId === 'draft');
+    for (const lng of ['he', 'en']) {
+      const T = lng === 'he' ? S : EN;
+      await go(`${baseUrl}#results?m=shas,likud${lng === 'en' ? '&l=en' : ''}`);
+      await waitFor(() => evaluate("document.body.dataset.view === 'results' && document.querySelectorAll('.cell').length > 0"));
+      await evaluate("document.querySelector('.cell[data-party=\"shas\"][data-topic=\"draft\"]').click()");
+      await settle(300);
+      const rl = await evaluate(`(() => { const e = document.querySelector('#sheet .pos .redline-ev'); const flag = document.querySelector('#sheet .pos .tag-red');
+        return e ? { label: e.querySelector('.redline-label')?.textContent.trim(), texts: [...e.querySelectorAll('.q-text')].map((x) => x.textContent), by: e.querySelector('.q-by')?.textContent.trim(),
+          href: e.querySelector('.source a')?.href ?? null, afterFlag: Boolean(flag && (flag.compareDocumentPosition(e) & Node.DOCUMENT_POSITION_FOLLOWING)) } : null; })()`);
+      const wantBy = lng === 'he' ? 'אריה דרעי, כיכר השבת, 14.10.2026' : 'Aryeh Deri, Kikar HaShabbat, 14 Oct 2026';
+      const textOk = rl && rl.texts[0] === `״${redRow.redLineQuote}״` && (lng === 'he' ? rl.texts.length === 1 : (rl.texts[1] ?? '').startsWith(`“${redRow.redLineQuoteTranslationEn}”`));
+      if (!rl || rl.label !== T.sheet.redLineEvidence || !textOk || rl.by !== wantBy || rl.href !== redRow.redLineUrl || !rl.afterFlag) {
+        errors.push(`[cells red-line ${lng}] ש״ס × גיוס should show, under the 🚩, the label, the quote${lng === 'en' ? ' and its translation' : ''}, "${wantBy}" and a link to ${redRow.redLineUrl} (${JSON.stringify(rl)})`);
+      }
+      await shoot(z, `cells-red-line-m${lng === 'he' ? '' : '-en'}.png`, false);
+      await evaluate("document.querySelector('#sheet').close()");
+    }
     // Arabic quotes keep the original and add a marked Hebrew translation under it.
     await go(`${baseUrl}#results?m=raam,together`);
     await waitFor(() => evaluate("document.body.dataset.view === 'results' && document.querySelectorAll('.cell').length > 0"));
@@ -1438,7 +1458,7 @@ try {
     await settle(300);
     const ar = await evaluate("(() => { const q = [...document.querySelectorAll('#sheet blockquote .q-text')]; return q.map((e) => e.textContent).join(' | '); })()");
     if (!/[\u0600-\u06FF]/.test(ar) || !ar.includes('(תרגום חופשי של האתר)')) errors.push(`[interaction] Arabic quote must show the original plus a marked translation (${ar})`);
-    log('  ✓ cell sheets: quotes, null rows, dated notes, Arabic');
+    log('  ✓ cell sheets: quotes, null rows, dated notes, red-line evidence, Arabic');
   }
   if (sec('fragment')) {
     await setSize(z);

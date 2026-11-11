@@ -401,6 +401,7 @@ function downloadSection() {
       <h3>${esc(D.title)}</h3>
       <p>${esc(D.line(data.positions.length))} ${file('csv', D.csv)} · ${file('json', D.json)}</p>
       <p class="small">${bidi(D.positionNote)}</p>
+      <p class="small">${bidi(D.redLineNote)}</p>
       <p class="small">${bidi(D.csvNote)}</p>
       <p class="small">${bidi(before)}<a href="${esc(D.licenseUrl)}" rel="noopener license"><bdi>${esc(D.licenseName)}</bdi></a>${bidi(after)}</p>
     </section>`;
@@ -624,6 +625,7 @@ function positionBlock(pid, tid, { heading = true } = {}) {
   return `<div class="pos">
     ${heading ? `<p class="pos-label">${esc(axisLabel(tid, p.position))}</p>` : ''}
     ${p.redLine || p.componentsDisagree ? `<p>${p.redLine ? `<span class="tag tag-red"><span aria-hidden="true">🚩</span> ${esc(S.redLine)}</span> ` : ''}${p.componentsDisagree ? `<span class="tag tag-split"><span aria-hidden="true">${S.componentsIcon}</span> ${esc(S.componentsDisagree)}</span>` : ''}</p>` : ''}
+    ${redLineHtml(p, pid)}
     <p>${bidi(p.summary)}</p>
     ${evidenceHtml(p, pid)}
   </div>`;
@@ -642,6 +644,19 @@ function evidenceHtml(p, pid) {
       ${p.archiveUrl ? `· <a href="${esc(p.archiveUrl)}" rel="noopener" target="_blank">${esc(T.archive)}</a>` : ''}
       ${p.viaUrl ? `· <a href="${esc(p.viaUrl)}" rel="noopener" target="_blank">${esc(T.via)}</a>` : ''}
     </p>` : ''}`;
+}
+
+// The words behind the 🚩 (#49), right under the flag: the party's or its leader's statement that the topic is a coalition
+// condition, verbatim, with its attribution and its own source link. Validate requires them on every red-line row.
+function redLineHtml(p, pid) {
+  if (!p.redLine || !p.redLineQuote) return '';
+  const q = { quote: p.redLineQuote, quoteTranslation: null, quoteTranslationEn: p.redLineQuoteTranslationEn, quoteTranslatedBy: null,
+    quoteBy: p.redLineBy, quoteChannel: p.redLineChannel, sourceUrl: p.redLineUrl, sourceType: 'statement', sourceDate: p.redLineDate };
+  return `<div class="redline-ev">
+      <p class="redline-label">${esc(S.sheet.redLineEvidence)}</p>
+      <blockquote>${quoteHtml(q)}<footer class="q-by">${bidi(quoteAttribution(q, name(pid), S))}</footer></blockquote>
+      <p class="source"><a href="${esc(p.redLineUrl)}" rel="noopener" target="_blank">${esc(S.sheet.source)}</a></p>
+    </div>`;
 }
 
 // A quote stays verbatim in its own language. In Hebrew, an Arabic quote carries our Hebrew translation (or an outlet's);

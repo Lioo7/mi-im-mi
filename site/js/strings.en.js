@@ -14,6 +14,8 @@ export const NAMES = {
   'איתמר בן גביר': 'Itamar Ben-Gvir', 'אריה דרעי': 'Aryeh Deri', 'בצלאל סמוטריץ׳': 'Bezalel Smotrich',
   'מנסור עבאס': 'Mansour Abbas', 'יריב לוין': 'Yariv Levin', 'משה פייגלין': 'Moshe Feiglin',
   'פייסבוק': 'Facebook', 'כיפה': 'Kipa',
+  'יעקב אשר': 'Yaakov Asher', 'אביגדור ליברמן': 'Avigdor Liberman', 'כיכר השבת': 'Kikar HaShabbat',
+  'פגוש את העיתונות': 'Meet the Press', 'גלי צה״ל': 'Army Radio (Galei Tzahal)',
 };
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const dayMonth = (iso) => { const [, m, d] = iso.split('-').map(Number); return `${d} ${MONTHS[m - 1]}`; };
@@ -364,6 +366,7 @@ export const S = {
     close: 'Close',
     source: 'Source',
     extraSource: 'Additional source',
+    redLineEvidence: 'The red line, in their words',
     via: 'via Bakalpi',
     sourceTypes: { platform: 'Platform', statement: 'Statement', record: 'Legislative record' },
     date: (d) => (/^\d{4}$/.test(d) ? `from ${d}` : `dated ${d}`),
@@ -478,7 +481,7 @@ export const S = {
       intro: 'Changes to what the site shows: results, placements, names, scenarios, recommendations to the President and dated notes. The full reasoning is in the decision log (in Hebrew).',
       logLink: 'decision log',
       logUrl: 'https://github.com/Lioo7/mi-im-mi/blob/main/docs/research/decisions.md',
-      kinds: { results: 'Results', placement: 'Placement', name: 'Name', scenario: 'Scenario', recommendations: 'Recommendations to the President', notes: 'Dated note' },
+      kinds: { results: 'Results', placement: 'Placement', name: 'Name', scenario: 'Scenario', recommendations: 'Recommendations to the President', notes: 'Dated note', sources: 'Sources' },
       placement: (p, t, from, to) => `${p}, ${t}: from "${from}" to "${to}"`,
     },
     // Data download (#18); see strings.js.
@@ -488,6 +491,7 @@ export const S = {
       csv: 'CSV',
       json: 'JSON',
       positionNote: "The position column is the placement on each topic's own axis (−2 to 2). Each topic's direction is set separately; it is not a left-right score.",
+      redLineNote: 'Columns red_line_quote, red_line_quote_translation_en, red_line_by, red_line_channel, red_line_url and red_line_date: in the cells marked with a red line, the quote in which the party or its leader set the condition (verbatim), our English translation, the speaker (empty: the party itself), the channel where the words were said (empty: taken from the source site), the link and the date.',
       csvNote: "In the CSV, a text cell that starts with =, +, - or @ gets a leading apostrophe ('), so a spreadsheet does not run it as a formula. The JSON keeps the text as it is.",
       license: 'Our data (placements, summaries and axis labels) is licensed CC BY 4.0: you may share and adapt it with attribution. Quotes and linked sources belong to their owners.',
       licenseName: 'CC BY 4.0',

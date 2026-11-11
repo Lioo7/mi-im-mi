@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   DATA, REVIEW_CSV, loadData, parseCsv, readJson, writeJson, exists,
-  validatePositions, publicRecord, key,
+  validatePositions, publicRecord, key, RED_LINE_FIELDS, RED_LINE_COLUMNS,
 } from './lib.mjs';
 
 const args = process.argv.slice(2);
@@ -50,6 +50,7 @@ const records = rows.map((r) => {
     viaUrl: textOrNull(r.via_url),
     archiveUrl: textOrNull(r.archive_url),
     confidence: textOrNull(r.confidence),
+    ...Object.fromEntries(RED_LINE_FIELDS.map((f, i) => [f, textOrNull(r[RED_LINE_COLUMNS[i]])])),
   };
 });
 
@@ -75,7 +76,7 @@ const changes = [];
 for (const r of out) {
   const old = prev.get(key(r));
   if (!old) { changes.push(`+ ${key(r)}`); continue; }
-  for (const f of ['position', 'redLine', 'componentsDisagree', 'summary', 'summaryEn', 'quote', 'quoteBy', 'quoteTranslation', 'quoteTranslationEn', 'quoteTranslatedBy', 'quoteChannel', 'sourceUrl', 'extraSourceUrl', 'sourceType', 'sourceDate', 'archiveUrl']) {
+  for (const f of ['position', 'redLine', 'componentsDisagree', 'summary', 'summaryEn', 'quote', 'quoteBy', 'quoteTranslation', 'quoteTranslationEn', 'quoteTranslatedBy', 'quoteChannel', 'sourceUrl', 'extraSourceUrl', 'sourceType', 'sourceDate', 'archiveUrl', ...RED_LINE_FIELDS]) {
     if (JSON.stringify(old[f]) !== JSON.stringify(r[f])) {
       /** @param {unknown} v */
       const show = (v) => (typeof v === 'string' && v.length > 60 ? v.slice(0, 57) + '…' : JSON.stringify(v));

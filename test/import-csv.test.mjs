@@ -25,6 +25,17 @@ test('a CSV of the live data imports with no changes, and one edited summary is 
     const out = node('scripts/import-csv.mjs', csv, '--dry-run');
     assert.match(out, /^1 change\(s\) vs the live data:/m);
     assert.match(out, new RegExp(`~ ${target.partyId}\\|${target.topicId} summary:`));
+
+    // The red-line evidence (#49) travels through the CSV too: an edited red-line quote is one change on that row.
+    // (one with no " in it, which the CSV would escape, and not shared with another row)
+    const red = live.find((p) => p.redLine && p.redLineQuote && !p.redLineQuote.includes('"') && live.filter((x) => x.redLineQuote === p.redLineQuote).length === 1);
+    assert.ok(red, 'a red-line row with its own quote');
+    {
+      writeFileSync(csv, text.replace(red.redLineQuote, `${red.redLineQuote} (בדיקה)`));
+      const out2 = node('scripts/import-csv.mjs', csv, '--dry-run');
+      assert.match(out2, /^1 change\(s\) vs the live data:/m);
+      assert.match(out2, new RegExp(`~ ${red.partyId}\\|${red.topicId} redLineQuote:`));
+    }
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

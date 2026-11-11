@@ -47,7 +47,7 @@ test('validateEnglish flags a missing or Hebrew en field, and allows a ballot le
 });
 
 test('every person and channel named in the positions has an English name', () => {
-  const named = new Set(data.positions.flatMap((p) => [p.quoteBy, p.quoteChannel, p.quoteTranslatedBy]).filter((v) => v && v !== SITE_TRANSLATOR));
+  const named = new Set(data.positions.flatMap((p) => [p.quoteBy, p.quoteChannel, p.quoteTranslatedBy, p.redLineBy, p.redLineChannel]).filter((v) => v && v !== SITE_TRANSLATOR));
   assert.deepEqual([...named].filter((n) => !NAMES[n]), []);
   assert.ok(Object.values(NAMES).every((n) => !/[֐-׿]/.test(n)));
 });

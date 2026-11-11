@@ -572,3 +572,9 @@ details.start-from { margin-block: 0 12px; background: var(--card); border: 1px 
 details.start-from > summary { cursor: pointer; font-weight: 600; color: var(--accent); padding-block: 11px; }
 details.start-from[open] { padding-block-end: 10px; }
 .tasks + #source-mix { margin-block-start: 16px; }
+
+/* The words behind a 🚩 (#49): set off from the summary by the red-line color at the inline start, plus a label. */
+.redline-ev { border-inline-start: 3px solid var(--clash-fg); padding-inline-start: 10px; margin-block: 6px 10px; }
+.redline-label { margin: 0; font-size: .85rem; font-weight: 600; }
+.redline-ev blockquote { margin-block: 4px; }
+.redline-ev .source { margin-block: 0; }
