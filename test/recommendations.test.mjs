@@ -48,7 +48,8 @@ const filled = () => {
   const d = structuredClone(recs);
   d.mandate.quote = 'סיעות שמנו 67 חברי כנסת המליצו';
   d.mandate.sourceUrl = HE_URL;
-  d.mandate.en = { quote: 'factions totaling 67 members recommended', sourceUrl: EN_URL };
+  d.mandate.tallySourceUrl = HE_URL;
+  d.mandate.en = { quote: 'factions totaling 67 members recommended', sourceUrl: EN_URL, tallySourceUrl: EN_URL };
   for (const f of d.factions) Object.assign(f, { sourceUrl: HE_URL, en: { sourceUrl: EN_URL } });
   return d;
 };
@@ -92,7 +93,29 @@ test('the validator refuses totals that differ from the office\'s, a missing lis
   assert.match(check(late).join('\n'), /likud: date must be within the consultations/);
 });
 
+// The tally from an earlier release than the mandate (#39): its date and both links, all three or none.
+test("the tally's own release: all three fields or none, dated between the consultations and the mandate, on president.gov.il", () => {
+  const none = filled();
+  delete none.mandate.tallyDate;
+  delete none.mandate.tallySourceUrl;
+  delete none.mandate.en.tallySourceUrl;
+  assert.deepEqual(check(none), []);
+  const partial = filled();
+  delete partial.mandate.en.tallySourceUrl;
+  assert.match(check(partial).join('\n'), /tallyDate, tallySourceUrl and en\.tallySourceUrl go together/);
+  for (const date of ['2026-11-03', '2026-11-09', '7.11.2026']) {
+    const d = filled();
+    d.mandate.tallyDate = date;
+    assert.match(check(d).join('\n'), /tallyDate must be YYYY-MM-DD, between the consultations and the mandate/, date);
+  }
+  const swapped = filled();
+  [swapped.mandate.tallySourceUrl, swapped.mandate.en.tallySourceUrl] = [EN_URL, HE_URL];
+  assert.match(check(swapped).join('\n'), /mandate tally: sourceUrl must be a Hebrew president\.gov\.il page/);
+});
+
 test('date range strings in both languages', () => {
+  assert.equal(S.recs.mandate.tasked('8.11.2026', 'גדי איזנקוט'), 'ב-8.11.2026 הטיל הנשיא על גדי איזנקוט את מלאכת הרכבת הממשלה.');
+  assert.equal(EN.recs.mandate.tasked('8 Nov 2026', 'Gadi Eisenkot'), 'On 8 Nov 2026 the President tasked Gadi Eisenkot with forming the government.');
   assert.equal(S.recs.open(S.recs.range('2026-11-04', '2026-11-05')), 'המלצות הסיעות לנשיא (4–5.11.2026)');
   assert.equal(EN.recs.open(EN.recs.range('2026-11-04', '2026-11-05')), "The factions' recommendations to the President (4–5 Nov 2026)");
   assert.equal(S.recs.range('2026-10-30', '2026-11-02'), '30.10.2026–2.11.2026');

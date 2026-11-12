@@ -276,6 +276,15 @@ export function validateRecommendations(meta, data, parties, results) {
   if (!isDate(m.date) || (isDate(to) && m.date < to)) errors.push('recommendations mandate: date must be YYYY-MM-DD, after the consultations');
   if (!isTodo(m.quote) && !/[\u0590-\u05FF]/.test(m.quote ?? '')) errors.push('recommendations mandate: quote must be the Hebrew tally sentence');
   urls('recommendations mandate', m);
+  // The tally's own release (#39), when it differs from the mandate's: all three fields or none.
+  const tally = [m.tallyDate, m.tallySourceUrl, m.en?.tallySourceUrl];
+  if (tally.some((v) => v !== undefined)) {
+    if (tally.some((v) => v === undefined)) errors.push('recommendations mandate: tallyDate, tallySourceUrl and en.tallySourceUrl go together (all or none)');
+    else {
+      if (!isDate(m.tallyDate) || (isDate(to) && m.tallyDate < to) || (isDate(m.date) && m.tallyDate > m.date)) errors.push('recommendations mandate: tallyDate must be YYYY-MM-DD, between the consultations and the mandate');
+      urls('recommendations mandate tally', { sourceUrl: m.tallySourceUrl, en: { sourceUrl: m.en.tallySourceUrl } });
+    }
+  }
   /** @type {Map<string, number>} */
   const seen = new Map();
   for (const f of data.factions ?? []) {

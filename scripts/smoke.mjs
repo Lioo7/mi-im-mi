@@ -601,7 +601,7 @@ const SHEET_RECS = `(() => { const s = document.querySelector('#sheet'); if (!s.
   const before = (a, b) => Boolean(a && b && (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING));
   const inner = s.querySelector('.sheet-inner');
   return { title: t(s.querySelector('h2')), src: t(src), srcHref: src?.querySelector('a')?.getAttribute('href'), mandate: t(mandate),
-    quote: t(tally?.querySelector('.q-text')), by: t(tally?.querySelector('.q-by')),
+    quote: t(tally?.querySelector('.q-text')), by: t(tally?.querySelector('.q-by')), byHref: tally?.querySelector('.q-by a')?.getAttribute('href') ?? null,
     order: before(src, mandate) && before(mandate, tally) && before(tally, table) && inner.firstElementChild?.tagName === 'H2' && inner.children[1] === src,
     rows: [...(table?.querySelectorAll('tbody tr') ?? [])].map((r) => ({ id: r.dataset.party, cells: [...r.children].map(t), href: r.querySelector('a')?.getAttribute('href'),
       ext: r.querySelector('a')?.target === '_blank' && /noopener/.test(r.querySelector('a')?.rel ?? ''), label: r.querySelector('a')?.getAttribute('aria-label') })),
@@ -2858,11 +2858,13 @@ try {
         if (got.src !== `${R.source} ${R.office}, ${day}` || got.srcHref !== m.sourceUrl) errors.push(`[${current}] source line ${JSON.stringify(got.src)} → ${got.srcHref}`);
         if (got.mandate !== R.mandate[m.kind](day, leader(m.partyId))) errors.push(`[${current}] mandate sentence ${JSON.stringify(got.mandate)}`);
         const q = l === 'he' ? `״${m.quote}״` : `“${m.quote}”`;
-        if (got.quote !== q || got.by !== R.tallyBy(day)) errors.push(`[${current}] tally ${JSON.stringify(got.quote)} / ${JSON.stringify(got.by)}`);
+        // The tally from an earlier release than the mandate (#39) carries that release's date and link.
+        if (got.quote !== q || got.by !== R.tallyBy(m.tallyDate ? R.date(m.tallyDate) : day)) errors.push(`[${current}] tally ${JSON.stringify(got.quote)} / ${JSON.stringify(got.by)}`);
+        if (got.byHref !== (m.tallySourceUrl ?? null)) errors.push(`[${current}] tally link ${got.byHref}, want ${m.tallySourceUrl ?? 'none'}`);
         if (JSON.stringify(got.rows) !== JSON.stringify(wantRows)) errors.push(`[${current}] rows ${JSON.stringify(got.rows)}, want ${JSON.stringify(wantRows)}`);
         // Only the President's office's own pages: Hebrew ones on the Hebrew page, /en/ ones in English.
         const page = l === 'en' ? PRESIDENT_EN : PRESIDENT_HE;
-        for (const href of [got.srcHref, ...got.rows.map((r) => r.href)]) if (!page.test(href ?? '')) errors.push(`[${current}] source ${href} is not a ${l === 'en' ? 'president.gov.il/en/' : 'Hebrew president.gov.il'} page`);
+        for (const href of [got.srcHref, ...(got.byHref ? [got.byHref] : []), ...got.rows.map((r) => r.href)]) if (!page.test(href ?? '')) errors.push(`[${current}] source ${href} is not a ${l === 'en' ? 'president.gov.il/en/' : 'Hebrew president.gov.il'} page`);
         if (got.styled) errors.push(`[${current}] ${got.styled} styled element(s) in the table rows: every candidate gets the same neutral look`);
         if (l === 'en' && got.hebrew) errors.push(`[${current}] Hebrew in the English sheet`);
         if (got.overflow) errors.push(`[${current}] the sheet overflows horizontally`);

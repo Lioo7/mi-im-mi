@@ -814,6 +814,9 @@ function recsSheet() {
   const m = C.localize(recData.mandate, lang);
   const day = R.date(m.date);
   const q = lang === 'he' ? `״${esc(m.quote)}״` : `“${esc(m.quote)}”`;
+  // The tally can come from an earlier release than the mandate (#39: the 7.11 announcement, the 8.11 tasking): it then
+  // carries its own date and link.
+  const by = m.tallySourceUrl ? extLink(m.tallySourceUrl, R.tallyBy(R.date(m.tallyDate))) : esc(R.tallyBy(day));
   const rows = C.recommendationRows(ctx, recData).map((rec) => {
     const f = C.localize(rec, lang);
     return `<tr data-party="${esc(f.partyId)}"><th scope="row">${esc(name(f.partyId))}</th><td>${esc(recLeader(f.recommended) ?? R.none)}</td>
@@ -823,7 +826,7 @@ function recsSheet() {
     <h2>${esc(R.title)}</h2>
     <p class="recs-src">${esc(R.source)} ${extLink(m.sourceUrl, R.office)}, ${esc(day)}</p>
     <p class="recs-mandate">${esc(R.mandate[m.kind](day, recLeader(m.partyId)))}</p>
-    <blockquote class="recs-tally"><p class="q-text">${q}</p><p class="q-by">${esc(R.tallyBy(day))}</p></blockquote>
+    <blockquote class="recs-tally"><p class="q-text">${q}</p><p class="q-by">${by}</p></blockquote>
     <div class="table-wrap"><table class="coverage recs-table">
       <thead><tr>${R.cols.map((c) => `<th scope="col">${esc(c)}</th>`).join('')}</tr></thead>
       <tbody>${rows}</tbody>
