@@ -115,14 +115,24 @@
 ### מהמחקר ועד הפריסה
 
 ```mermaid
-flowchart LR
+flowchart TB
   subgraph data["Data"]
     direction TB
-    R["Research and verifier agents"] --> M["research/merged.json"] --> E["export-csv"] --> C["Review CSV (human review)"] --> I["import-csv (validates, shows the diff)"] --> D["site/data/*.json"]
+    R["Research and verifier agents"] --> M["research/merged.json"]
+    M --> E["export-csv"]
+    E --> C["Review CSV (human review)"]
+    C --> I["import-csv (validates, shows the diff)"]
+    I --> D["site/data/*.json"]
   end
   subgraph checks["Checks and deploy"]
     direction TB
-    T["node --test (also in CI)"] --> V["validate (also in CI)"] --> AX["axe"] --> LH["Lighthouse"] --> S["smoke, 3 modes"] --> DR["draft deploy + --light"] --> P["phone check"] --> PUB["publish: static site on Netlify"]
+    T["node --test (also in CI)"] --> V["validate (also in CI)"]
+    V --> AX["axe"]
+    AX --> LH["Lighthouse"]
+    LH --> S["smoke, 3 modes"]
+    S --> DR["draft deploy + --light"]
+    DR --> P["phone check"]
+    P --> PUB["publish: static site on Netlify"]
   end
   D --> T
 ```
@@ -189,7 +199,7 @@ axe ו-Lighthouse רצים דרך `npx` בגרסאות נעולות (ההורד�
 **Since 1 November it runs on the results:** seats from the Central Elections Committee's official results, submitted to the President on 4 November 2026. Four scenarios raised in the media (each with its source and date, and a party's denial with its source when there is one, named by composition only) replace the bloc presets. Positions are as documented on election eve.
 
 **Also on the site.**
-- **Roles and the investiture vote:** clashes are checked between members only, and supporters' and abstainers' gaps are shown apart. For = members and supporters, against = everyone else except abstainers, and the government wins when for > against. The "Seats and the confidence vote" card shows how many members the majority depends on. The details are on the [About page](https://mi-im-mi-2026.netlify.app/#method).
+- **Roles and the confidence vote:** clashes are checked between members only, and supporters' and abstainers' gaps are shown apart. For = members and supporters, against = everyone else except abstainers, and the government wins when for > against. The "Seats and the confidence vote" card shows how many members the majority depends on. The details are on the [About page](https://mi-im-mi-2026.netlify.app/#method).
 - **What's missing for 61:** the smallest sets of extra parties that would give the members alone 61 seats, fewest parties first, each with its new head-on clashes and newly crossed red lines. Information, not a recommendation.
 - **The coalitions closest to a party's positions:** the minimal 61-seat coalitions that include it, in a fixed order with no weights (its own red lines crossed, its head-on clashes, head-on clashes in the whole coalition, agreement, seats). Coalitions with a partner silent on 3+ topics are listed apart, on request, with a warning. Information, not a recommendation.
 - **What you can do here:** three cards on the home page: build a coalition, find the coalitions for a party, compare two parties.
