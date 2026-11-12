@@ -115,7 +115,7 @@
 ### מהמחקר ועד הפריסה
 
 ```mermaid
-flowchart TB
+flowchart LR
   subgraph data["Data"]
     direction TB
     R["Research and verifier agents"] --> M["research/merged.json"]
@@ -134,7 +134,7 @@ flowchart TB
     DR --> P["phone check"]
     P --> PUB["publish: static site on Netlify"]
   end
-  D --> T
+  data --> checks
 ```
 
 <sub>הזרימה: העמדות עוברות מהמחקר (`research/merged.json`) ל-CSV לבדיקה אנושית, ונכנסות לנתונים של האתר רק דרך `import-csv`, שמאמת אותן. לפני כל פריסה: בדיקות, אימות, axe, Lighthouse ו-smoke בשלושת המצבים, ואז טיוטה, בדיקה בטלפון ופרסום של אותה טיוטה.</sub>
