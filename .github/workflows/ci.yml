@@ -1,0 +1,35 @@
+# Unit tests (with the pinned tsc type-check) and data validation on every push and pull request to main.
+# The smoke, axe and Lighthouse runs need a local Chrome and stay local (see the README's Testing section).
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # npx's cache holds the pinned typescript and @types/node (test/typecheck.test.mjs).
+      - uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: npx-${{ runner.os }}-${{ hashFiles('test/typecheck.test.mjs') }}
+      # The type-check skips itself when npx can't fetch tsc. Here that fails the run instead.
+      - name: Unit tests and type-check
+        shell: bash
+        run: |
+          node --test 2>&1 | tee test.log
+          if grep -q 'type-check skipped' test.log; then echo '::error::the tsc type-check was skipped'; exit 1; fi
+      - name: Validate data
+        run: node scripts/validate.mjs
