@@ -1,5 +1,7 @@
 # מי עם מי
 
+[![CI](https://github.com/Lioo7/mi-im-mi/actions/workflows/ci.yml/badge.svg)](https://github.com/Lioo7/mi-im-mi/actions/workflows/ci.yml) [![Code: MIT](https://img.shields.io/badge/code-MIT-blue)](LICENSE) [![Data: CC BY 4.0](https://img.shields.io/badge/data-CC%20BY%204.0-lightgrey)](https://creativecommons.org/licenses/by/4.0/) [![Live site](https://img.shields.io/badge/live-mi--im--mi--2026.netlify.app-00C7B7?logo=netlify&logoColor=white)](https://mi-im-mi-2026.netlify.app) · **[English ↓](#english)**
+
 **בנו קואליציה וגלו איפה המפלגות מסכימות ואיפה הן מתנגשות.**
 
 כלי ניטרלי לבחירות לכנסת ה-26 (27.10.2026): בוחרים מפלגות שעשויות לשבת יחד בקואליציה, ורואים באילו נושאים העמדות שלהן קרובות ובאילו הן רחוקות. כל עמדה מגובה במקור.
@@ -47,13 +49,14 @@
   | 2 | פער מהותי |
   | 3 ומעלה, או 2 כשאחת המפלגות הצהירה על קו אדום | סתירה חזיתית |
 
-- **קו אדום** מסומן רק כשמפלגה אמרה במילים שלה שבלי הנושא היא לא תיכנס לממשלה (5 מקרים). בתמונת המצב שורה אחת מונה את הקווים האדומים שנחצים בתוך הקואליציה (קו אדום של חברה, כשחברה אחרת רחוקה ממנה 2 דרגות או יותר), או אומרת שאין כאלה.
+- **קו אדום** מסומן רק כשמפלגה אמרה במילים שלה שבלי הנושא היא לא תיכנס לממשלה (5 מקרים). בתמונת המצב שורה אחת מונה את הקווים האדומים שנחצים בתוך הקואליציה (קו אדום של חברה, כשחברה אחרת רחוקה ממנה 2 דרגות או יותר), או אומרת שאין כאלה. בחלונית של התא, מתחת ל-🚩, מופיעות המילים של המפלגה עצמה, עם ייחוס וקישור למקור ([#49](https://github.com/Lioo7/mi-im-mi/issues/49)).
 - **אין ציון כולל.** האתר מציג את הנושאים עם הפערים הגדולים ביותר, מה מאחד את הקואליציה, ואיזו מפלגה מייצרת הכי הרבה חיכוך.
-- **תפקידים והצבעת אמון:** ההתנגשויות נבדקות רק בין חברות הקואליציה, והפערים של תומכות ונמנעות מוצגים בנפרד. אחרי הבחירות הציונות הדתית וזהות נבחרות ונספרות בנפרד. בעד = חברות הקואליציה והתומכות, נגד = כל השאר חוץ מהנמנעות, והממשלה זוכה באמון כשבעד > נגד. מעבר של חברי כנסת בודדים לא מחושב. המנדטים מוצגים בשורה אחת מתחת לשם הקואליציה ("67 מנדטים · 6 מעל הרוב"), ותמונת המצב עוסקת רק בעמדות. בכרטיס "מנדטים והצבעת אמון" מופיע כמה מחברות הקואליציה נחוצות לרוב: בלעדיה אין לחברות הקואליציה 61, או שאין רוב באמון (נמנעת נבדקת כאילו הצביעה נגד). בפירוט המקופל לכל מפלגה מופיעים המספרים בלעדיה בלבד. טקסט השיתוף מוסיף, כשיש תומכות או נמנעות, את מספר הסתירות החזיתיות שלהן מול חברות הקואליציה (אותו מספר כמו בתמונת המצב).
+- **תפקידים והצבעת אמון:** ההתנגשויות נבדקות רק בין חברות הקואליציה, והפערים של תומכות ונמנעות מוצגים בנפרד. בעד = חברות הקואליציה והתומכות, נגד = כל השאר חוץ מהנמנעות, והממשלה זוכה באמון כשבעד > נגד. כרטיס "מנדטים והצבעת אמון" מראה כמה מחברות הקואליציה נחוצות לרוב. הפירוט המלא [בעמוד "איך זה עובד"](https://mi-im-mi-2026.netlify.app/#method).
 - **מה חסר לרוב של 61:** הצירופים הקטנים ביותר של מפלגות נוספות שמביאים את חברות הקואליציה לבדן ל-61. קודם צירופים עם הכי מעט מפלגות, ואז לפי מספר המנדטים שנוספים. לכל צירוף: כמה נושאים בסתירה חזיתית וכמה מהם חדשים, ואילו קווים אדומים הוא חוצה לראשונה. מידע, לא המלצה.
 - **הקואליציות הקרובות לעמדות של מפלגה:** בכרטיס של כל מפלגה שעברה את אחוז החסימה, ובבחירת מפלגה במסך הבנייה. אלה הקואליציות המינימליות של 61 שכוללות אותה, לפי סדר קבוע בלי משקלות: קווים אדומים שלה שנחצים, נושאים בסתירה חזיתית איתה, נושאים בסתירה חזיתית בקואליציה כולה, נושאים בהסכמה או בפער קל, ואז מנדטים. קואליציות עם שותפה שאין לה עמדה ב-3 נושאים או יותר מוצגות בנפרד, רק בלחיצה, עם אזהרה. מידע, לא המלצה.
 - **מה אפשר לעשות כאן:** בעמוד הבית שלושה כרטיסים: בניית קואליציה, מציאת הקואליציות למפלגה, והשוואה בין שתי מפלגות.
-- **המלצות הסיעות לנשיא:** לכל סיעה בכנסת, את מי המליצה ומתי, עם קישור להודעה של לשכת הנשיא, והספירה שפרסמה הלשכה ב-7.11, כלשונה.
+- **המלצות הסיעות לנשיא:** לכל סיעה בכנסת, את מי המליצה ומתי, עם קישור להודעה של לשכת הנשיא, והספירה שפרסמה הלשכה ב-7.11, כלשונה. ב-8.11 הטיל הנשיא את הרכבת הממשלה על גדי איזנקוט, וגם ההודעה הזו מקושרת.
+- **עמוד "איך זה עובד":** בארבע קבוצות מתקפלות: איך מחושב, מקורות וכללים, הנתונים, ופרטיות ונגישות.
 - **הורדה ויומן שינויים:** כל 112 העמדות להורדה, ב-CSV וב-JSON, ורשימה ציבורית של שינויים בנתונים שמבקר באתר יבחין בהם, בעמוד "איך זה עובד".
 - **מנדטים לפי עמדה:** בגיליון של כל נושא, כמה מנדטים של חברות הקואליציה יש מתחת לכל תווית בסולם, וכמה בלי עמדה מוצהרת. תומכות ונמנעות לא נספרות.
 - **כוח הצבעה מתמטי:** בעמוד "איך זה עובד", מדד Banzhaf ומדד Shapley-Shubik לכל סיעה, לפי המנדטים בלבד, בלי להתחשב בעמדות, בקווים אדומים ובשאלה מי באמת תשב עם מי.
@@ -104,9 +107,27 @@
 | HTML, CSS ו-JavaScript (ES modules), בלי framework ובלי build | עמוד אחד עם כמה תצוגות. כ-130KB דחוס בטעינה הראשונה, כולל כל הנתונים, נטען מהר בטלפון, ואין שלב בנייה שיכול להישבר ביום הבחירות |
 | נתונים ב-JSON סטטי | אין שרת ואין מסד נתונים שיכולים ליפול. תיקון הוא עריכת קובץ ופריסה |
 | Netlify | פריסה בפקודה אחת, CDN, וכתובות טיוטה לבדיקה לפני פרודקשן |
-| `node --test` | יותר מ-170 בדיקות לאלגוריתם ולנתונים, כולל בדיקת סימטריה (היפוך כיוון הציר חייב לתת תוצאה זהה), בדיקה שהמנדטים מסתכמים ב-120, בדיקה מול חיפוש ממצה של הצירופים ל-61 ושל הקואליציות הקרובות למפלגה, בדיקות לשתי השפות, ובדיקה שאין נקודה-פסיק בטקסט העברי |
+| בדיקת טיפוסים: JSDoc ו-`tsc --noEmit` | בלי TypeScript ובלי build: הטיפוסים כתובים בהערות JSDoc, ו-`node --test` מריץ `tsc` בגרסה נעולה. הגדרה מחמירה למודולים הטהורים ולסקריפטים, והגדרה לדפדפן ל-`app.js` ולבדיקת ה-smoke ([#20](https://github.com/Lioo7/mi-im-mi/issues/20), [#53](https://github.com/Lioo7/mi-im-mi/issues/53)) |
+| `node --test` | יותר מ-200 בדיקות לאלגוריתם ולנתונים, כולל בדיקות יחידה ל-`compat.js` (החישובים ומצב הכתובת) ול-`html.js` (עזרי טקסט ו-HTML טהורים: escaping ובידוד כיווניות), כולל בדיקת סימטריה (היפוך כיוון הציר חייב לתת תוצאה זהה), בדיקה שהמנדטים מסתכמים ב-120, בדיקה מול חיפוש ממצה של הצירופים ל-61 ושל הקואליציות הקרובות למפלגה, בדיקות לשתי השפות, ובדיקה שאין נקודה-פסיק בטקסט העברי |
 | שתי שפות בלי ספרייה | `strings.js` ו-`strings.en.js` באותו מבנה, ושדות `en` ליד העברית בנתונים. בדיקה נכשלת אם חסר תרגום לאחת המחרוזות, `validate.mjs` נכשל אם חסר תרגום בנתונים, ובדיקת מילון מונחים רצה על שתי השפות |
 | בדיקת smoke עם Chrome headless | צילומי מסך ב-390 וב-1280 פיקסלים, בדיקת שגיאות, בדיקה ששורת המקור של המנדטים גלויה לפני המספרים (בתצוגת התוצאות: שורת ועדת הבחירות, ובתצוגת סקרים: ההסתייגות שנדרשת בחוק), בדיקה שמונה הכניסות לא מקבל נתוני קואליציה ושאף בקשה לשרת לא נושאת אותה, ובדיקה שמדיניות האבטחה (CSP) לא חוסמת כלום ושהאחסון לא מוסיף לדף סקריפט (התג של Netlify כבוי). כל התצוגות נבדקות גם באנגלית: כיוון ושפה, שאין טקסט עברי שלא תורגם, ואותם מספרים |
+
+### מהמחקר ועד הפריסה
+
+```mermaid
+flowchart LR
+  subgraph data["Data"]
+    direction TB
+    R["Research and verifier agents"] --> M["research/merged.json"] --> E["export-csv"] --> C["Review CSV (human review)"] --> I["import-csv (validates, shows the diff)"] --> D["site/data/*.json"]
+  end
+  subgraph checks["Checks and deploy"]
+    direction TB
+    T["node --test (also in CI)"] --> V["validate (also in CI)"] --> AX["axe"] --> LH["Lighthouse"] --> S["smoke, 3 modes"] --> DR["draft deploy + --light"] --> P["phone check"] --> PUB["publish: static site on Netlify"]
+  end
+  D --> T
+```
+
+<sub>הזרימה: העמדות עוברות מהמחקר (`research/merged.json`) ל-CSV לבדיקה אנושית, ונכנסות לנתונים של האתר רק דרך `import-csv`, שמאמת אותן. לפני כל פריסה: בדיקות, אימות, axe, Lighthouse ו-smoke בשלושת המצבים, ואז טיוטה, בדיקה בטלפון ופרסום של אותה טיוטה.</sub>
 
 ### הרצה מקומית
 
@@ -121,6 +142,8 @@ node scripts/axe.mjs [url]            # נגישות (axe-core, WCAG 2.x A/AA): 
 node scripts/lighthouse.mjs [url]     # ביצועים (Lighthouse) בקישור תוצאות משותף, בטלפון ובמחשב: CLS, והציון מול כתובת
 npm run media                         # צילומי המסך וההדגמה של ה-README, מחדש (ה-GIF דורש ffmpeg)
 ```
+
+ב-CI (GitHub Actions, בכל push ו-pull request ל-main) רצים `node --test`, כולל בדיקת הטיפוסים, ו-`validate.mjs`. בדיקות ה-smoke, axe ו-Lighthouse דורשות Chrome מקומי, ולכן הן רצות רק מקומית, לפני כל פריסה.
 
 `--mode=results|polls|hidden|all` בוחר מצב נתונים אחד או את שלושתם במקביל (השרת המקומי משנה את `meta.json` בזמן ההגשה).
 
@@ -163,11 +186,15 @@ axe ו-Lighthouse רצים דרך `npx` בגרסאות נעולות (ההורד�
 
 **Mi Im Mi ("Who With Whom")** is a neutral, mobile-first web app, in Hebrew with an English version, for Israel's Knesset election of 27 October 2026. Pick parties that might form a coalition, and see where their positions agree and where they clash.
 
-**Since 1 November it runs on the results:** seats from the Central Elections Committee's official results, submitted to the President on 4 November 2026. Each party can be marked as a member, an outside supporter or an abstainer (everyone else votes against). The app shows whether the government would win the investiture vote (for > against) in one line under the coalition's name ("67 seats · 6 above a majority", with the snapshot below about positions only), and, in its own card, how many members that result or the members' 61 depends on (the numbers without each party in a collapsed breakdown; an abstainer is checked as voting against), which red lines are crossed within the coalition (one line in the summary, also when there are none), the smallest sets of extra parties that would give the members alone 61 seats (fewest parties first, with the new head-on clashes and newly crossed red lines of each), the minimal 61-seat coalitions closest to one party's stated positions (a fixed order with no weights: its own red lines crossed, its head-on clashes, head-on clashes in the whole coalition, agreement, seats; coalitions with a partner silent on 3+ topics are listed apart, on request, with a warning), and how far supporters and abstainers are from the coalition (their head-on clashes are also counted in the share text). Four scenarios raised in the media (each with its source and date, and a party's denial with its source when there is one, named by composition only) replace the bloc presets. Positions are as documented on election eve.
+**Since 1 November it runs on the results:** seats from the Central Elections Committee's official results, submitted to the President on 4 November 2026. Four scenarios raised in the media (each with its source and date, and a party's denial with its source when there is one, named by composition only) replace the bloc presets. Positions are as documented on election eve.
 
 **Also on the site.**
+- **Roles and the investiture vote:** clashes are checked between members only, and supporters' and abstainers' gaps are shown apart. For = members and supporters, against = everyone else except abstainers, and the government wins when for > against. The "Seats and the confidence vote" card shows how many members the majority depends on. The details are on the [About page](https://mi-im-mi-2026.netlify.app/#method).
+- **What's missing for 61:** the smallest sets of extra parties that would give the members alone 61 seats, fewest parties first, each with its new head-on clashes and newly crossed red lines. Information, not a recommendation.
+- **The coalitions closest to a party's positions:** the minimal 61-seat coalitions that include it, in a fixed order with no weights (its own red lines crossed, its head-on clashes, head-on clashes in the whole coalition, agreement, seats). Coalitions with a partner silent on 3+ topics are listed apart, on request, with a warning. Information, not a recommendation.
 - **What you can do here:** three cards on the home page: build a coalition, find the coalitions for a party, compare two parties.
-- **Recommendations to the President:** whom each Knesset faction recommended and when, linked to the President's Office announcement, and the tally the Office published on 7 November, verbatim.
+- **Recommendations to the President:** whom each Knesset faction recommended and when, linked to the President's Office announcement, and the tally the Office published on 7 November, verbatim. On 8 November the President tasked Gadi Eisenkot with forming the government, and that announcement is linked too.
+- **About page:** in four collapsible groups: how it's calculated, sources and rules, the data, privacy and accessibility.
 - **Download and changelog:** all 112 positions as CSV and JSON, and a public list of the data changes a visitor would notice, on the About page.
 - **Seats by position:** in each topic's sheet, how many of the coalition members' seats sit at each label of the scale, and how many have no stated position. Supporters and abstainers are not counted.
 - **Mathematical voting power:** on the About page, the Banzhaf and Shapley-Shubik indices for each faction, from seats alone, ignoring positions, red lines and who will actually sit together.
@@ -202,7 +229,7 @@ axe ו-Lighthouse רצים דרך `npx` בגרסאות נעולות (ההורד�
   - 1 = minor gap
   - 2 = substantial gap
   - ≥3, or 2 when a party has declared a red line = head-on clash
-- **Red lines:** marked only when a party said in its own words that it would not join a government without the topic (5 cases).
+- **Red lines:** marked only when a party said in its own words that it would not join a government without the topic (5 cases). The cell's sheet shows, under the 🚩, the party's own words with attribution and a link to the source ([#49](https://github.com/Lioo7/mi-im-mi/issues/49)). The summary counts the red lines crossed within the coalition, or says there are none.
 - **No overall score:** there are no per-pair judgment calls and no single number.
 
 **Neutrality and verification.**
@@ -222,9 +249,13 @@ axe ו-Lighthouse רצים דרך `npx` בגרסאות נעולות (ההורד�
 - human checkpoints throughout
 - about 50 commits up to the election-day version, over 200 to date
 
-**Stack.** Static vanilla JS with no build step (about 130KB gzipped on first load, including all data), JSON data, Netlify, `node --test` (over 170 tests, including mirror-symmetry tests, a 120-seat check, brute-force checks of the completions to 61 and of the closest coalitions to a party, a test that fails on any missing translation, a glossary test for both languages, a test that keeps semicolons out of the Hebrew text, and a code scan that every seat-bearing string is gated), bilingual with no i18n library (two string files with the same shape, `en` fields next to the Hebrew data), a full Content-Security-Policy, and a headless-Chrome smoke test that also checks that the page-view beacon and every request to the site carry no coalition data, that the CSP blocks nothing and the host injects no script (Netlify's badge is off), and that the line explaining the seat numbers comes before them: the results source line in results mode, the legally required poll disclaimer in polls mode. Every view is also checked in English: direction and language, no untranslated Hebrew, and the same numbers.
+**Stack.** Static vanilla JS with no build step (about 130KB gzipped on first load, including all data), JSON data, Netlify, a type-check with no TypeScript in the code (JSDoc types, `tsc --noEmit` at a pinned version run by `node --test`: strict for the pure modules and the scripts, a browser config for `app.js` and the smoke harness; [#20](https://github.com/Lioo7/mi-im-mi/issues/20), [#53](https://github.com/Lioo7/mi-im-mi/issues/53)), `node --test` (over 200 tests, including unit tests for `compat.js` (the calculations and URL state) and `html.js` (pure text and HTML helpers: escaping, bidi isolation), mirror-symmetry tests, a 120-seat check, brute-force checks of the completions to 61 and of the closest coalitions to a party, a test that fails on any missing translation, a glossary test for both languages, a test that keeps semicolons out of the Hebrew text, and a code scan that every seat-bearing string is gated), bilingual with no i18n library (two string files with the same shape, `en` fields next to the Hebrew data), a full Content-Security-Policy, and a headless-Chrome smoke test that also checks that the page-view beacon and every request to the site carry no coalition data, that the CSP blocks nothing and the host injects no script (Netlify's badge is off), and that the line explaining the seat numbers comes before them: the results source line in results mode, the legally required poll disclaimer in polls mode. Every view is also checked in English: direction and language, no untranslated Hebrew, and the same numbers.
 
-**Testing.** `node --test` (unit), `node scripts/validate.mjs` (data), and `node scripts/smoke.mjs [url]`, a headless-Chrome run of every view in both languages:
+**Architecture.** The flowchart under [מהמחקר ועד הפריסה](#מהמחקר-ועד-הפריסה) (labels in English): positions go from the research (`research/merged.json`) to a CSV for human review, and enter the site's data only through `import-csv`, which validates them. Before every deploy: tests, validation, axe, Lighthouse and the smoke in three modes, then a draft, a phone check, and publishing that same draft.
+
+**Testing.** CI (GitHub Actions, on every push and pull request to main) runs `node --test`, with the type-check, and `node scripts/validate.mjs`. The smoke, axe and Lighthouse runs need a local Chrome, so they run locally only, before every deploy.
+
+Locally: `node --test` (unit), `node scripts/validate.mjs` (data), and `node scripts/smoke.mjs [url]`, a headless-Chrome run of every view in both languages:
 - `--only=<sections>`: just the parts a change touches (a wrong name lists them)
 - `--mode=results|polls|hidden|all`: one data mode, or all three in parallel (the local server overrides `meta.json`)
 - `--light`: the check against a deploy: every file served byte for byte, every header, the views at phone width
