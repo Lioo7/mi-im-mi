@@ -1,19 +1,22 @@
 {
   "consultations": {"from": "2026-11-04", "to": "2026-11-05"},
   "mandate": {
-    "kind": "announced",
+    "kind": "tasked",
     "partyId": "yashar",
-    "date": "2026-11-07",
+    "date": "2026-11-08",
     "quote": "בתום סבב ההתייעצויות המליצו בפני נשיא המדינה סיעות הכוללות 67 חברי כנסת על יו״ר מפלגת ׳ישר׳, גדי איזנקוט, להרכבת הממשלה. סיעות הכוללות 46 חברי כנסת המליצו על ראש הממשלה ויו״ר ׳הליכוד׳, ח״כ בנימין נתניהו, וסיעה שכוללת שבעה חברי כנסת בחרו שלא להמליץ על אף אחד.",
     "counts": {
       "yashar": 67,
       "likud": 46,
       "none": 7
     },
-    "sourceUrl": "https://www.president.gov.il/%D7%A0%D7%A9%D7%99%D7%90-%D7%94%D7%9E%D7%93%D7%99%D7%A0%D7%94-%D7%A1%D7%99%D7%99%D7%9D-%D7%90%D7%AA-%D7%A1%D7%91%D7%91-%D7%94%D7%94%D7%AA%D7%99%D7%99%D7%A2%D7%A6%D7%95%D7%99%D7%95%D7%AA-%D7%95%D7%94/",
+    "sourceUrl": "https://www.president.gov.il/%D7%A0%D7%A9%D7%99%D7%90-%D7%94%D7%9E%D7%93%D7%99%D7%A0%D7%94-%D7%94%D7%98%D7%99%D7%9C-%D7%90%D7%AA-%D7%9E%D7%9C%D7%90%D7%9B%D7%AA-%D7%94%D7%A8%D7%9B%D7%91%D7%AA-%D7%94%D7%9E%D7%9E%D7%A9%D7%9C%D7%94/",
+    "tallyDate": "2026-11-07",
+    "tallySourceUrl": "https://www.president.gov.il/%D7%A0%D7%A9%D7%99%D7%90-%D7%94%D7%9E%D7%93%D7%99%D7%A0%D7%94-%D7%A1%D7%99%D7%99%D7%9D-%D7%90%D7%AA-%D7%A1%D7%91%D7%91-%D7%94%D7%94%D7%AA%D7%99%D7%99%D7%A2%D7%A6%D7%95%D7%99%D7%95%D7%AA-%D7%95%D7%94/",
     "en": {
       "quote": "During the round of consultations, factions totaling 67 members of Knesset recommended to President Herzog that Yashar Leader Gadi Eisenkot be tasked with forming the government. Factions totaling 46 members of Knesset recommended Prime Minister and Likud Leader Benjamin Netanyahu MK, and one faction of seven members of Knesset chose not to recommend anyone.",
-      "sourceUrl": "https://www.president.gov.il/en/president-herzog-concludes-consultations-and-announces-he-will-task-gadi-eisenkot-with-forming-a-government/"
+      "sourceUrl": "https://www.president.gov.il/en/president-herzog-tasks-gadi-eisenkot-with-forming-a-government/",
+      "tallySourceUrl": "https://www.president.gov.il/en/president-herzog-concludes-consultations-and-announces-he-will-task-gadi-eisenkot-with-forming-a-government/"
     }
   },
   "factions": [

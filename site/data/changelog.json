@@ -1,6 +1,12 @@
 {
-  "reviewed": "82ca8d5bd7bc8ec1bf523cee18e93f82d79f18dbc0369caab6bebc3198433134",
+  "reviewed": "c278e1a609700cb4dde100aa8a5a1ad4801ff48453513528077ce27f7c4b479b",
   "entries": [
+    {
+      "date": "2026-11-12",
+      "kind": "recommendations",
+      "he": "בגיליון המלצות הסיעות, ההודעה של הנשיא מ-7.11 הוחלפה בהודעה מ-8.11, שבה הטיל על יו״ר {party:yashar} את מלאכת הרכבת הממשלה. הציטוט של ספירת ההמלצות נשאר מההודעה של 7.11, עם קישור אליה.",
+      "en": "In the factions' recommendations sheet, the President's 7 Nov announcement was replaced by his 8 Nov release, in which he tasked the {party:yashar} chairman with forming the government. The quote with the count of recommendations stays from the 7 Nov release, with a link to it."
+    },
     {
       "date": "2026-11-11",
       "kind": "sources",
